@@ -19,6 +19,8 @@ function getCellValue(turn: CodedTurn, key: ColumnKey): string {
       return String(turn.wordCount);
     case "category":
       return escapeCsvField(turn.category);
+    case "rationale":
+      return escapeCsvField(turn.rationale);
     case "startTime":
       return turn.startTime.toFixed(3);
     case "endTime":

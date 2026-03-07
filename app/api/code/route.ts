@@ -1,5 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { SpeakingTurn, CodedTurn } from "@/lib/types";
+import { SpeakingTurn, CodedTurn, CategoryDefinition } from "@/lib/types";
+import { buildSystemPrompt, buildUserMessage } from "./prompts";
+
+const CONCURRENCY = 5;
 
 export async function POST(request: Request) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -10,10 +13,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const { turns, model, threshold = 50 } = (await request.json()) as {
+  const { turns, model, categories, contextWindow = 5 } = (await request.json()) as {
     turns: SpeakingTurn[];
     model: string;
-    threshold?: number;
+    categories: CategoryDefinition[];
+    contextWindow?: number;
   };
 
   if (!turns || !Array.isArray(turns) || turns.length === 0) {
@@ -23,73 +27,93 @@ export async function POST(request: Request) {
     );
   }
 
-  const client = new Anthropic({ apiKey });
-  const batchSize = 5;
-  const batches: SpeakingTurn[][] = [];
-  for (let i = 0; i < turns.length; i += batchSize) {
-    batches.push(turns.slice(i, i + batchSize));
+  if (!categories || !Array.isArray(categories) || categories.length < 2) {
+    return new Response(
+      JSON.stringify({ error: "At least 2 categories are required" }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
+    );
   }
+
+  const validCategoryNames = new Set(categories.map((c) => c.name));
+
+  const client = new Anthropic({ apiKey });
+  const systemPrompt = buildSystemPrompt(categories);
+
+  const tool: Anthropic.Tool = {
+    name: "code_exchange",
+    description: "Categorize a speaking turn and provide a rationale.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        category: {
+          type: "string",
+          enum: categories.map((c) => c.name),
+        },
+        rationale: { type: "string" },
+      },
+      required: ["category", "rationale"],
+    },
+  };
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
       try {
         let completed = 0;
+        const total = turns.length;
 
-        for (const batch of batches) {
-          const turnsDescription = batch
-            .map(
-              (t) =>
-                `Turn ${t.turnNumber}: Speaker="${t.speaker}", WordCount=${t.wordCount}, Text="${t.text}"`
-            )
-            .join("\n");
+        async function processTurn(turn: SpeakingTurn): Promise<CodedTurn> {
+          const contextStart = Math.max(0, turn.turnNumber - 1 - contextWindow);
+          const contextEnd = turn.turnNumber - 1;
+          const contextTurns = turns.slice(contextStart, contextEnd);
+
+          const userMessage = buildUserMessage(contextTurns, turn);
 
           const message = await client.messages.create({
             model,
-            max_tokens: 1024,
-            messages: [
-              {
-                role: "user",
-                content: `You are a conversation coding assistant. For each speaking turn below, categorize it as either "Long Turn (>${threshold} words)" if wordCount > ${threshold}, or "Short Turn (<=${threshold} words)" if wordCount <= ${threshold}.
-
-Return ONLY a JSON array of objects with "turnNumber" (number) and "category" (string). No other text.
-
-${turnsDescription}`,
-              },
-            ],
+            max_tokens: 300,
+            system: systemPrompt,
+            messages: [{ role: "user", content: userMessage }],
+            tools: [tool],
+            tool_choice: { type: "tool", name: "code_exchange" },
           });
 
-          const content = message.content[0];
-          if (content.type !== "text") throw new Error("Unexpected response type");
+          const toolBlock = message.content.find(
+            (b): b is Anthropic.ToolUseBlock => b.type === "tool_use"
+          );
 
-          let categories: { turnNumber: number; category: string }[];
-          try {
-            categories = JSON.parse(content.text);
-          } catch {
-            const match = content.text.match(/\[[\s\S]*\]/);
-            if (!match) throw new Error("Could not parse model response");
-            categories = JSON.parse(match[0]);
+          if (toolBlock) {
+            const input = toolBlock.input as { category: string; rationale: string };
+            if (validCategoryNames.has(input.category)) {
+              return { ...turn, category: input.category, rationale: input.rationale };
+            }
           }
 
-          const codedTurns: CodedTurn[] = batch.map((turn) => {
-            const cat = categories.find((c) => c.turnNumber === turn.turnNumber);
-            return {
-              ...turn,
-              category: cat?.category ?? (turn.wordCount > threshold ? `Long Turn (>${threshold} words)` : `Short Turn (<=${threshold} words)`),
-            };
-          });
-
-          completed += batch.length;
-
-          controller.enqueue(
-            encoder.encode(`event: batch\ndata: ${JSON.stringify({ codedTurns })}\n\n`)
-          );
-          controller.enqueue(
-            encoder.encode(
-              `event: progress\ndata: ${JSON.stringify({ completed, total: turns.length })}\n\n`
-            )
-          );
+          return { ...turn, category: "error", rationale: "Failed to parse model response" };
         }
+
+        // Process with concurrency pool
+        let index = 0;
+
+        async function runNext(): Promise<void> {
+          while (index < total) {
+            const currentIndex = index++;
+            const codedTurn = await processTurn(turns[currentIndex]);
+
+            completed++;
+            controller.enqueue(
+              encoder.encode(`event: result\ndata: ${JSON.stringify({ codedTurn })}\n\n`)
+            );
+            controller.enqueue(
+              encoder.encode(
+                `event: progress\ndata: ${JSON.stringify({ completed, total })}\n\n`
+              )
+            );
+          }
+        }
+
+        const workers = Array.from({ length: Math.min(CONCURRENCY, total) }, () => runNext());
+        await Promise.all(workers);
 
         controller.enqueue(encoder.encode("event: done\ndata: {}\n\n"));
         controller.close();

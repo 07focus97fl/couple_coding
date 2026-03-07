@@ -2,14 +2,23 @@
 
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { FileUpload } from "./components/FileUpload";
 import { ModelSelector } from "./components/ModelSelector";
+import { CodingSchemeSelector } from "./components/CodingSchemeSelector";
 import { ResultsTable } from "./components/ResultsTable";
 import { parseTranscript } from "@/lib/parse-transcript";
-import { RawTranscript, SpeakingTurn, CodedTurn, DEFAULT_WORD_COUNT_THRESHOLD } from "@/lib/types";
+import {
+  RawTranscript,
+  SpeakingTurn,
+  CodedTurn,
+  CategoryDefinition,
+  CODING_SCHEMES,
+  DEFAULT_CONTEXT_WINDOW,
+} from "@/lib/types";
 
 export default function CodingPage() {
   const [turns, setTurns] = useState<SpeakingTurn[]>([]);
@@ -18,7 +27,27 @@ export default function CodingPage() {
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState({ completed: 0, total: 0 });
   const [error, setError] = useState<string | null>(null);
-  const [wordCountThreshold, setWordCountThreshold] = useState(DEFAULT_WORD_COUNT_THRESHOLD);
+  const [schemeId, setSchemeId] = useState<string | null>(null);
+  const [categories, setCategories] = useState<CategoryDefinition[]>([]);
+  const [contextWindow, setContextWindow] = useState(DEFAULT_CONTEXT_WINDOW);
+
+  const handleSchemeChange = useCallback(
+    (id: string) => {
+      setSchemeId(id);
+      const scheme = CODING_SCHEMES.find((s) => s.id === id);
+      if (scheme) {
+        setCategories(scheme.categories);
+      }
+    },
+    []
+  );
+
+  const STEPS = ["upload", "model", "configure", "run"] as const;
+  type Step = (typeof STEPS)[number];
+  const [activeTab, setActiveTab] = useState<Step>("upload");
+  const stepIndex = STEPS.indexOf(activeTab);
+  const isFirst = stepIndex === 0;
+  const isLast = stepIndex === STEPS.length - 1;
 
   const handleTranscriptLoaded = useCallback((transcript: RawTranscript) => {
     const parsed = parseTranscript(transcript.words);
@@ -38,7 +67,12 @@ export default function CodingPage() {
       const response = await fetch("/api/code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ turns, model: selectedModel, threshold: wordCountThreshold }),
+        body: JSON.stringify({
+          turns,
+          model: selectedModel,
+          categories,
+          contextWindow,
+        }),
       });
 
       if (!response.ok) {
@@ -66,9 +100,9 @@ export default function CodingPage() {
             eventType = line.slice(7);
           } else if (line.startsWith("data: ")) {
             const data = line.slice(6);
-            if (eventType === "batch") {
-              const { codedTurns: batch } = JSON.parse(data);
-              setCodedTurns((prev) => [...prev, ...batch]);
+            if (eventType === "result") {
+              const { codedTurn } = JSON.parse(data);
+              setCodedTurns((prev) => [...prev, codedTurn]);
             } else if (eventType === "progress") {
               setProgress(JSON.parse(data));
             } else if (eventType === "error") {
@@ -89,6 +123,8 @@ export default function CodingPage() {
   const progressPercent =
     progress.total > 0 ? (progress.completed / progress.total) * 100 : 0;
 
+  const sortedCodedTurns = [...codedTurns].sort((a, b) => a.turnNumber - b.turnNumber);
+
   return (
     <div className="min-h-screen bg-[var(--background)]">
       {/* Subtle top accent line */}
@@ -105,22 +141,37 @@ export default function CodingPage() {
               Couple Conversation Coder
             </h1>
             <p className="text-muted-foreground text-sm max-w-lg">
-              Upload a word-level transcript, select a model, and automatically
-              code each speaking turn.
+              Upload a word-level transcript, configure valence categories, and
+              automatically code each speaking turn.
             </p>
           </div>
         </header>
 
-        {/* Pipeline steps */}
-        <div className="grid gap-6 md:grid-cols-[1fr_280px] mb-10">
-          {/* Upload */}
-          <div>
-            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
-              1 &middot; Transcript
-            </label>
+        {/* Tab-based pipeline */}
+        <Tabs
+          value={activeTab}
+          onValueChange={(val) => setActiveTab(val as Step)}
+          className="mb-10"
+        >
+          <TabsList className="h-auto p-1">
+            <TabsTrigger value="upload" className="px-4 py-2">
+              1. Upload
+            </TabsTrigger>
+            <TabsTrigger value="model" className="px-4 py-2">
+              2. Model
+            </TabsTrigger>
+            <TabsTrigger value="configure" className="px-4 py-2">
+              3. Configure
+            </TabsTrigger>
+            <TabsTrigger value="run" className="px-4 py-2">
+              4. Run
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="upload" className="mt-6">
             <FileUpload onTranscriptLoaded={handleTranscriptLoaded} />
             {turns.length > 0 && (
-              <p className="text-sm text-muted-foreground mt-2">
+              <p className="text-sm text-muted-foreground mt-3">
                 Parsed{" "}
                 <span className="font-semibold text-foreground">
                   {turns.length}
@@ -128,84 +179,125 @@ export default function CodingPage() {
                 speaking turns
               </p>
             )}
-          </div>
+          </TabsContent>
 
-          {/* Model + Configure + Action */}
-          <div className="flex flex-col gap-4">
-            <div>
+          <TabsContent value="model" className="mt-6">
+            <div className="max-w-sm">
               <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
-                2 &middot; Model
+                Select Model
               </label>
               <ModelSelector
                 value={selectedModel}
                 onValueChange={setSelectedModel}
               />
             </div>
+          </TabsContent>
 
-            <div>
-              <label
-                htmlFor="threshold"
-                className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block"
-              >
-                3 &middot; Configure
-              </label>
-              <Input
-                id="threshold"
-                type="number"
-                min={1}
-                value={wordCountThreshold}
-                onChange={(e) => {
-                  const num = parseInt(e.target.value, 10);
-                  if (!isNaN(num) && num > 0) setWordCountThreshold(num);
-                }}
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Word count threshold for &quot;Long Turn&quot;
-              </p>
+          <TabsContent value="configure" className="mt-6">
+            <div className="space-y-6 max-w-2xl">
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
+                  Coding Scheme
+                </label>
+                <CodingSchemeSelector
+                  schemeId={schemeId}
+                  onSchemeChange={handleSchemeChange}
+                  categories={categories}
+                  onCategoriesChange={setCategories}
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="contextWindow"
+                  className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block"
+                >
+                  Context Window
+                </label>
+                <Input
+                  id="contextWindow"
+                  type="number"
+                  min={0}
+                  max={20}
+                  value={contextWindow}
+                  onChange={(e) => {
+                    const num = parseInt(e.target.value, 10);
+                    if (!isNaN(num) && num >= 0) setContextWindow(num);
+                  }}
+                  className="max-w-[8rem]"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Number of prior turns to include as context for each coding decision.
+                </p>
+              </div>
             </div>
+          </TabsContent>
 
-            <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
-                4 &middot; Run
-              </label>
+          <TabsContent value="run" className="mt-6">
+            <div className="space-y-4 max-w-sm">
               <Button
                 className="w-full"
                 size="lg"
-                disabled={turns.length === 0 || loading}
+                disabled={turns.length === 0 || loading || schemeId === null}
                 onClick={handleCode}
               >
                 {loading ? "Coding..." : "Code Turns"}
               </Button>
-            </div>
-          </div>
-        </div>
 
-        {/* Progress */}
-        {loading && (
-          <Card className="mb-8 border-amber-200 dark:border-amber-900/50">
-            <CardContent className="py-5">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium">Coding exchanges&hellip;</p>
-                <p className="text-sm text-muted-foreground font-mono">
-                  {progress.completed} / {progress.total}
+              {schemeId === null && (
+                <p className="text-sm text-muted-foreground">
+                  Select a coding scheme in Configure first.
                 </p>
-              </div>
-              <Progress value={progressPercent} className="h-2" />
-            </CardContent>
-          </Card>
-        )}
+              )}
 
-        {/* Error */}
-        {error && (
-          <Card className="mb-8 border-destructive/50 bg-destructive/5">
-            <CardContent className="py-4">
-              <p className="text-sm text-destructive font-medium">{error}</p>
-            </CardContent>
-          </Card>
-        )}
+              {loading && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium">Coding exchanges&hellip;</p>
+                    <p className="text-sm text-muted-foreground font-mono">
+                      {progress.completed} / {progress.total}
+                    </p>
+                  </div>
+                  <Progress value={progressPercent} className="h-2" />
+                </div>
+              )}
+
+              {error && (
+                <p className="text-sm text-destructive font-medium">{error}</p>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Navigation buttons */}
+          <div className="flex items-center justify-between mt-6 pt-4 border-t">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isFirst}
+              onClick={() => setActiveTab(STEPS[stepIndex - 1])}
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Back
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Step {stepIndex + 1} of {STEPS.length}
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isLast}
+              onClick={() => setActiveTab(STEPS[stepIndex + 1])}
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        </Tabs>
 
         {/* Results */}
-        {codedTurns.length > 0 && <ResultsTable codedTurns={codedTurns} />}
+        {sortedCodedTurns.length > 0 && (
+          <ResultsTable codedTurns={sortedCodedTurns} />
+        )}
       </div>
     </div>
   );
