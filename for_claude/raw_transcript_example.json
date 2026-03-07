@@ -1,0 +1,195 @@
+{
+  "language_code": "eng",
+  "language_probability": 0.9741601347923279,
+  "text": "So we're about to spend eight minutes together. Um- Well, there's a",
+  "words": [
+    {
+      "text": "So",
+      "start": 0.14,
+      "end": 0.219,
+      "type": "word",
+      "speaker_id": "speaker_0",
+      "characters": null
+    },
+    {
+      "text": " ",
+      "start": 0.219,
+      "end": 0.239,
+      "type": "spacing",
+      "speaker_id": "speaker_0",
+      "characters": null
+    },
+    {
+      "text": "we're",
+      "start": 0.239,
+      "end": 0.34,
+      "type": "word",
+      "speaker_id": "speaker_0",
+      "characters": null
+    },
+    {
+      "text": " ",
+      "start": 0.34,
+      "end": 0.34,
+      "type": "spacing",
+      "speaker_id": "speaker_0",
+      "characters": null
+    },
+    {
+      "text": "about",
+      "start": 0.34,
+      "end": 0.5,
+      "type": "word",
+      "speaker_id": "speaker_0",
+      "characters": null
+    },
+    {
+      "text": " ",
+      "start": 0.5,
+      "end": 0.56,
+      "type": "spacing",
+      "speaker_id": "speaker_0",
+      "characters": null
+    },
+    {
+      "text": "to",
+      "start": 0.56,
+      "end": 0.56,
+      "type": "word",
+      "speaker_id": "speaker_0",
+      "characters": null
+    },
+    {
+      "text": " ",
+      "start": 0.56,
+      "end": 0.579,
+      "type": "spacing",
+      "speaker_id": "speaker_0",
+      "characters": null
+    },
+    {
+      "text": "spend",
+      "start": 0.579,
+      "end": 0.799,
+      "type": "word",
+      "speaker_id": "speaker_0",
+      "characters": null
+    },
+    {
+      "text": " ",
+      "start": 0.799,
+      "end": 0.859,
+      "type": "spacing",
+      "speaker_id": "speaker_0",
+      "characters": null
+    },
+    {
+      "text": "eight",
+      "start": 0.859,
+      "end": 1.059,
+      "type": "word",
+      "speaker_id": "speaker_0",
+      "characters": null
+    },
+    {
+      "text": " ",
+      "start": 1.059,
+      "end": 1.079,
+      "type": "spacing",
+      "speaker_id": "speaker_0",
+      "characters": null
+    },
+    {
+      "text": "minutes",
+      "start": 1.079,
+      "end": 1.339,
+      "type": "word",
+      "speaker_id": "speaker_0",
+      "characters": null
+    },
+    {
+      "text": " ",
+      "start": 1.339,
+      "end": 1.379,
+      "type": "spacing",
+      "speaker_id": "speaker_0",
+      "characters": null
+    },
+    {
+      "text": "together.",
+      "start": 1.379,
+      "end": 2.2,
+      "type": "word",
+      "speaker_id": "speaker_0",
+      "characters": null
+    },
+    {
+      "text": " ",
+      "start": 2.2,
+      "end": 3.72,
+      "type": "spacing",
+      "speaker_id": "speaker_0",
+      "characters": null
+    },
+    {
+      "text": "Um-",
+      "start": 3.72,
+      "end": 8.819,
+      "type": "word",
+      "speaker_id": "speaker_0",
+      "characters": null
+    },
+    {
+      "text": " ",
+      "start": 8.819,
+      "end": 8.819,
+      "type": "spacing",
+      "speaker_id": "speaker_0",
+      "characters": [
+        {
+          "text": " ",
+          "start": 8.819,
+          "end": 8.819
+        }
+      ]
+    },
+    {
+      "text": "Well,",
+      "start": 8.819,
+      "end": 8.92,
+      "type": "word",
+      "speaker_id": "speaker_1",
+      "characters": null
+    },
+    {
+      "text": " ",
+      "start": 8.92,
+      "end": 8.939,
+      "type": "spacing",
+      "speaker_id": "speaker_1",
+      "characters": null
+    },
+    {
+      "text": "there's",
+      "start": 8.939,
+      "end": 9.139,
+      "type": "word",
+      "speaker_id": "speaker_1",
+      "characters": null
+    },
+    {
+      "text": " ",
+      "start": 9.139,
+      "end": 9.159,
+      "type": "spacing",
+      "speaker_id": "speaker_1",
+      "characters": null
+    },
+    {
+      "text": "a",
+      "start": 9.159,
+      "end": 9.179,
+      "type": "word",
+      "speaker_id": "speaker_1",
+      "characters": null
+    },
