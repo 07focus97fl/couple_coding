@@ -55,7 +55,9 @@ function readJsonFile(file: File): Promise<{ fileName: string; transcript: RawTr
 
 export default function CodingPage() {
   const [step, setStep] = useState(0);
+  const [uploadMode, setUploadMode] = useState<"audio" | "transcript">("audio");
   const [files, setFiles] = useState<TranscriptFile[]>([]);
+  const [audioFiles, setAudioFiles] = useState<File[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState("");
@@ -64,13 +66,14 @@ export default function CodingPage() {
   const [contextWindow, setContextWindow] = useState(DEFAULT_CONTEXT_WINDOW);
   const [openResults, setOpenResults] = useState<Record<string, boolean>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
 
   const hasFiles = files.length > 0;
   const isAnyCoding = files.some((f) => f.status === "coding");
   const anySelected = files.some((f) => f.selected);
 
   const canAdvance = () => {
-    if (step === 0) return hasFiles;
+    if (step === 0) return uploadMode === "audio" ? audioFiles.length > 0 : hasFiles;
     if (step === 1) return selectedModel !== "";
     if (step === 2) return schemeId !== null;
     return true;
@@ -109,6 +112,40 @@ export default function CodingPage() {
     setDragOver(false);
     if (e.dataTransfer.files.length > 0) processFiles(e.dataTransfer.files);
   }, [processFiles]);
+
+  const handleAudioDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    setUploadError(null);
+    const added = Array.from(e.dataTransfer.files).filter((f) =>
+      /\.(mp3|mp4|wav)$/i.test(f.name)
+    );
+    if (added.length === 0) {
+      setUploadError("Only MP3, MP4, or WAV files are accepted.");
+      return;
+    }
+    setAudioFiles((prev) => [...prev, ...added]);
+  }, []);
+
+  const processAudioInput = useCallback((fileList: FileList) => {
+    setUploadError(null);
+    const added = Array.from(fileList).filter((f) =>
+      /\.(mp3|mp4|wav)$/i.test(f.name)
+    );
+    if (added.length === 0) {
+      setUploadError("Only MP3, MP4, or WAV files are accepted.");
+      return;
+    }
+    setAudioFiles((prev) => [...prev, ...added]);
+  }, []);
+
+  const removeAudioFile = (index: number) => setAudioFiles((prev) => prev.filter((_, i) => i !== index));
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
 
   const removeFile = (id: string) => setFiles((prev) => prev.filter((f) => f.id !== id));
   const toggleFile = (id: string) => setFiles((prev) => prev.map((f) => f.id === id ? { ...f, selected: !f.selected } : f));
@@ -322,13 +359,13 @@ export default function CodingPage() {
           <div className={s.header}>
             <div className={s.headerLabel}>Step {step + 1} of {STEP_LABELS.length}</div>
             <h1 className={s.headerTitle}>
-              {step === 0 && "Upload transcript"}
+              {step === 0 && "Upload files"}
               {step === 1 && "Choose model"}
               {step === 2 && "Configure coding"}
               {step === 3 && "Run & review"}
             </h1>
             <p className={s.headerDesc}>
-              {step === 0 && "Drop your word-level JSON transcript. Speaker turns will be segmented automatically."}
+              {step === 0 && "Choose your input type and upload files."}
               {step === 1 && "Select the Claude model for coding. Higher-tier models give more nuanced rationales."}
               {step === 2 && "Pick a validated coding scheme and set the context window for conversational dynamics."}
               {step === 3 && "Code selected transcripts — each turn is analyzed with a transparent rationale."}
@@ -338,66 +375,171 @@ export default function CodingPage() {
           {/* ── STEP 0: Upload ── */}
           {step === 0 && (
             <div className={s.fadeIn}>
-              <div
-                className={`${s.dropzone} ${dragOver ? s.dropzoneActive : ""} ${hasFiles ? s.dropzoneHasFiles : ""}`}
-                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".json"
-                  multiple
-                  style={{ display: "none" }}
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files.length > 0) processFiles(e.target.files);
-                    e.target.value = "";
-                  }}
-                />
-                <div className={s.dropIcon}>
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#c45d3e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                    <polyline points="17 8 12 3 7 8" />
-                    <line x1="12" y1="3" x2="12" y2="15" />
-                  </svg>
-                </div>
-                <div className={s.dropTitle}>
-                  {hasFiles ? "Files loaded — drop more to add" : "Drop transcript files here"}
-                </div>
-                <div className={s.dropSub}>Word-level JSON — or click to browse</div>
-                {uploadError && <div className={s.dropError}>{uploadError}</div>}
+              {/* Mode selection cards */}
+              <div className={s.uploadModeCards}>
+                <button
+                  className={`${s.uploadModeCard} ${uploadMode === "audio" ? s.uploadModeCardSelected : ""}`}
+                  onClick={() => setUploadMode("audio")}
+                >
+                  <div className={s.uploadModeIcon}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c45d3e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" />
+                      <path d="M19 10v2a7 7 0 01-14 0v-2" />
+                      <line x1="12" y1="19" x2="12" y2="23" />
+                      <line x1="8" y1="23" x2="16" y2="23" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className={s.uploadModeName}>Upload audio/video</div>
+                    <div className={s.uploadModeDesc}>Upload MP3 or MP4 files. They&apos;ll be sent to ElevenLabs for transcription.</div>
+                  </div>
+                </button>
+                <button
+                  className={`${s.uploadModeCard} ${uploadMode === "transcript" ? s.uploadModeCardSelected : ""}`}
+                  onClick={() => setUploadMode("transcript")}
+                >
+                  <div className={s.uploadModeIcon}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c45d3e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className={s.uploadModeName}>I already have transcripts</div>
+                    <div className={s.uploadModeDesc}>Upload word-level JSON transcripts (e.g. from ElevenLabs).</div>
+                  </div>
+                </button>
               </div>
 
-              {files.length > 0 && (
-                <div className={s.fileList}>
-                  {files.map((f) => (
-                    <div key={f.id} className={s.fileItem}>
-                      <input
-                        type="checkbox"
-                        className={s.fileCheckbox}
-                        checked={f.selected}
-                        onChange={() => toggleFile(f.id)}
-                      />
-                      <div className={s.fileIcon}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c45d3e" strokeWidth="2">
-                          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-                          <polyline points="14 2 14 8 20 8" />
-                        </svg>
-                      </div>
-                      <span className={`${s.fileName} ${!f.selected ? s.fileNameDeselected : ""}`}>
-                        {f.fileName}
-                      </span>
-                      <button
-                        className={s.fileRemove}
-                        onClick={(e) => { e.stopPropagation(); removeFile(f.id); }}
-                      >
-                        x
-                      </button>
+              {/* Audio/video dropzone */}
+              {uploadMode === "audio" && (
+                <>
+                  <div
+                    className={`${s.dropzone} ${dragOver ? s.dropzoneActive : ""} ${audioFiles.length > 0 ? s.dropzoneHasFiles : ""}`}
+                    onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={handleAudioDrop}
+                    onClick={() => audioInputRef.current?.click()}
+                  >
+                    <input
+                      ref={audioInputRef}
+                      type="file"
+                      accept=".mp3,.mp4,.wav"
+                      multiple
+                      style={{ display: "none" }}
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files.length > 0) processAudioInput(e.target.files);
+                        e.target.value = "";
+                      }}
+                    />
+                    <div className={s.dropIcon}>
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#c45d3e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                        <polyline points="17 8 12 3 7 8" />
+                        <line x1="12" y1="3" x2="12" y2="15" />
+                      </svg>
                     </div>
-                  ))}
-                </div>
+                    <div className={s.dropTitle}>
+                      {audioFiles.length > 0 ? "Files loaded — drop more to add" : "Drop audio or video files here"}
+                    </div>
+                    <div className={s.dropSub}>MP3, MP4, or WAV — or click to browse</div>
+                    {uploadError && <div className={s.dropError}>{uploadError}</div>}
+                  </div>
+
+                  {audioFiles.length > 0 && (
+                    <div className={s.fileList}>
+                      {audioFiles.map((f, i) => (
+                        <div key={`${f.name}-${i}`} className={s.fileItem}>
+                          <div className={s.fileIcon}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c45d3e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" />
+                              <path d="M19 10v2a7 7 0 01-14 0v-2" />
+                            </svg>
+                          </div>
+                          <span className={s.fileName}>{f.name}</span>
+                          <span className={s.audioFileSize}>{formatFileSize(f.size)}</span>
+                          <button
+                            className={s.fileRemove}
+                            onClick={(e) => { e.stopPropagation(); removeAudioFile(i); }}
+                          >
+                            x
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className={s.comingSoonNote}>Transcription via ElevenLabs — coming soon</div>
+                </>
+              )}
+
+              {/* Transcript (JSON) dropzone */}
+              {uploadMode === "transcript" && (
+                <>
+                  <div
+                    className={`${s.dropzone} ${dragOver ? s.dropzoneActive : ""} ${hasFiles ? s.dropzoneHasFiles : ""}`}
+                    onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".json"
+                      multiple
+                      style={{ display: "none" }}
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files.length > 0) processFiles(e.target.files);
+                        e.target.value = "";
+                      }}
+                    />
+                    <div className={s.dropIcon}>
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#c45d3e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                        <polyline points="17 8 12 3 7 8" />
+                        <line x1="12" y1="3" x2="12" y2="15" />
+                      </svg>
+                    </div>
+                    <div className={s.dropTitle}>
+                      {hasFiles ? "Files loaded — drop more to add" : "Drop transcript files here"}
+                    </div>
+                    <div className={s.dropSub}>Word-level JSON — or click to browse</div>
+                    {uploadError && <div className={s.dropError}>{uploadError}</div>}
+                  </div>
+
+                  {files.length > 0 && (
+                    <div className={s.fileList}>
+                      {files.map((f) => (
+                        <div key={f.id} className={s.fileItem}>
+                          <input
+                            type="checkbox"
+                            className={s.fileCheckbox}
+                            checked={f.selected}
+                            onChange={() => toggleFile(f.id)}
+                          />
+                          <div className={s.fileIcon}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c45d3e" strokeWidth="2">
+                              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                              <polyline points="14 2 14 8 20 8" />
+                            </svg>
+                          </div>
+                          <span className={`${s.fileName} ${!f.selected ? s.fileNameDeselected : ""}`}>
+                            {f.fileName}
+                          </span>
+                          <button
+                            className={s.fileRemove}
+                            onClick={(e) => { e.stopPropagation(); removeFile(f.id); }}
+                          >
+                            x
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
