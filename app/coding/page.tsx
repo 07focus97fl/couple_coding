@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check } from "lucide-react";
 import { FileUpload } from "./components/FileUpload";
 import { ModelSelector } from "./components/ModelSelector";
 import { CodingSchemeSelector } from "./components/CodingSchemeSelector";
@@ -17,13 +17,13 @@ import {
   RawTranscript,
   TranscriptFile,
   CategoryDefinition,
-  CODING_SCHEMES,
   DEFAULT_CONTEXT_WINDOW,
 } from "@/lib/types";
+import { CODING_SCHEMES } from "@/lib/coding-schemes";
 
 export default function CodingPage() {
   const [files, setFiles] = useState<TranscriptFile[]>([]);
-  const [selectedModel, setSelectedModel] = useState("claude-sonnet-4-6");
+  const [selectedModel, setSelectedModel] = useState("");
   const [schemeId, setSchemeId] = useState<string | null>(null);
   const [categories, setCategories] = useState<CategoryDefinition[]>([]);
   const [contextWindow, setContextWindow] = useState(DEFAULT_CONTEXT_WINDOW);
@@ -38,6 +38,13 @@ export default function CodingPage() {
     const scheme = CODING_SCHEMES.find((s) => s.id === id);
     if (scheme) setCategories(scheme.categories);
   }, []);
+
+  const stepDone = {
+    upload: hasFiles,
+    model: selectedModel !== "",
+    configure: schemeId !== null,
+    run: allSelectedDone,
+  };
 
   const STEPS = ["upload", "model", "configure", "run"] as const;
   type Step = (typeof STEPS)[number];
@@ -207,10 +214,18 @@ export default function CodingPage() {
           className="mb-10"
         >
           <TabsList className="h-auto p-1">
-            <TabsTrigger value="upload" className="px-4 py-2">1. Upload</TabsTrigger>
-            <TabsTrigger value="model" className="px-4 py-2">2. Model</TabsTrigger>
-            <TabsTrigger value="configure" className="px-4 py-2">3. Configure</TabsTrigger>
-            <TabsTrigger value="run" className="px-4 py-2">4. Run</TabsTrigger>
+            <TabsTrigger value="upload" className="px-4 py-2 gap-1.5">
+              1. Upload {stepDone.upload && <Check className="h-4 w-4 text-green-500" />}
+            </TabsTrigger>
+            <TabsTrigger value="model" className="px-4 py-2 gap-1.5">
+              2. Model {stepDone.model && <Check className="h-4 w-4 text-green-500" />}
+            </TabsTrigger>
+            <TabsTrigger value="configure" className="px-4 py-2 gap-1.5">
+              3. Configure {stepDone.configure && <Check className="h-4 w-4 text-green-500" />}
+            </TabsTrigger>
+            <TabsTrigger value="run" className="px-4 py-2 gap-1.5">
+              4. Run {stepDone.run && <Check className="h-4 w-4 text-green-500" />}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="upload" className="mt-6">
@@ -291,15 +306,19 @@ export default function CodingPage() {
                 <Button
                   className="w-full"
                   size="lg"
-                  disabled={!anySelected || isAnyCoding || schemeId === null}
+                  disabled={!anySelected || isAnyCoding || schemeId === null || selectedModel === ""}
                   onClick={handleCode}
                 >
                   {isAnyCoding ? "Coding..." : allSelectedDone ? "Recode Turns" : "Code Turns"}
                 </Button>
 
-                {schemeId === null && (
+                {(schemeId === null || selectedModel === "") && (
                   <p className="text-sm text-muted-foreground mt-2">
-                    Select a coding scheme in Configure first.
+                    {schemeId === null && selectedModel === ""
+                      ? "Select a model and a coding scheme first."
+                      : selectedModel === ""
+                      ? "Select a model first."
+                      : "Select a coding scheme in Configure first."}
                   </p>
                 )}
               </div>

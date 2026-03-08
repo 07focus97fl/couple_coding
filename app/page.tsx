@@ -4,7 +4,7 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { CODING_SCHEMES } from "@/lib/types";
+import { CODING_SCHEMES } from "@/lib/coding-schemes";
 
 export default function LandingPage() {
   return (

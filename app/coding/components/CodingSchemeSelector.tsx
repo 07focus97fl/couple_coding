@@ -1,6 +1,7 @@
 "use client";
 
-import { CODING_SCHEMES, CategoryDefinition } from "@/lib/types";
+import { CategoryDefinition } from "@/lib/types";
+import { CODING_SCHEMES } from "@/lib/coding-schemes";
 import { CategoryEditor } from "./CategoryEditor";
 import { Badge } from "@/components/ui/badge";
 import {

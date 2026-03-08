@@ -86,6 +86,7 @@ export function FileUpload({ onFilesLoaded, hasFiles }: FileUploadProps) {
         ) : (
           <div className="text-center">
             <p className="font-medium">Drop transcript JSON files here</p>
+            <p className="text-xs text-muted-foreground mt-1">Real users will upload mp3 or mp4, not necessarily .json</p>
             <p className="text-sm text-muted-foreground mt-1">or click to browse</p>
           </div>
         )}
