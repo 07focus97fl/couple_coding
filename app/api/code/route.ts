@@ -5,20 +5,21 @@ import { buildSystemPrompt, buildUserMessage } from "./prompts";
 const CONCURRENCY = 5;
 
 export async function POST(request: Request) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey || apiKey === "sk-your-key-here") {
-    return new Response(
-      JSON.stringify({ error: "ANTHROPIC_API_KEY is not configured" }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
-  }
-
-  const { turns, model, categories, contextWindow = 5 } = (await request.json()) as {
+  const { turns, model, categories, contextWindow = 5, apiKey: clientKey } = (await request.json()) as {
     turns: SpeakingTurn[];
     model: string;
     categories: CategoryDefinition[];
     contextWindow?: number;
+    apiKey?: string;
   };
+
+  const apiKey = clientKey || process.env.ANTHROPIC_API_KEY;
+  if (!apiKey || apiKey === "sk-your-key-here") {
+    return new Response(
+      JSON.stringify({ error: "No API key provided. Enter your Anthropic API key in Step 1." }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
+    );
+  }
 
   if (!turns || !Array.isArray(turns) || turns.length === 0) {
     return new Response(

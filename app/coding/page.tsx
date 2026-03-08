@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
 import { CategoryEditor } from "./components/CategoryEditor";
 import { ExportButton } from "./components/ExportButton";
@@ -60,6 +60,8 @@ export default function CodingPage() {
   const [audioFiles, setAudioFiles] = useState<File[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [apiKey, setApiKey] = useState("");
+  const [showKey, setShowKey] = useState(false);
   const [selectedModel, setSelectedModel] = useState("");
   const [schemeId, setSchemeId] = useState<string | null>(null);
   const [categories, setCategories] = useState<CategoryDefinition[]>([]);
@@ -68,20 +70,31 @@ export default function CodingPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    const stored = localStorage.getItem("anthropic_api_key");
+    if (stored) setApiKey(stored);
+  }, []);
+
+  const handleApiKeyChange = (val: string) => {
+    setApiKey(val);
+    if (val) localStorage.setItem("anthropic_api_key", val);
+    else localStorage.removeItem("anthropic_api_key");
+  };
+
   const hasFiles = files.length > 0;
   const isAnyCoding = files.some((f) => f.status === "coding");
   const anySelected = files.some((f) => f.selected);
 
   const canAdvance = () => {
     if (step === 0) return uploadMode === "audio" ? audioFiles.length > 0 : hasFiles;
-    if (step === 1) return selectedModel !== "";
+    if (step === 1) return selectedModel !== "" && apiKey !== "";
     if (step === 2) return schemeId !== null;
     return true;
   };
 
   const stepDone = [
     hasFiles,
-    selectedModel !== "",
+    selectedModel !== "" && apiKey !== "",
     schemeId !== null,
     anySelected && files.filter((f) => f.selected).every((f) => f.status === "done"),
   ];
@@ -177,7 +190,7 @@ export default function CodingPage() {
         const response = await fetch("/api/code", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ turns, model: selectedModel, categories, contextWindow }),
+          body: JSON.stringify({ turns, model: selectedModel, categories, contextWindow, apiKey }),
         });
 
         if (!response.ok) {
@@ -326,10 +339,18 @@ export default function CodingPage() {
                 <span className={s.summaryVal}>{files.filter((f) => f.selected).length}</span>
               </div>
               {step >= 2 && (
-                <div className={s.summaryRow}>
-                  <span className={s.summaryKey}>Model</span>
-                  <span className={s.summaryVal}>{modelName.split(" ").slice(-2).join(" ")}</span>
-                </div>
+                <>
+                  <div className={s.summaryRow}>
+                    <span className={s.summaryKey}>Key</span>
+                    <span className={s.summaryVal} style={{ fontFamily: "var(--mono)", fontSize: "0.72rem" }}>
+                      {apiKey ? `${apiKey.slice(0, 7)}...${apiKey.slice(-4)}` : "—"}
+                    </span>
+                  </div>
+                  <div className={s.summaryRow}>
+                    <span className={s.summaryKey}>Model</span>
+                    <span className={s.summaryVal}>{modelName.split(" ").slice(-2).join(" ")}</span>
+                  </div>
+                </>
               )}
               {step >= 3 && (
                 <>
@@ -547,6 +568,40 @@ export default function CodingPage() {
           {/* ── STEP 1: Model ── */}
           {step === 1 && (
             <div className={`${s.modelList} ${s.fadeIn}`}>
+              <div className={s.apiKeySection}>
+                <label className={s.apiKeyLabel}>Anthropic API Key</label>
+                <div className={s.apiKeyRow}>
+                  <input
+                    type={showKey ? "text" : "password"}
+                    className={s.apiKeyInput}
+                    value={apiKey}
+                    onChange={(e) => handleApiKeyChange(e.target.value)}
+                    placeholder="sk-ant-..."
+                    spellCheck={false}
+                    autoComplete="off"
+                  />
+                  <button
+                    type="button"
+                    className={s.apiKeyToggle}
+                    onClick={() => setShowKey(!showKey)}
+                    aria-label={showKey ? "Hide key" : "Show key"}
+                  >
+                    {showKey ? (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
+                        <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
+                        <line x1="1" y1="1" x2="23" y2="23" />
+                      </svg>
+                    ) : (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+
               {MODELS.map((m) => (
                 <button
                   key={m.id}
