@@ -111,6 +111,18 @@ export const CODING_SCHEMES: CodingScheme[] = [
   },
 ];
 
+export interface TranscriptFile {
+  id: string;
+  fileName: string;
+  rawTranscript: RawTranscript;
+  turns: SpeakingTurn[];
+  codedTurns: CodedTurn[];
+  selected: boolean;
+  status: 'pending' | 'coding' | 'done' | 'error';
+  progress: { completed: number; total: number };
+  error?: string;
+}
+
 export const DEFAULT_CONTEXT_WINDOW = 5;
 
 export const DEFAULT_EXPORT_CONFIG: ExportConfig = {

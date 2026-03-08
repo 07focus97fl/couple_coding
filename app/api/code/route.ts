@@ -69,23 +69,26 @@ export async function POST(request: Request) {
 
           const userMessage = buildUserMessage(contextTurns, turn);
 
-          const message = await client.messages.create({
-            model,
-            max_tokens: 300,
-            system: systemPrompt,
-            messages: [{ role: "user", content: userMessage }],
-            tools: [tool],
-            tool_choice: { type: "tool", name: "code_exchange" },
-          });
+          const MAX_RETRIES = 2;
+          for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+            const message = await client.messages.create({
+              model,
+              max_tokens: 300,
+              system: systemPrompt,
+              messages: [{ role: "user", content: userMessage }],
+              tools: [tool],
+              tool_choice: { type: "tool", name: "code_exchange" },
+            });
 
-          const toolBlock = message.content.find(
-            (b): b is Anthropic.ToolUseBlock => b.type === "tool_use"
-          );
+            const toolBlock = message.content.find(
+              (b): b is Anthropic.ToolUseBlock => b.type === "tool_use"
+            );
 
-          if (toolBlock) {
-            const input = toolBlock.input as { category: string; rationale: string };
-            if (validCategoryNames.has(input.category)) {
-              return { ...turn, category: input.category, rationale: input.rationale };
+            if (toolBlock) {
+              const input = toolBlock.input as { category: string; rationale: string };
+              if (validCategoryNames.has(input.category)) {
+                return { ...turn, category: input.category, rationale: input.rationale };
+              }
             }
           }
 

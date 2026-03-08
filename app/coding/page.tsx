@@ -10,37 +10,34 @@ import { FileUpload } from "./components/FileUpload";
 import { ModelSelector } from "./components/ModelSelector";
 import { CodingSchemeSelector } from "./components/CodingSchemeSelector";
 import { ResultsTable } from "./components/ResultsTable";
+import { CollapsibleSection } from "./components/CollapsibleSection";
+import { ExportButton } from "./components/ExportButton";
 import { parseTranscript } from "@/lib/parse-transcript";
 import {
   RawTranscript,
-  SpeakingTurn,
-  CodedTurn,
+  TranscriptFile,
   CategoryDefinition,
   CODING_SCHEMES,
   DEFAULT_CONTEXT_WINDOW,
 } from "@/lib/types";
 
 export default function CodingPage() {
-  const [turns, setTurns] = useState<SpeakingTurn[]>([]);
+  const [files, setFiles] = useState<TranscriptFile[]>([]);
   const [selectedModel, setSelectedModel] = useState("claude-sonnet-4-6");
-  const [codedTurns, setCodedTurns] = useState<CodedTurn[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [progress, setProgress] = useState({ completed: 0, total: 0 });
-  const [error, setError] = useState<string | null>(null);
   const [schemeId, setSchemeId] = useState<string | null>(null);
   const [categories, setCategories] = useState<CategoryDefinition[]>([]);
   const [contextWindow, setContextWindow] = useState(DEFAULT_CONTEXT_WINDOW);
 
-  const handleSchemeChange = useCallback(
-    (id: string) => {
-      setSchemeId(id);
-      const scheme = CODING_SCHEMES.find((s) => s.id === id);
-      if (scheme) {
-        setCategories(scheme.categories);
-      }
-    },
-    []
-  );
+  const hasFiles = files.length > 0;
+  const isAnyCoding = files.some((f) => f.status === "coding");
+  const anySelected = files.some((f) => f.selected);
+  const allSelectedDone = anySelected && files.filter((f) => f.selected).every((f) => f.status === "done");
+
+  const handleSchemeChange = useCallback((id: string) => {
+    setSchemeId(id);
+    const scheme = CODING_SCHEMES.find((s) => s.id === id);
+    if (scheme) setCategories(scheme.categories);
+  }, []);
 
   const STEPS = ["upload", "model", "configure", "run"] as const;
   type Step = (typeof STEPS)[number];
@@ -49,89 +46,146 @@ export default function CodingPage() {
   const isFirst = stepIndex === 0;
   const isLast = stepIndex === STEPS.length - 1;
 
-  const handleTranscriptLoaded = useCallback((transcript: RawTranscript) => {
-    const parsed = parseTranscript(transcript.words);
-    setTurns(parsed);
-    setCodedTurns([]);
-    setError(null);
+  const handleFilesLoaded = useCallback(
+    (loaded: Array<{ fileName: string; transcript: RawTranscript }>) => {
+      const newFiles: TranscriptFile[] = loaded.map((f) => ({
+        id: crypto.randomUUID(),
+        fileName: f.fileName,
+        rawTranscript: f.transcript,
+        turns: [],
+        codedTurns: [],
+        selected: true,
+        status: "pending" as const,
+        progress: { completed: 0, total: 0 },
+      }));
+      setFiles((prev) => [...prev, ...newFiles]);
+    },
+    []
+  );
+
+  const toggleFile = useCallback((id: string) => {
+    setFiles((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, selected: !f.selected } : f))
+    );
   }, []);
 
   const handleCode = async () => {
-    if (turns.length === 0) return;
-    setLoading(true);
-    setCodedTurns([]);
-    setError(null);
-    setProgress({ completed: 0, total: turns.length });
+    if (!hasFiles) return;
 
-    try {
-      const response = await fetch("/api/code", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          turns,
-          model: selectedModel,
-          categories,
-          contextWindow,
-        }),
-      });
+    const filesToCode = files.filter((f) => f.selected);
+    for (const file of filesToCode) {
+      // Parse turns lazily on first code
+      const turns = file.turns.length > 0
+        ? file.turns
+        : parseTranscript(file.rawTranscript.words);
 
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || "Request failed");
-      }
+      setFiles((prev) =>
+        prev.map((f) =>
+          f.id === file.id
+            ? { ...f, turns, status: "coding" as const, codedTurns: [], error: undefined, progress: { completed: 0, total: turns.length } }
+            : f
+        )
+      );
 
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error("No response stream");
+      try {
+        const response = await fetch("/api/code", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            turns,
+            model: selectedModel,
+            categories,
+            contextWindow,
+          }),
+        });
 
-      const decoder = new TextDecoder();
-      let buffer = "";
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.error || "Request failed");
+        }
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error("No response stream");
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
+        const decoder = new TextDecoder();
+        let buffer = "";
 
-        let eventType = "";
-        for (const line of lines) {
-          if (line.startsWith("event: ")) {
-            eventType = line.slice(7);
-          } else if (line.startsWith("data: ")) {
-            const data = line.slice(6);
-            if (eventType === "result") {
-              const { codedTurn } = JSON.parse(data);
-              setCodedTurns((prev) => [...prev, codedTurn]);
-            } else if (eventType === "progress") {
-              setProgress(JSON.parse(data));
-            } else if (eventType === "error") {
-              const { message } = JSON.parse(data);
-              setError(message);
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          let eventType = "";
+          for (const line of lines) {
+            if (line.startsWith("event: ")) {
+              eventType = line.slice(7);
+            } else if (line.startsWith("data: ")) {
+              const data = line.slice(6);
+              if (eventType === "result") {
+                const { codedTurn } = JSON.parse(data);
+                setFiles((prev) =>
+                  prev.map((f) =>
+                    f.id === file.id
+                      ? { ...f, codedTurns: [...f.codedTurns, codedTurn] }
+                      : f
+                  )
+                );
+              } else if (eventType === "progress") {
+                const progress = JSON.parse(data);
+                setFiles((prev) =>
+                  prev.map((f) =>
+                    f.id === file.id ? { ...f, progress } : f
+                  )
+                );
+              } else if (eventType === "error") {
+                const { message } = JSON.parse(data);
+                setFiles((prev) =>
+                  prev.map((f) =>
+                    f.id === file.id
+                      ? { ...f, status: "error" as const, error: message }
+                      : f
+                  )
+                );
+              }
+              eventType = "";
             }
-            eventType = "";
           }
         }
+
+        setFiles((prev) =>
+          prev.map((f) =>
+            f.id === file.id && f.status !== "error"
+              ? { ...f, status: "done" as const }
+              : f
+          )
+        );
+      } catch (err) {
+        setFiles((prev) =>
+          prev.map((f) =>
+            f.id === file.id
+              ? {
+                  ...f,
+                  status: "error" as const,
+                  error: err instanceof Error ? err.message : "Unknown error",
+                }
+              : f
+          )
+        );
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
-    } finally {
-      setLoading(false);
     }
   };
 
-  const progressPercent =
-    progress.total > 0 ? (progress.completed / progress.total) * 100 : 0;
-
-  const sortedCodedTurns = [...codedTurns].sort((a, b) => a.turnNumber - b.turnNumber);
+  const filesWithResults = files.filter((f) => f.codedTurns.length > 0);
+  const multipleResults = filesWithResults.length > 1;
 
   return (
     <div className="min-h-screen bg-[var(--background)]">
-      {/* Subtle top accent line */}
       <div className="h-1 bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500" />
 
       <div className="max-w-5xl mx-auto px-6 py-12">
-        {/* Header */}
         <header className="mb-12">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-600 dark:text-amber-400 mb-2">
@@ -141,43 +195,45 @@ export default function CodingPage() {
               Couple Conversation Coder
             </h1>
             <p className="text-muted-foreground text-sm max-w-lg">
-              Upload a word-level transcript, configure valence categories, and
+              Upload word-level transcripts, configure valence categories, and
               automatically code each speaking turn.
             </p>
           </div>
         </header>
 
-        {/* Tab-based pipeline */}
         <Tabs
           value={activeTab}
           onValueChange={(val) => setActiveTab(val as Step)}
           className="mb-10"
         >
           <TabsList className="h-auto p-1">
-            <TabsTrigger value="upload" className="px-4 py-2">
-              1. Upload
-            </TabsTrigger>
-            <TabsTrigger value="model" className="px-4 py-2">
-              2. Model
-            </TabsTrigger>
-            <TabsTrigger value="configure" className="px-4 py-2">
-              3. Configure
-            </TabsTrigger>
-            <TabsTrigger value="run" className="px-4 py-2">
-              4. Run
-            </TabsTrigger>
+            <TabsTrigger value="upload" className="px-4 py-2">1. Upload</TabsTrigger>
+            <TabsTrigger value="model" className="px-4 py-2">2. Model</TabsTrigger>
+            <TabsTrigger value="configure" className="px-4 py-2">3. Configure</TabsTrigger>
+            <TabsTrigger value="run" className="px-4 py-2">4. Run</TabsTrigger>
           </TabsList>
 
           <TabsContent value="upload" className="mt-6">
-            <FileUpload onTranscriptLoaded={handleTranscriptLoaded} />
-            {turns.length > 0 && (
-              <p className="text-sm text-muted-foreground mt-3">
-                Parsed{" "}
-                <span className="font-semibold text-foreground">
-                  {turns.length}
-                </span>{" "}
-                speaking turns
-              </p>
+            <FileUpload onFilesLoaded={handleFilesLoaded} hasFiles={hasFiles} />
+            {hasFiles && (
+              <div className="mt-4 space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  <span className="font-semibold text-foreground">{files.length}</span> file{files.length !== 1 ? "s" : ""} uploaded
+                </p>
+                <ul className="space-y-1">
+                  {files.map((f) => (
+                    <li key={f.id} className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={f.selected}
+                        onChange={() => toggleFile(f.id)}
+                        className="h-4 w-4 rounded border-muted-foreground/50 accent-primary cursor-pointer"
+                      />
+                      <span className={f.selected ? "font-medium" : "font-medium text-muted-foreground"}>{f.fileName}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </TabsContent>
 
@@ -186,10 +242,7 @@ export default function CodingPage() {
               <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
                 Select Model
               </label>
-              <ModelSelector
-                value={selectedModel}
-                onValueChange={setSelectedModel}
-              />
+              <ModelSelector value={selectedModel} onValueChange={setSelectedModel} />
             </div>
           </TabsContent>
 
@@ -206,7 +259,6 @@ export default function CodingPage() {
                   onCategoriesChange={setCategories}
                 />
               </div>
-
               <div>
                 <label
                   htmlFor="contextWindow"
@@ -234,41 +286,67 @@ export default function CodingPage() {
           </TabsContent>
 
           <TabsContent value="run" className="mt-6">
-            <div className="space-y-4 max-w-sm">
-              <Button
-                className="w-full"
-                size="lg"
-                disabled={turns.length === 0 || loading || schemeId === null}
-                onClick={handleCode}
-              >
-                {loading ? "Coding..." : "Code Turns"}
-              </Button>
+            <div className="space-y-4">
+              <div className="max-w-sm">
+                <Button
+                  className="w-full"
+                  size="lg"
+                  disabled={!anySelected || isAnyCoding || schemeId === null}
+                  onClick={handleCode}
+                >
+                  {isAnyCoding ? "Coding..." : allSelectedDone ? "Recode Turns" : "Code Turns"}
+                </Button>
 
-              {schemeId === null && (
-                <p className="text-sm text-muted-foreground">
-                  Select a coding scheme in Configure first.
-                </p>
-              )}
+                {schemeId === null && (
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Select a coding scheme in Configure first.
+                  </p>
+                )}
+              </div>
 
-              {loading && (
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium">Coding exchanges&hellip;</p>
-                    <p className="text-sm text-muted-foreground font-mono">
-                      {progress.completed} / {progress.total}
-                    </p>
-                  </div>
-                  <Progress value={progressPercent} className="h-2" />
+              {hasFiles && (isAnyCoding || files.some((f) => f.selected && (f.status === "done" || f.status === "error"))) && (
+                <div className="space-y-3 mt-4">
+                  {files.filter((f) => f.selected).map((f) => {
+                    const pct = f.progress.total > 0 ? (f.progress.completed / f.progress.total) * 100 : 0;
+                    const statusLabel =
+                      f.status === "pending" ? "Pending" :
+                      f.status === "coding" ? "Coding" :
+                      f.status === "done" ? "Done" : "Error";
+                    const statusColor =
+                      f.status === "pending" ? "bg-muted text-muted-foreground" :
+                      f.status === "coding" ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400" :
+                      f.status === "done" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400" :
+                      "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+
+                    return (
+                      <div key={f.id} className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">{f.fileName}</span>
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor}`}>
+                              {statusLabel}
+                            </span>
+                          </div>
+                          {(f.status === "coding" || f.status === "done") && (
+                            <span className="text-sm text-muted-foreground font-mono">
+                              {f.progress.completed} / {f.progress.total}
+                            </span>
+                          )}
+                        </div>
+                        {(f.status === "coding" || f.status === "done") && (
+                          <Progress value={pct} className="h-2" />
+                        )}
+                        {f.error && (
+                          <p className="text-sm text-destructive font-medium">{f.error}</p>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-              )}
-
-              {error && (
-                <p className="text-sm text-destructive font-medium">{error}</p>
               )}
             </div>
           </TabsContent>
 
-          {/* Navigation buttons */}
           <div className="flex items-center justify-between mt-6 pt-4 border-t">
             <Button
               variant="outline"
@@ -294,9 +372,29 @@ export default function CodingPage() {
           </div>
         </Tabs>
 
-        {/* Results */}
-        {sortedCodedTurns.length > 0 && (
-          <ResultsTable codedTurns={sortedCodedTurns} />
+        {filesWithResults.length > 0 && (
+          <div className="space-y-4">
+            {filesWithResults.map((f) => {
+              const sorted = [...f.codedTurns].sort((a, b) => a.turnNumber - b.turnNumber);
+              return (
+                <CollapsibleSection
+                  key={f.id}
+                  defaultOpen={!multipleResults}
+                  title={
+                    <span>
+                      {f.fileName}{" "}
+                      <span className="text-muted-foreground font-normal text-sm">
+                        ({sorted.length} turns)
+                      </span>
+                    </span>
+                  }
+                  action={<ExportButton codedTurns={sorted} />}
+                >
+                  <ResultsTable codedTurns={sorted} />
+                </CollapsibleSection>
+              );
+            })}
+          </div>
         )}
       </div>
     </div>

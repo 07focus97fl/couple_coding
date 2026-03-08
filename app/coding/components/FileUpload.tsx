@@ -5,50 +5,58 @@ import { Card, CardContent } from "@/components/ui/card";
 import { RawTranscript } from "@/lib/types";
 
 interface FileUploadProps {
-  onTranscriptLoaded: (transcript: RawTranscript) => void;
+  onFilesLoaded: (files: Array<{ fileName: string; transcript: RawTranscript }>) => void;
+  hasFiles: boolean;
 }
 
-export function FileUpload({ onTranscriptLoaded }: FileUploadProps) {
+function readFile(file: File): Promise<{ fileName: string; transcript: RawTranscript }> {
+  return new Promise((resolve, reject) => {
+    if (!file.name.endsWith(".json")) {
+      reject(new Error(`"${file.name}" is not a JSON file.`));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target?.result as string) as RawTranscript;
+        if (!data.words || !Array.isArray(data.words)) {
+          reject(new Error(`"${file.name}": missing 'words' array.`));
+          return;
+        }
+        resolve({ fileName: file.name, transcript: data });
+      } catch {
+        reject(new Error(`"${file.name}": failed to parse JSON.`));
+      }
+    };
+    reader.readAsText(file);
+  });
+}
+
+export function FileUpload({ onFilesLoaded, hasFiles }: FileUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
-  const [fileName, setFileName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const processFile = useCallback(
-    (file: File) => {
+  const processFiles = useCallback(
+    async (fileList: FileList) => {
       setError(null);
-      if (!file.name.endsWith(".json")) {
-        setError("Please upload a JSON file.");
-        return;
+      try {
+        const results = await Promise.all(Array.from(fileList).map(readFile));
+        onFilesLoaded(results);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to read files.");
       }
-
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const data = JSON.parse(e.target?.result as string) as RawTranscript;
-          if (!data.words || !Array.isArray(data.words)) {
-            setError("Invalid transcript: missing 'words' array.");
-            return;
-          }
-          setFileName(file.name);
-          onTranscriptLoaded(data);
-        } catch {
-          setError("Failed to parse JSON file.");
-        }
-      };
-      reader.readAsText(file);
     },
-    [onTranscriptLoaded]
+    [onFilesLoaded]
   );
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
       setIsDragging(false);
-      const file = e.dataTransfer.files[0];
-      if (file) processFile(file);
+      if (e.dataTransfer.files.length > 0) processFiles(e.dataTransfer.files);
     },
-    [processFile]
+    [processFiles]
   );
 
   return (
@@ -56,7 +64,7 @@ export function FileUpload({ onTranscriptLoaded }: FileUploadProps) {
       className={`relative cursor-pointer border-2 border-dashed transition-all duration-200 ${
         isDragging
           ? "border-primary bg-primary/5 scale-[1.01]"
-          : fileName
+          : hasFiles
             ? "border-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-950/20"
             : "border-muted-foreground/25 hover:border-muted-foreground/50"
       }`}
@@ -69,15 +77,15 @@ export function FileUpload({ onTranscriptLoaded }: FileUploadProps) {
       onClick={() => inputRef.current?.click()}
     >
       <CardContent className="flex flex-col items-center justify-center py-10 gap-3">
-        <div className="text-4xl opacity-60">{fileName ? "\u2705" : "\uD83D\uDCC1"}</div>
-        {fileName ? (
+        <div className="text-4xl opacity-60">{hasFiles ? "\u2705" : "\uD83D\uDCC1"}</div>
+        {hasFiles ? (
           <div className="text-center">
-            <p className="font-medium text-emerald-700 dark:text-emerald-400">{fileName}</p>
-            <p className="text-sm text-muted-foreground mt-1">Click or drop to replace</p>
+            <p className="font-medium text-emerald-700 dark:text-emerald-400">Files loaded</p>
+            <p className="text-sm text-muted-foreground mt-1">Click or drop to add more</p>
           </div>
         ) : (
           <div className="text-center">
-            <p className="font-medium">Drop your transcript JSON here</p>
+            <p className="font-medium">Drop transcript JSON files here</p>
             <p className="text-sm text-muted-foreground mt-1">or click to browse</p>
           </div>
         )}
@@ -86,10 +94,11 @@ export function FileUpload({ onTranscriptLoaded }: FileUploadProps) {
           ref={inputRef}
           type="file"
           accept=".json"
+          multiple
           className="hidden"
           onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) processFile(file);
+            if (e.target.files && e.target.files.length > 0) processFiles(e.target.files);
+            e.target.value = "";
           }}
         />
       </CardContent>

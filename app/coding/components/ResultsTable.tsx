@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   Table,
   TableBody,
@@ -10,7 +9,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   TooltipProvider,
   TooltipRoot,
@@ -18,7 +16,6 @@ import {
   TooltipContent,
 } from "@/components/ui/tooltip";
 import { CodedTurn, ColumnKey, COLUMN_DEFINITIONS } from "@/lib/types";
-import { ExportDialog } from "./ExportDialog";
 
 interface ResultsTableProps {
   codedTurns: CodedTurn[];
@@ -81,22 +78,9 @@ function renderCell(turn: CodedTurn, key: ColumnKey) {
 }
 
 export function ResultsTable({ codedTurns }: ResultsTableProps) {
-  const [exportOpen, setExportOpen] = useState(false);
-
   return (
     <TooltipProvider>
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">
-            Results{" "}
-            <span className="text-muted-foreground font-normal text-sm">
-              ({codedTurns.length} turns)
-            </span>
-          </h2>
-          <Button variant="outline" size="sm" onClick={() => setExportOpen(true)}>
-            Export CSV
-          </Button>
-        </div>
+      <div>
         <div className="rounded-lg border overflow-hidden">
           <Table>
             <TableHeader>
@@ -124,7 +108,6 @@ export function ResultsTable({ codedTurns }: ResultsTableProps) {
             </TableBody>
           </Table>
         </div>
-        <ExportDialog open={exportOpen} onOpenChange={setExportOpen} codedTurns={codedTurns} />
       </div>
     </TooltipProvider>
   );
