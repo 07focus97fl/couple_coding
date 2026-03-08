@@ -67,6 +67,7 @@ export interface CodingScheme {
   description: string;
   categories: CategoryDefinition[];
   comingSoon?: boolean;
+  badge?: string;
 }
 
 export interface TranscriptFile {

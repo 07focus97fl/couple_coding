@@ -582,6 +582,7 @@ export default function CodingPage() {
                   >
                     <div className={s.schemeAbbr}>{sc.label}</div>
                     <div className={s.schemeFull}>{sc.description}</div>
+                    {sc.badge && <span className={s.schemeBadge}>{sc.badge}</span>}
                     {sc.comingSoon && <span className={s.comingSoonBadge}>Coming soon</span>}
                   </button>
                 ))}
@@ -725,7 +726,7 @@ export default function CodingPage() {
                       {f.status === "done" && <ExportButton codedTurns={sorted} />}
                     </div>
                     {isOpen && (
-                      <TooltipProvider>
+                      <TooltipProvider delay={100}>
                         <div className={s.tableWrap}>
                           <table className={s.table}>
                             <thead>
@@ -748,7 +749,7 @@ export default function CodingPage() {
                                       <span className={`${s.speakerTag} ${speakerClass}`}>{turn.speaker}</span>
                                     </td>
                                     <td className={s.tdText}>
-                                      <TooltipRoot delay={100}>
+                                      <TooltipRoot>
                                         <TooltipTrigger className={s.truncCell}>{turn.text}</TooltipTrigger>
                                         <TooltipContent className={s.tooltipContent}>{turn.text}</TooltipContent>
                                       </TooltipRoot>
@@ -757,7 +758,7 @@ export default function CodingPage() {
                                       <span className={s.codeTag}>{turn.category}</span>
                                     </td>
                                     <td className={s.tdRationale}>
-                                      <TooltipRoot delay={100}>
+                                      <TooltipRoot>
                                         <TooltipTrigger className={s.truncCell}>{turn.rationale}</TooltipTrigger>
                                         <TooltipContent className={s.tooltipContent}>{turn.rationale}</TooltipContent>
                                       </TooltipRoot>

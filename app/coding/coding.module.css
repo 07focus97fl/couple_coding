@@ -546,6 +546,17 @@
   margin-top: 0.4rem;
   display: inline-block;
 }
+.schemeBadge {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  font-weight: 500;
+  background: #c45d3e12;
+  color: #c45d3e;
+  padding: 0.1rem 0.4rem;
+  border-radius: 100px;
+  margin-top: 0.4rem;
+  display: inline-block;
+}
 .categoryEditorWrap {
   margin-top: 1.25rem;
   padding: 1.25rem;
