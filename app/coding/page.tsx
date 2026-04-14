@@ -62,9 +62,13 @@ export default function CodingPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
+  const [devSignedIn, setDevSignedIn] = useState(false);
+  const [devPassword, setDevPassword] = useState("");
+  const [devAuthError, setDevAuthError] = useState("");
   const [selectedModel, setSelectedModel] = useState("");
   const [schemeId, setSchemeId] = useState<string | null>(null);
   const [categories, setCategories] = useState<CategoryDefinition[]>([]);
+  const [customRules, setCustomRules] = useState("");
   const [contextWindow, setContextWindow] = useState(DEFAULT_CONTEXT_WINDOW);
   const [openResults, setOpenResults] = useState<Record<string, boolean>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -73,6 +77,7 @@ export default function CodingPage() {
   useEffect(() => {
     const stored = localStorage.getItem("anthropic_api_key");
     if (stored) setApiKey(stored);
+    if (localStorage.getItem("dev_signed_in") === "true") setDevSignedIn(true);
   }, []);
 
   const handleApiKeyChange = (val: string) => {
@@ -81,13 +86,40 @@ export default function CodingPage() {
     else localStorage.removeItem("anthropic_api_key");
   };
 
+  const handleDevSignIn = async () => {
+    setDevAuthError("");
+    try {
+      const res = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: devPassword }),
+      });
+      if (res.ok) {
+        localStorage.setItem("dev_signed_in", "true");
+        setDevSignedIn(true);
+        setDevPassword("");
+      } else {
+        setDevAuthError("Wrong password");
+      }
+    } catch {
+      setDevAuthError("Auth request failed");
+    }
+  };
+
+  const handleDevSignOut = () => {
+    localStorage.removeItem("dev_signed_in");
+    setDevSignedIn(false);
+    setDevPassword("");
+    setDevAuthError("");
+  };
+
   const hasFiles = files.length > 0;
   const isAnyCoding = files.some((f) => f.status === "coding");
   const anySelected = files.some((f) => f.selected);
 
   const canAdvance = () => {
     if (step === 0) return uploadMode === "audio" ? audioFiles.length > 0 : hasFiles;
-    if (step === 1) return selectedModel !== "" && apiKey !== "";
+    if (step === 1) return selectedModel !== "" && (apiKey !== "" || devSignedIn);
     if (step === 2) return schemeId !== null;
     return true;
   };
@@ -167,7 +199,10 @@ export default function CodingPage() {
   const handleSchemeChange = useCallback((id: string) => {
     setSchemeId(id);
     const scheme = CODING_SCHEMES.find((sc) => sc.id === id);
-    if (scheme) setCategories(scheme.categories);
+    if (scheme) {
+      setCategories(scheme.categories);
+      setCustomRules(scheme.rules ?? "");
+    }
   }, []);
 
   // ── Coding ──
@@ -190,7 +225,14 @@ export default function CodingPage() {
         const response = await fetch("/api/code", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ turns, model: selectedModel, categories, contextWindow, apiKey }),
+          body: JSON.stringify({
+            turns,
+            model: selectedModel,
+            categories,
+            rules: customRules || undefined,
+            contextWindow,
+            ...(devSignedIn ? {} : { apiKey }),
+          }),
         });
 
         if (!response.ok) {
@@ -569,37 +611,92 @@ export default function CodingPage() {
           {step === 1 && (
             <div className={`${s.modelList} ${s.fadeIn}`}>
               <div className={s.apiKeySection}>
-                <label className={s.apiKeyLabel}>Anthropic API Key</label>
-                <div className={s.apiKeyRow}>
-                  <input
-                    type={showKey ? "text" : "password"}
-                    className={s.apiKeyInput}
-                    value={apiKey}
-                    onChange={(e) => handleApiKeyChange(e.target.value)}
-                    placeholder="sk-ant-..."
-                    spellCheck={false}
-                    autoComplete="off"
-                  />
-                  <button
-                    type="button"
-                    className={s.apiKeyToggle}
-                    onClick={() => setShowKey(!showKey)}
-                    aria-label={showKey ? "Hide key" : "Show key"}
-                  >
-                    {showKey ? (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
-                        <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
-                        <line x1="1" y1="1" x2="23" y2="23" />
-                      </svg>
-                    ) : (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                        <circle cx="12" cy="12" r="3" />
-                      </svg>
+                {devSignedIn ? (
+                  <>
+                    <label className={s.apiKeyLabel}>Authentication</label>
+                    <div className={s.apiKeyRow}>
+                      <span style={{ flex: 1, padding: "0.65rem 0.9rem", borderRadius: 10, border: "1.5px solid #d4edda", background: "#d4edda", fontSize: "0.85rem", fontWeight: 600, color: "#155724" }}>
+                        Signed in
+                      </span>
+                      <button
+                        type="button"
+                        className={s.apiKeyToggle}
+                        onClick={handleDevSignOut}
+                        aria-label="Sign out"
+                        title="Sign out"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+                          <polyline points="16 17 21 12 16 7" />
+                          <line x1="21" y1="12" x2="9" y2="12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <label className={s.apiKeyLabel}>Password</label>
+                    <div className={s.apiKeyRow}>
+                      <input
+                        type="password"
+                        className={s.apiKeyInput}
+                        value={devPassword}
+                        onChange={(e) => { setDevPassword(e.target.value); setDevAuthError(""); }}
+                        onKeyDown={(e) => { if (e.key === "Enter") handleDevSignIn(); }}
+                        placeholder="Enter password..."
+                        autoComplete="off"
+                      />
+                      <button
+                        type="button"
+                        className={s.apiKeyToggle}
+                        onClick={handleDevSignIn}
+                        aria-label="Sign in"
+                        title="Sign in"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="9 18 15 12 9 6" />
+                        </svg>
+                      </button>
+                    </div>
+                    {devAuthError && (
+                      <p style={{ color: "#c45d3e", fontSize: "0.8rem", marginTop: "0.35rem" }}>{devAuthError}</p>
                     )}
-                  </button>
-                </div>
+                    <div style={{ margin: "0.75rem 0 0.25rem", fontSize: "0.78rem", color: "#8a8680" }}>
+                      Or enter your API key directly:
+                    </div>
+                    <label className={s.apiKeyLabel}>Anthropic API Key</label>
+                    <div className={s.apiKeyRow}>
+                      <input
+                        type={showKey ? "text" : "password"}
+                        className={s.apiKeyInput}
+                        value={apiKey}
+                        onChange={(e) => handleApiKeyChange(e.target.value)}
+                        placeholder="sk-ant-..."
+                        spellCheck={false}
+                        autoComplete="off"
+                      />
+                      <button
+                        type="button"
+                        className={s.apiKeyToggle}
+                        onClick={() => setShowKey(!showKey)}
+                        aria-label={showKey ? "Hide key" : "Show key"}
+                      >
+                        {showKey ? (
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
+                            <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
+                            <line x1="1" y1="1" x2="23" y2="23" />
+                          </svg>
+                        ) : (
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                            <circle cx="12" cy="12" r="3" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
 
               {MODELS.map((m) => (
@@ -655,7 +752,12 @@ export default function CodingPage() {
                   <div className={s.categoryEditorLabel}>
                     {schemeId === "custom" ? "Define categories" : "Edit categories"}
                   </div>
-                  <CategoryEditor categories={categories} onChange={setCategories} />
+                  <CategoryEditor
+                    categories={categories}
+                    onChange={setCategories}
+                    rules={customRules}
+                    onRulesChange={setCustomRules}
+                  />
                 </div>
               )}
 

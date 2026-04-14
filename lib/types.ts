@@ -66,6 +66,7 @@ export interface CodingScheme {
   label: string;
   description: string;
   categories: CategoryDefinition[];
+  rules?: string;
   comingSoon?: boolean;
   badge?: string;
 }

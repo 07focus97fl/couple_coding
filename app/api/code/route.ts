@@ -1,14 +1,15 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { SpeakingTurn, CodedTurn, CategoryDefinition } from "@/lib/types";
+import { SpeakingTurn, CodedTurn, CategoryDefinition, CodingScheme } from "@/lib/types";
 import { buildSystemPrompt, buildUserMessage } from "./prompts";
 
 const CONCURRENCY = 5;
 
 export async function POST(request: Request) {
-  const { turns, model, categories, contextWindow = 5, apiKey: clientKey } = (await request.json()) as {
+  const { turns, model, categories, rules, contextWindow = 5, apiKey: clientKey } = (await request.json()) as {
     turns: SpeakingTurn[];
     model: string;
     categories: CategoryDefinition[];
+    rules?: string;
     contextWindow?: number;
     apiKey?: string;
   };
@@ -35,10 +36,18 @@ export async function POST(request: Request) {
     );
   }
 
-  const validCategoryNames = new Set(categories.map((c) => c.name));
+  const scheme: CodingScheme = {
+    id: "runtime",
+    label: "",
+    description: "",
+    categories,
+    rules: rules || undefined,
+  };
+
+  const validCategoryNames = new Set(scheme.categories.map((c) => c.name));
 
   const client = new Anthropic({ apiKey });
-  const systemPrompt = buildSystemPrompt(categories);
+  const systemPrompt = buildSystemPrompt(scheme);
 
   const tool: Anthropic.Tool = {
     name: "code_exchange",
@@ -48,7 +57,7 @@ export async function POST(request: Request) {
       properties: {
         category: {
           type: "string",
-          enum: categories.map((c) => c.name),
+          enum: scheme.categories.map((c) => c.name),
         },
         rationale: { type: "string" },
       },
