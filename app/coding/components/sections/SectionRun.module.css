@@ -1,0 +1,215 @@
+.runBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.52rem 1.15rem;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-family: var(--sans);
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.01em;
+}
+
+.runBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(196, 93, 62, 0.28);
+}
+
+.runBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.runBtnRunning {
+  background: var(--muted);
+}
+
+.runBtnRunning:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.hint {
+  padding: 0.55rem 0.8rem;
+  background: #fff5e8;
+  border: 1px solid #f0c98c;
+  border-radius: 8px;
+  color: #8a5a12;
+  font-size: 0.82rem;
+  margin-bottom: 0.75rem;
+}
+
+.statsStrip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.6rem 0;
+  margin-bottom: 0.5rem;
+}
+
+.statsLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+}
+
+.stateDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #c2bdb5;
+  flex-shrink: 0;
+}
+
+.stateDot[data-state="running"] {
+  background: var(--accent);
+  animation: pulse 1.3s ease-in-out infinite;
+}
+
+.stateDot[data-state="done"] {
+  background: #5e8761;
+}
+
+.statsText {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.statsDim {
+  color: var(--muted);
+}
+
+.statsDot {
+  color: rgba(26, 26, 30, 0.2);
+}
+
+.logsBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  background: #fff;
+  border: 1px solid rgba(26, 26, 30, 0.1);
+  border-radius: 999px;
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.logsBtn:hover {
+  color: var(--ink);
+  border-color: rgba(26, 26, 30, 0.22);
+}
+
+.progressBar {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(26, 26, 30, 0.06);
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), #e8a590);
+  border-radius: 999px;
+  transition: width 0.5s ease;
+}
+
+.rows {
+  margin-top: 1rem;
+  background: #fff;
+  border: 1px solid rgba(26, 26, 30, 0.06);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.truncNote {
+  padding: 0.55rem 0.75rem;
+  background: #fbf8f3;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  border-bottom: 1px solid rgba(26, 26, 30, 0.05);
+}
+
+.emptyRows {
+  margin-top: 1rem;
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.88rem;
+  background: #fbf8f3;
+  border-radius: 10px;
+  border: 1px dashed rgba(26, 26, 30, 0.1);
+}
+
+.exportRow {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.exportItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.85rem;
+  background: #fff;
+  border: 1px solid rgba(26, 26, 30, 0.06);
+  border-radius: 9px;
+}
+
+.exportName {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.exportCount {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.errorStrip {
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.85rem;
+  background: #c45d3e0c;
+  border: 1px solid #c45d3e30;
+  border-radius: 9px;
+  font-size: 0.82rem;
+  color: #8a3a22;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@media (max-width: 720px) {
+  .statsStrip {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

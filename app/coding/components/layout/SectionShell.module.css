@@ -1,0 +1,198 @@
+.section {
+  scroll-margin-top: calc(var(--header-h, 72px) + 16px);
+  margin-top: 4.5rem;
+  animation: shellFadeIn 0.4s ease both;
+}
+
+.section:first-of-type {
+  margin-top: 2.25rem;
+}
+
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 0.9rem;
+}
+
+.eyebrowDot {
+  color: var(--accent);
+  opacity: 0.5;
+}
+
+.title {
+  font-family: var(--serif);
+  font-size: 2.15rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.12;
+  color: var(--ink);
+  margin: 0;
+}
+
+.description {
+  margin: 0.9rem 0 0;
+  font-size: 0.98rem;
+  line-height: 1.6;
+  color: var(--muted);
+  max-width: 60ch;
+}
+
+.card {
+  margin-top: 1.85rem;
+  background: #fff;
+  border: 1px solid rgba(26, 26, 30, 0.08);
+  border-radius: 14px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.9rem 1.15rem;
+  min-height: 48px;
+}
+
+.cardHeadClosed {
+  /* no border between head and body when closed */
+}
+
+.circle {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.circle[data-state="done"] {
+  background: #5e8761;
+}
+
+.circle[data-state="active"] {
+  background: var(--accent);
+}
+
+.circle[data-state="idle"] {
+  background: #d5d0c9;
+  color: #85817b;
+}
+
+.circle[data-kind="accent"][data-state="active"],
+.circle[data-kind="accent"][data-state="idle"] {
+  background: var(--accent);
+  color: #fff;
+}
+
+.cardTitle {
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+  flex-shrink: 0;
+}
+
+.cardMeta {
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardMeta::before {
+  content: "·";
+  color: #c2bdb5;
+  font-weight: 500;
+}
+
+.cardHeadRight {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.chevronBtn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  border-radius: 8px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.chevronBtn:hover {
+  background: rgba(26, 26, 30, 0.05);
+  color: var(--ink);
+}
+
+.chevron {
+  transition: transform 0.2s ease;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+  transition: transform 0.2s ease;
+}
+
+.cardBody {
+  padding: 0.4rem 1.15rem 1.25rem;
+  animation: bodyFadeIn 0.18s ease both;
+}
+
+@keyframes shellFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bodyFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 720px) {
+  .title {
+    font-size: 1.75rem;
+  }
+  .cardBody {
+    padding: 0.4rem 0.9rem 1rem;
+  }
+  .cardHead {
+    padding: 0.85rem 0.95rem;
+  }
+}
