@@ -4,6 +4,7 @@ export const VTCS: CodingScheme = {
   id: "vtcs",
   label: "VTCS",
   description: "Verbal Tactics Coding Scheme (Sillars, 1986)",
+  authoredFor: "turn",
   categories: [
     // DE — Denial & Equivocation
     { name: "DEN", description: "DE — Denial & Equivocation: Direct Denial. The speaker explicitly states that a conflict or problem does not exist (e.g., \"There's no problem\" or \"We don't disagree about that\"). Must be an overt, unambiguous denial — not merely offering a rationale. If the speaker provides an explanation or justification instead of a flat denial, code as ID." },

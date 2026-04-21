@@ -1,4 +1,4 @@
-import { CodedTurn, ColumnKey, COLUMN_DEFINITIONS } from "./types";
+import { CodedUnit, ColumnKey, COLUMN_DEFINITIONS } from "./types";
 
 function escapeCsvField(field: string): string {
   if (field.includes(",") || field.includes('"') || field.includes("\n")) {
@@ -7,33 +7,37 @@ function escapeCsvField(field: string): string {
   return field;
 }
 
-function getCellValue(turn: CodedTurn, key: ColumnKey): string {
+function getCellValue(unit: CodedUnit, key: ColumnKey): string {
   switch (key) {
+    case "unitId":
+      return escapeCsvField(unit.unitId);
     case "turnNumber":
-      return String(turn.turnNumber);
+      return String(unit.turnNumber);
+    case "utteranceIndex":
+      return unit.utteranceIndex !== undefined ? String(unit.utteranceIndex) : "";
     case "speaker":
-      return escapeCsvField(turn.speaker);
+      return escapeCsvField(unit.speaker);
     case "text":
-      return escapeCsvField(turn.text);
+      return escapeCsvField(unit.text);
     case "wordCount":
-      return String(turn.wordCount);
+      return String(unit.wordCount);
     case "category":
-      return escapeCsvField(turn.category);
+      return escapeCsvField(unit.category);
     case "rationale":
-      return escapeCsvField(turn.rationale);
+      return escapeCsvField(unit.rationale);
     case "startTime":
-      return turn.startTime.toFixed(3);
+      return unit.startTime.toFixed(3);
     case "endTime":
-      return turn.endTime.toFixed(3);
+      return unit.endTime.toFixed(3);
   }
 }
 
-export function generateCsv(turns: CodedTurn[], visibleColumns?: ColumnKey[]): string {
+export function generateCsv(units: CodedUnit[], visibleColumns?: ColumnKey[]): string {
   const cols = visibleColumns
     ? COLUMN_DEFINITIONS.filter((c) => visibleColumns.includes(c.key))
     : COLUMN_DEFINITIONS;
 
   const header = cols.map((c) => c.csvHeader).join(",");
-  const rows = turns.map((t) => cols.map((c) => getCellValue(t, c.key)).join(","));
+  const rows = units.map((u) => cols.map((c) => getCellValue(u, c.key)).join(","));
   return [header, ...rows].join("\n");
 }

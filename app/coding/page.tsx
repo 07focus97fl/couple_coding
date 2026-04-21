@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { CategoryEditor } from "./components/CategoryEditor";
 import { ExportButton } from "./components/ExportButton";
+import { PromptBlocksForm } from "./components/PromptBlocksForm";
+import { PromptPreview } from "./components/PromptPreview";
 import {
   TooltipProvider,
   TooltipRoot,
@@ -14,14 +15,33 @@ import { parseTranscript } from "@/lib/parse-transcript";
 import { generateCsv } from "@/lib/generate-csv";
 import { CODING_SCHEMES } from "@/lib/coding-schemes";
 import {
-  RawTranscript,
-  COLUMN_DEFINITIONS,
-  TranscriptFile,
-  CategoryDefinition,
   ApiLog,
+  CategoryDefinition,
+  CodedUnit,
+  COLUMN_DEFINITIONS,
+  CodingScheme,
   DEFAULT_CONTEXT_WINDOW,
+  DEFAULT_GRANULARITY,
+  Granularity,
+  PromptBlockDirty,
+  PromptBlockKey,
+  PromptBlocks,
+  RawTranscript,
+  SpeakingTurn,
+  TranscriptFile,
 } from "@/lib/types";
+import {
+  buildDefaultBlocks,
+  defaultCategories,
+  defaultContextFraming,
+  defaultGranularity,
+  defaultOutputInstruction,
+  defaultRole,
+  defaultRules,
+} from "@/lib/prompt-defaults";
+import { alignUtteranceToWords, getTurnWords } from "@/lib/align-utterances";
 import s from "./coding.module.css";
+import pbs from "./components/prompt-blocks.module.css";
 
 const STEP_LABELS = ["Upload", "Model", "Configure", "Run"] as const;
 
@@ -151,6 +171,24 @@ function readJsonFile(file: File): Promise<{ fileName: string; transcript: RawTr
   });
 }
 
+const INITIAL_BLOCKS: PromptBlocks = {
+  role: "",
+  granularity: "",
+  categories: "",
+  rules: "",
+  contextFraming: "",
+  outputInstruction: "",
+};
+
+const INITIAL_DIRTY: PromptBlockDirty = {
+  role: false,
+  granularity: false,
+  categories: false,
+  rules: false,
+  contextFraming: false,
+  outputInstruction: false,
+};
+
 export default function CodingPage() {
   const [step, setStep] = useState(0);
   const [uploadMode, setUploadMode] = useState<"audio" | "transcript">("audio");
@@ -166,8 +204,14 @@ export default function CodingPage() {
   const [apiLogs, setApiLogs] = useState<ApiLog[]>([]);
   const [selectedModel, setSelectedModel] = useState("");
   const [schemeId, setSchemeId] = useState<string | null>(null);
+
+  const [granularity, setGranularity] = useState<Granularity>(DEFAULT_GRANULARITY);
   const [categories, setCategories] = useState<CategoryDefinition[]>([]);
-  const [customRules, setCustomRules] = useState("");
+  const [categoriesDirty, setCategoriesDirty] = useState(false);
+  const [blocks, setBlocks] = useState<PromptBlocks>(INITIAL_BLOCKS);
+  const [dirty, setDirty] = useState<PromptBlockDirty>(INITIAL_DIRTY);
+  const [rawSystemOverride, setRawSystemOverride] = useState<string | null>(null);
+
   const [contextWindow, setContextWindow] = useState(DEFAULT_CONTEXT_WINDOW);
   const [openResults, setOpenResults] = useState<Record<string, boolean>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -184,6 +228,11 @@ export default function CodingPage() {
       sessionStorage.setItem("api_logs", JSON.stringify(apiLogs));
     }
   }, [apiLogs]);
+
+  // Keep blocks.categories in sync with the structured category list
+  useEffect(() => {
+    setBlocks((prev) => ({ ...prev, categories: defaultCategories(categories) }));
+  }, [categories]);
 
   const handleApiKeyChange = (val: string) => {
     setApiKey(val);
@@ -246,7 +295,7 @@ export default function CodingPage() {
         fileName: f.fileName,
         rawTranscript: f.transcript,
         turns: [],
-        codedTurns: [],
+        codedUnits: [],
         selected: true,
         status: "pending" as const,
         progress: { completed: 0, total: 0 },
@@ -304,10 +353,79 @@ export default function CodingPage() {
   const handleSchemeChange = useCallback((id: string) => {
     setSchemeId(id);
     const scheme = CODING_SCHEMES.find((sc) => sc.id === id);
-    if (scheme) {
-      setCategories(scheme.categories);
-      setCustomRules(scheme.rules ?? "");
+    if (!scheme) return;
+    setCategories(scheme.categories);
+    setCategoriesDirty(false);
+    setBlocks(buildDefaultBlocks(scheme, granularity));
+    setDirty({ ...INITIAL_DIRTY });
+    setRawSystemOverride(null);
+  }, [granularity]);
+
+  const handleGranularityChange = useCallback((next: Granularity) => {
+    if (rawSystemOverride !== null) {
+      const ok = typeof window !== "undefined"
+        ? window.confirm("Switching granularity will clear your raw prompt override. Continue?")
+        : true;
+      if (!ok) return;
+      setRawSystemOverride(null);
     }
+    setGranularity(next);
+    const scheme = CODING_SCHEMES.find((sc) => sc.id === schemeId) ?? null;
+    setBlocks((prev) => {
+      const nextBlocks: PromptBlocks = { ...prev };
+      if (!dirty.granularity) nextBlocks.granularity = defaultGranularity(next);
+      if (!dirty.contextFraming) nextBlocks.contextFraming = defaultContextFraming(next);
+      if (!dirty.outputInstruction) nextBlocks.outputInstruction = defaultOutputInstruction(next);
+      if (!dirty.role) nextBlocks.role = defaultRole();
+      if (!dirty.rules && scheme) nextBlocks.rules = defaultRules(scheme);
+      return nextBlocks;
+    });
+  }, [dirty, rawSystemOverride, schemeId]);
+
+  const handleBlockChange = useCallback((key: PromptBlockKey, value: string) => {
+    setBlocks((prev) => ({ ...prev, [key]: value }));
+    setDirty((prev) => ({ ...prev, [key]: true }));
+  }, []);
+
+  const handleBlockReset = useCallback((key: PromptBlockKey) => {
+    const scheme = CODING_SCHEMES.find((sc) => sc.id === schemeId) ?? null;
+    setBlocks((prev) => ({
+      ...prev,
+      [key]: resetBlockValue(key, granularity, scheme, categories),
+    }));
+    setDirty((prev) => ({ ...prev, [key]: false }));
+  }, [schemeId, granularity, categories]);
+
+  const handleCategoriesChange = useCallback((next: CategoryDefinition[]) => {
+    setCategories(next);
+    const scheme = CODING_SCHEMES.find((sc) => sc.id === schemeId);
+    if (scheme) {
+      const sameAsScheme =
+        next.length === scheme.categories.length &&
+        next.every(
+          (c, i) =>
+            c.name === scheme.categories[i]?.name &&
+            c.description === scheme.categories[i]?.description
+        );
+      setCategoriesDirty(!sameAsScheme);
+    } else {
+      setCategoriesDirty(true);
+    }
+  }, [schemeId]);
+
+  const handleCategoriesReset = useCallback(() => {
+    const scheme = CODING_SCHEMES.find((sc) => sc.id === schemeId);
+    if (!scheme) return;
+    setCategories(scheme.categories);
+    setCategoriesDirty(false);
+  }, [schemeId]);
+
+  const commitRawOverride = useCallback((raw: string) => {
+    setRawSystemOverride(raw);
+  }, []);
+
+  const revertRawOverride = useCallback(() => {
+    setRawSystemOverride(null);
   }, []);
 
   // ── Coding ──
@@ -316,13 +434,25 @@ export default function CodingPage() {
     setApiLogs([]);
     const filesToCode = files.filter((f) => f.selected);
 
+    const effectiveBlocks: PromptBlocks =
+      rawSystemOverride !== null
+        ? {
+            role: rawSystemOverride,
+            granularity: "",
+            categories: "",
+            rules: "",
+            contextFraming: "",
+            outputInstruction: "",
+          }
+        : blocks;
+
     for (const file of filesToCode) {
       const turns = file.turns.length > 0 ? file.turns : parseTranscript(file.rawTranscript.words);
 
       setFiles((prev) =>
         prev.map((f) =>
           f.id === file.id
-            ? { ...f, turns, status: "coding" as const, codedTurns: [], error: undefined, progress: { completed: 0, total: turns.length } }
+            ? { ...f, turns, status: "coding" as const, codedUnits: [], error: undefined, progress: { completed: 0, total: turns.length } }
             : f
         )
       );
@@ -334,8 +464,9 @@ export default function CodingPage() {
           body: JSON.stringify({
             turns,
             model: selectedModel,
+            granularity,
             categories,
-            rules: customRules || undefined,
+            blocks: effectiveBlocks,
             contextWindow,
             ...(devSignedIn ? {} : { apiKey }),
           }),
@@ -367,10 +498,18 @@ export default function CodingPage() {
             } else if (line.startsWith("data: ")) {
               const data = line.slice(6);
               if (eventType === "result") {
-                const { codedTurn } = JSON.parse(data);
-                setFiles((prev) =>
-                  prev.map((f) => f.id === file.id ? { ...f, codedTurns: [...f.codedTurns, codedTurn] } : f)
-                );
+                const parsed = JSON.parse(data) as { codedUnit?: CodedUnit; codedTurn?: CodedUnit };
+                const incoming = parsed.codedUnit ?? parsed.codedTurn;
+                if (incoming) {
+                  const aligned = alignIncomingUnit(incoming, file, turns, granularity);
+                  setFiles((prev) =>
+                    prev.map((f) =>
+                      f.id === file.id
+                        ? { ...f, codedUnits: [...f.codedUnits, aligned] }
+                        : f
+                    )
+                  );
+                }
               } else if (eventType === "progress") {
                 const progress = JSON.parse(data);
                 setFiles((prev) =>
@@ -405,7 +544,7 @@ export default function CodingPage() {
     }
   };
 
-  const doneFiles = files.filter((f) => f.selected && f.status === "done" && f.codedTurns.length > 0);
+  const doneFiles = files.filter((f) => f.selected && f.status === "done" && f.codedUnits.length > 0);
   const showExportAll = doneFiles.length > 1;
 
   const handleExportAll = () => {
@@ -415,7 +554,7 @@ export default function CodingPage() {
 
     const rows: string[] = [];
     for (const f of doneFiles) {
-      const sorted = [...f.codedTurns].sort((a, b) => a.turnNumber - b.turnNumber);
+      const sorted = sortUnits(f.codedUnits);
       const csv = generateCsv(sorted);
       const csvLines = csv.split("\n").slice(1); // skip header
       for (const line of csvLines) {
@@ -430,12 +569,12 @@ export default function CodingPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "coded_turns_all.csv";
+    a.download = "coded_units_all.csv";
     a.click();
     URL.revokeObjectURL(url);
   };
 
-  const activeScheme = CODING_SCHEMES.find((sc) => sc.id === schemeId);
+  const activeScheme = CODING_SCHEMES.find((sc) => sc.id === schemeId) ?? null;
   const modelName = MODELS.find((m) => m.id === selectedModel)?.name || "";
   const schemeName = activeScheme?.label || (schemeId === "custom" ? "Custom" : "");
 
@@ -509,6 +648,10 @@ export default function CodingPage() {
                     <span className={s.summaryVal}>{schemeName}</span>
                   </div>
                   <div className={s.summaryRow}>
+                    <span className={s.summaryKey}>Granularity</span>
+                    <span className={s.summaryVal}>{granularity === "turn" ? "Turn" : "Utterance"}</span>
+                  </div>
+                  <div className={s.summaryRow}>
                     <span className={s.summaryKey}>Context</span>
                     <span className={s.summaryVal}>{contextWindow} turns</span>
                   </div>
@@ -538,7 +681,7 @@ export default function CodingPage() {
             <p className={s.headerDesc}>
               {step === 0 && "Choose your input type and upload files."}
               {step === 1 && "Select a model for coding. Anthropic models are available today — more providers coming soon."}
-              {step === 2 && "Pick a validated coding scheme and set the context window for conversational dynamics."}
+              {step === 2 && "Pick a scheme, choose granularity, and edit each ingredient that feeds the prompt. The preview at the bottom shows exactly what Claude sees."}
               {step === 3 && "Code selected transcripts — each turn is analyzed with a transparent rationale."}
             </p>
           </div>
@@ -546,7 +689,6 @@ export default function CodingPage() {
           {/* ── STEP 0: Upload ── */}
           {step === 0 && (
             <div className={s.fadeIn}>
-              {/* Mode selection cards */}
               <div className={s.uploadModeCards}>
                 <button
                   className={`${s.uploadModeCard} ${uploadMode === "audio" ? s.uploadModeCardSelected : ""}`}
@@ -584,7 +726,6 @@ export default function CodingPage() {
                 </button>
               </div>
 
-              {/* Audio/video dropzone */}
               {uploadMode === "audio" && (
                 <>
                   <div
@@ -646,7 +787,6 @@ export default function CodingPage() {
                 </>
               )}
 
-              {/* Transcript (JSON) dropzone */}
               {uploadMode === "transcript" && (
                 <>
                   <div
@@ -854,6 +994,29 @@ export default function CodingPage() {
           {/* ── STEP 2: Configure ── */}
           {step === 2 && (
             <div className={s.fadeIn}>
+              {rawSystemOverride !== null && (
+                <div className={pbs.overrideBanner}>
+                  <div className={pbs.overrideBannerText}>
+                    <svg
+                      width="14" height="14" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                    >
+                      <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                      <line x1="12" y1="9" x2="12" y2="13" />
+                      <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                    Raw prompt override active — block edits below are ignored for the API call.
+                  </div>
+                  <button
+                    type="button"
+                    className={pbs.overrideRevertBtn}
+                    onClick={revertRawOverride}
+                  >
+                    Revert to blocks
+                  </button>
+                </div>
+              )}
+
               <div className={s.configLabel}>Coding scheme</div>
               <div className={s.schemesGrid}>
                 {CODING_SCHEMES.filter((sc) => sc.id !== "custom").map((sc) => (
@@ -879,15 +1042,20 @@ export default function CodingPage() {
               </div>
 
               {activeScheme && !activeScheme.comingSoon && (
-                <div className={s.categoryEditorWrap}>
-                  <div className={s.categoryEditorLabel}>
-                    {schemeId === "custom" ? "Define categories" : "Edit categories"}
-                  </div>
-                  <CategoryEditor
+                <div style={{ marginTop: "1.25rem" }}>
+                  <PromptBlocksForm
+                    granularity={granularity}
+                    onGranularityChange={handleGranularityChange}
+                    scheme={activeScheme}
                     categories={categories}
-                    onChange={setCategories}
-                    rules={customRules}
-                    onRulesChange={setCustomRules}
+                    onCategoriesChange={handleCategoriesChange}
+                    categoriesDirty={categoriesDirty}
+                    onCategoriesReset={handleCategoriesReset}
+                    blocks={blocks}
+                    dirty={dirty}
+                    onBlockChange={handleBlockChange}
+                    onBlockReset={handleBlockReset}
+                    disabled={rawSystemOverride !== null}
                   />
                 </div>
               )}
@@ -907,6 +1075,19 @@ export default function CodingPage() {
                   <div className={s.sliderVal}>{contextWindow} turn{contextWindow !== 1 ? "s" : ""}</div>
                 </div>
               </div>
+
+              {activeScheme && !activeScheme.comingSoon && (
+                <PromptPreview
+                  granularity={granularity}
+                  blocks={blocks}
+                  categories={categories}
+                  contextWindow={contextWindow}
+                  files={files}
+                  rawSystemOverride={rawSystemOverride}
+                  onCommitRawOverride={commitRawOverride}
+                  onRevertRawOverride={revertRawOverride}
+                />
+              )}
             </div>
           )}
 
@@ -931,7 +1112,6 @@ export default function CodingPage() {
                 </div>
               )}
 
-              {/* Per-file progress */}
               {hasFiles && files.some((f) => f.selected && f.status !== "pending") && (
                 <div className={s.progressSection}>
                   {files.filter((f) => f.selected).map((f) => {
@@ -973,7 +1153,6 @@ export default function CodingPage() {
                 </div>
               )}
 
-              {/* Export All */}
               {showExportAll && (
                 <div className={s.exportAllRow}>
                   <button className={s.exportBtn} onClick={handleExportAll}>
@@ -987,7 +1166,6 @@ export default function CodingPage() {
                 </div>
               )}
 
-              {/* View Logs */}
               {apiLogs.length > 0 && (
                 <div style={{ marginBottom: "0.75rem" }}>
                   <button
@@ -1010,11 +1188,10 @@ export default function CodingPage() {
                 </div>
               )}
 
-              {/* Results table per file */}
-              {files.filter((f) => f.selected && f.codedTurns.length > 0).map((f) => {
-                const sorted = [...f.codedTurns].sort((a, b) => a.turnNumber - b.turnNumber);
+              {files.filter((f) => f.selected && f.codedUnits.length > 0).map((f) => {
+                const sorted = sortUnits(f.codedUnits);
                 const multipleFiles = files.filter((ff) => ff.selected).length > 1;
-                const isOpen = openResults[f.id] !== false; // default open
+                const isOpen = openResults[f.id] !== false;
                 return (
                   <div key={f.id} className={s.resultsBlock}>
                     <div className={s.resultsBlockHeader}>
@@ -1031,7 +1208,9 @@ export default function CodingPage() {
                         </svg>
                         <div className={s.resultsBlockTitle}>
                           {multipleFiles && <span className={s.resultsBlockFile}>{f.fileName}</span>}
-                          <span className={s.resultsBlockCount}>{sorted.length} turn{sorted.length !== 1 ? "s" : ""} coded</span>
+                          <span className={s.resultsBlockCount}>
+                            {sorted.length} unit{sorted.length !== 1 ? "s" : ""} coded
+                          </span>
                         </div>
                       </button>
                       {f.status === "done" && <ExportButton codedTurns={sorted} />}
@@ -1042,7 +1221,7 @@ export default function CodingPage() {
                           <table className={s.table}>
                             <thead>
                               <tr className={s.tableHeadRow}>
-                                <th className={s.th}>#</th>
+                                <th className={s.th}>Unit</th>
                                 <th className={s.th}>Speaker</th>
                                 <th className={`${s.th} ${s.thText}`}>Text</th>
                                 <th className={s.th}>Category</th>
@@ -1050,28 +1229,45 @@ export default function CodingPage() {
                               </tr>
                             </thead>
                             <tbody>
-                              {sorted.map((turn) => {
-                                const speakerClass = turn.speaker.includes("0") || turn.speaker.toLowerCase().includes("a")
+                              {sorted.map((unit) => {
+                                const speakerClass = unit.speaker.includes("0") || unit.speaker.toLowerCase().includes("a")
                                   ? s.speakerA : s.speakerB;
                                 return (
-                                  <tr key={turn.turnNumber} className={s.tableRow}>
-                                    <td className={s.tdNum}>{turn.turnNumber}</td>
+                                  <tr key={unit.unitId} className={s.tableRow}>
+                                    <td className={s.tdNum}>
+                                      <span style={{ fontFamily: "var(--mono)", fontSize: "0.74rem" }}>{unit.unitId}</span>
+                                      {unit.approximateTiming && (
+                                        <div style={{
+                                          marginTop: 4,
+                                          fontFamily: "var(--mono)",
+                                          fontSize: "0.58rem",
+                                          background: "#fff5e8",
+                                          color: "#8a5a12",
+                                          border: "1px solid #f0c98c",
+                                          padding: "0.1rem 0.35rem",
+                                          borderRadius: 100,
+                                          display: "inline-block",
+                                        }}>
+                                          ~ approx timing
+                                        </div>
+                                      )}
+                                    </td>
                                     <td className={s.tdSpeaker}>
-                                      <span className={`${s.speakerTag} ${speakerClass}`}>{turn.speaker}</span>
+                                      <span className={`${s.speakerTag} ${speakerClass}`}>{unit.speaker}</span>
                                     </td>
                                     <td className={s.tdText}>
                                       <TooltipRoot>
-                                        <TooltipTrigger className={s.truncCell}>{turn.text}</TooltipTrigger>
-                                        <TooltipContent className={s.tooltipContent}>{turn.text}</TooltipContent>
+                                        <TooltipTrigger className={s.truncCell}>{unit.text}</TooltipTrigger>
+                                        <TooltipContent className={s.tooltipContent}>{unit.text}</TooltipContent>
                                       </TooltipRoot>
                                     </td>
                                     <td className={s.tdCategory}>
-                                      <span className={s.codeTag}>{turn.category}</span>
+                                      <span className={s.codeTag}>{unit.category}</span>
                                     </td>
                                     <td className={s.tdRationale}>
                                       <TooltipRoot>
-                                        <TooltipTrigger className={s.truncCell}>{turn.rationale}</TooltipTrigger>
-                                        <TooltipContent className={s.tooltipContent}>{turn.rationale}</TooltipContent>
+                                        <TooltipTrigger className={s.truncCell}>{unit.rationale}</TooltipTrigger>
+                                        <TooltipContent className={s.tooltipContent}>{unit.rationale}</TooltipContent>
                                       </TooltipRoot>
                                     </td>
                                   </tr>
@@ -1088,7 +1284,6 @@ export default function CodingPage() {
             </div>
           )}
 
-          {/* ── Bottom Nav ── */}
           <div className={s.nav}>
             <button
               className={`${s.navBtn} ${s.navBack}`}
@@ -1120,4 +1315,58 @@ export default function CodingPage() {
       </main>
     </div>
   );
+}
+
+// ── Helpers ──
+
+function resetBlockValue(
+  key: PromptBlockKey,
+  granularity: Granularity,
+  scheme: CodingScheme | null,
+  categories: CategoryDefinition[]
+): string {
+  switch (key) {
+    case "role":
+      return defaultRole();
+    case "granularity":
+      return defaultGranularity(granularity);
+    case "categories":
+      return defaultCategories(categories);
+    case "rules":
+      return scheme ? defaultRules(scheme) : "";
+    case "contextFraming":
+      return defaultContextFraming(granularity);
+    case "outputInstruction":
+      return defaultOutputInstruction(granularity);
+    default:
+      return "";
+  }
+}
+
+function alignIncomingUnit(
+  unit: CodedUnit,
+  file: TranscriptFile,
+  turns: SpeakingTurn[],
+  granularity: Granularity
+): CodedUnit {
+  if (granularity !== "utterance" || unit.utteranceIndex === undefined) {
+    return unit;
+  }
+  const parentTurn = turns.find((t) => t.turnNumber === unit.turnNumber);
+  if (!parentTurn) return unit;
+  const turnWords = getTurnWords(file.rawTranscript, parentTurn);
+  const aligned = alignUtteranceToWords(unit.text, turnWords);
+  if (aligned.ok) {
+    return { ...unit, startTime: aligned.startTime, endTime: aligned.endTime };
+  }
+  return { ...unit, approximateTiming: true };
+}
+
+function sortUnits(units: CodedUnit[]): CodedUnit[] {
+  return [...units].sort((a, b) => {
+    if (a.turnNumber !== b.turnNumber) return a.turnNumber - b.turnNumber;
+    const au = a.utteranceIndex ?? 0;
+    const bu = b.utteranceIndex ?? 0;
+    return au - bu;
+  });
 }

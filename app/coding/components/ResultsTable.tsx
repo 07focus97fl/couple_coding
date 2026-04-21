@@ -40,8 +40,12 @@ function categoryVariant(category: string): "default" | "destructive" | "seconda
 
 function renderCell(turn: CodedTurn, key: ColumnKey) {
   switch (key) {
+    case "unitId":
+      return <span className="font-mono text-sm">{turn.unitId}</span>;
     case "turnNumber":
       return <span className="font-mono text-sm">{turn.turnNumber}</span>;
+    case "utteranceIndex":
+      return <span className="font-mono text-sm">{turn.utteranceIndex ?? ""}</span>;
     case "speaker":
       return <span className="font-medium">{turn.speaker}</span>;
     case "text":

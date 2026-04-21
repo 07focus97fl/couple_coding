@@ -1,18 +1,52 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { SpeakingTurn, CodedTurn, CategoryDefinition, CodingScheme, ApiLog } from "@/lib/types";
+import {
+  SpeakingTurn,
+  CodedUnit,
+  CategoryDefinition,
+  ApiLog,
+  ApiLogParsedUnit,
+  Granularity,
+  PromptBlocks,
+} from "@/lib/types";
 import { buildSystemPrompt, buildUserMessage } from "./prompts";
 
 const CONCURRENCY = 5;
 
+interface CodeRequest {
+  turns: SpeakingTurn[];
+  model: string;
+  granularity: Granularity;
+  categories: CategoryDefinition[];
+  blocks: PromptBlocks;
+  contextWindow?: number;
+  apiKey?: string;
+}
+
+interface TurnModeInput {
+  category: string;
+  rationale: string;
+}
+
+interface UtteranceInputEntry {
+  text: string;
+  category: string;
+  rationale: string;
+}
+
+interface UtteranceModeInput {
+  utterances: UtteranceInputEntry[];
+}
+
 export async function POST(request: Request) {
-  const { turns, model, categories, rules, contextWindow = 5, apiKey: clientKey } = (await request.json()) as {
-    turns: SpeakingTurn[];
-    model: string;
-    categories: CategoryDefinition[];
-    rules?: string;
-    contextWindow?: number;
-    apiKey?: string;
-  };
+  const {
+    turns,
+    model,
+    granularity,
+    categories,
+    blocks,
+    contextWindow = 5,
+    apiKey: clientKey,
+  } = (await request.json()) as CodeRequest;
 
   const apiKey = clientKey || process.env.ANTHROPIC_API_KEY;
   if (!apiKey || apiKey === "sk-your-key-here") {
@@ -29,41 +63,72 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!categories || !Array.isArray(categories) || categories.length < 2) {
+  if (!categories || !Array.isArray(categories) || categories.filter((c) => c.name.trim() !== "").length < 2) {
     return new Response(
       JSON.stringify({ error: "At least 2 categories are required" }),
       { status: 400, headers: { "Content-Type": "application/json" } }
     );
   }
 
-  const scheme: CodingScheme = {
-    id: "runtime",
-    label: "",
-    description: "",
-    categories,
-    rules: rules || undefined,
-  };
+  if (!blocks || typeof blocks !== "object") {
+    return new Response(
+      JSON.stringify({ error: "Prompt blocks missing" }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
+    );
+  }
 
-  const validCategoryNames = new Set(scheme.categories.map((c) => c.name));
+  const activeGranularity: Granularity = granularity === "utterance" ? "utterance" : "turn";
+  const validCategoryNames = new Set(
+    categories.filter((c) => c.name.trim() !== "").map((c) => c.name)
+  );
+  const categoryEnum = Array.from(validCategoryNames);
 
   const client = new Anthropic({ apiKey });
-  const systemPrompt = buildSystemPrompt(scheme);
+  const systemPrompt = buildSystemPrompt(blocks);
 
-  const tool: Anthropic.Tool = {
-    name: "code_exchange",
-    description: "Categorize a speaking turn and provide a rationale.",
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        category: {
-          type: "string",
-          enum: scheme.categories.map((c) => c.name),
-        },
-        rationale: { type: "string" },
-      },
-      required: ["category", "rationale"],
-    },
-  };
+  const tool: Anthropic.Tool =
+    activeGranularity === "turn"
+      ? {
+          name: "code_exchange",
+          description: "Categorize a speaking turn and provide a rationale.",
+          input_schema: {
+            type: "object" as const,
+            properties: {
+              category: { type: "string", enum: categoryEnum },
+              rationale: { type: "string" },
+            },
+            required: ["category", "rationale"],
+          },
+        }
+      : {
+          name: "code_exchange",
+          description:
+            "Segment a speaking turn into one or more coded utterances. Each utterance must quote a verbatim contiguous substring of the target turn.",
+          input_schema: {
+            type: "object" as const,
+            properties: {
+              utterances: {
+                type: "array",
+                minItems: 1,
+                items: {
+                  type: "object",
+                  properties: {
+                    text: {
+                      type: "string",
+                      description: "Verbatim contiguous substring of the target turn.",
+                    },
+                    category: { type: "string", enum: categoryEnum },
+                    rationale: { type: "string" },
+                  },
+                  required: ["text", "category", "rationale"],
+                },
+              },
+            },
+            required: ["utterances"],
+          },
+        };
+
+  const maxTokens = activeGranularity === "turn" ? 300 : 2000;
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
@@ -72,70 +137,186 @@ export async function POST(request: Request) {
         let completed = 0;
         const total = turns.length;
 
-        async function processTurn(turn: SpeakingTurn): Promise<{ codedTurn: CodedTurn; logs: ApiLog[] }> {
+        async function processTurn(
+          turn: SpeakingTurn
+        ): Promise<{ codedUnits: CodedUnit[]; log: ApiLog }> {
           const contextStart = Math.max(0, turn.turnNumber - 1 - contextWindow);
           const contextEnd = turn.turnNumber - 1;
           const contextTurns = turns.slice(contextStart, contextEnd);
 
           const userMessage = buildUserMessage(contextTurns, turn);
-          const turnLogs: ApiLog[] = [];
 
           const MAX_RETRIES = 2;
+          let lastResponse: Anthropic.Message | null = null;
+          let lastParsedUnits: ApiLogParsedUnit[] = [];
+          let lastAttempt = 0;
+
           for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+            lastAttempt = attempt;
             const message = await client.messages.create({
               model,
-              max_tokens: 300,
+              max_tokens: maxTokens,
               system: systemPrompt,
               messages: [{ role: "user", content: userMessage }],
               tools: [tool],
               tool_choice: { type: "tool", name: "code_exchange" },
             });
+            lastResponse = message;
 
             const toolBlock = message.content.find(
               (b): b is Anthropic.ToolUseBlock => b.type === "tool_use"
             );
+            const input = toolBlock?.input;
 
-            const input = toolBlock?.input as { category: string; rationale: string } | undefined;
+            if (activeGranularity === "turn") {
+              const parsed = input as TurnModeInput | undefined;
+              if (
+                parsed &&
+                typeof parsed.category === "string" &&
+                typeof parsed.rationale === "string" &&
+                validCategoryNames.has(parsed.category)
+              ) {
+                const unit: CodedUnit = {
+                  unitId: `T${turn.turnNumber}`,
+                  turnNumber: turn.turnNumber,
+                  speaker: turn.speaker,
+                  text: turn.text,
+                  startTime: turn.startTime,
+                  endTime: turn.endTime,
+                  wordCount: turn.wordCount,
+                  category: parsed.category,
+                  rationale: parsed.rationale,
+                };
+                lastParsedUnits = [
+                  { unitId: unit.unitId, category: parsed.category, rationale: parsed.rationale },
+                ];
+                return {
+                  codedUnits: [unit],
+                  log: {
+                    turnNumber: turn.turnNumber,
+                    speaker: turn.speaker,
+                    granularity: activeGranularity,
+                    unitIds: [unit.unitId],
+                    model,
+                    systemPrompt,
+                    userMessage,
+                    toolDefinition: tool,
+                    rawResponse: message,
+                    parsedUnits: lastParsedUnits,
+                    attempt,
+                    timestamp: new Date().toISOString(),
+                  },
+                };
+              }
+            } else {
+              const parsed = input as UtteranceModeInput | undefined;
+              const list = parsed?.utterances;
+              if (
+                Array.isArray(list) &&
+                list.length > 0 &&
+                list.every(
+                  (u) =>
+                    u &&
+                    typeof u.text === "string" &&
+                    u.text.trim().length > 0 &&
+                    typeof u.category === "string" &&
+                    validCategoryNames.has(u.category) &&
+                    typeof u.rationale === "string"
+                )
+              ) {
+                const units: CodedUnit[] = list.map((u, i) => {
+                  const utteranceIndex = i + 1;
+                  const unitId = `T${turn.turnNumber}.U${utteranceIndex}`;
+                  return {
+                    unitId,
+                    turnNumber: turn.turnNumber,
+                    utteranceIndex,
+                    speaker: turn.speaker,
+                    text: u.text,
+                    startTime: turn.startTime,
+                    endTime: turn.endTime,
+                    wordCount: u.text.trim().split(/\s+/).length,
+                    category: u.category,
+                    rationale: u.rationale,
+                  };
+                });
+                lastParsedUnits = units.map((u) => ({
+                  unitId: u.unitId,
+                  category: u.category,
+                  rationale: u.rationale,
+                  text: u.text,
+                }));
+                return {
+                  codedUnits: units,
+                  log: {
+                    turnNumber: turn.turnNumber,
+                    speaker: turn.speaker,
+                    granularity: activeGranularity,
+                    unitIds: units.map((u) => u.unitId),
+                    model,
+                    systemPrompt,
+                    userMessage,
+                    toolDefinition: tool,
+                    rawResponse: message,
+                    parsedUnits: lastParsedUnits,
+                    attempt,
+                    timestamp: new Date().toISOString(),
+                  },
+                };
+              }
+            }
+          }
 
-            turnLogs.push({
+          const errorUnit: CodedUnit = {
+            unitId: `T${turn.turnNumber}`,
+            turnNumber: turn.turnNumber,
+            speaker: turn.speaker,
+            text: turn.text,
+            startTime: turn.startTime,
+            endTime: turn.endTime,
+            wordCount: turn.wordCount,
+            category: "error",
+            rationale: "Failed to parse model response",
+          };
+          return {
+            codedUnits: [errorUnit],
+            log: {
               turnNumber: turn.turnNumber,
               speaker: turn.speaker,
+              granularity: activeGranularity,
+              unitIds: [errorUnit.unitId],
               model,
               systemPrompt,
               userMessage,
               toolDefinition: tool,
-              rawResponse: message,
-              parsedCategory: input?.category ?? "N/A",
-              parsedRationale: input?.rationale ?? "N/A",
-              attempt,
+              rawResponse: lastResponse ?? {},
+              parsedUnits: lastParsedUnits,
+              attempt: lastAttempt,
               timestamp: new Date().toISOString(),
-            });
-
-            if (toolBlock && input && validCategoryNames.has(input.category)) {
-              return { codedTurn: { ...turn, category: input.category, rationale: input.rationale }, logs: turnLogs };
-            }
-          }
-
-          return { codedTurn: { ...turn, category: "error", rationale: "Failed to parse model response" }, logs: turnLogs };
+            },
+          };
         }
 
-        // Process with concurrency pool
         let index = 0;
 
         async function runNext(): Promise<void> {
           while (index < total) {
             const currentIndex = index++;
-            const { codedTurn, logs } = await processTurn(turns[currentIndex]);
+            const { codedUnits, log } = await processTurn(turns[currentIndex]);
 
-            completed++;
-            controller.enqueue(
-              encoder.encode(`event: result\ndata: ${JSON.stringify({ codedTurn })}\n\n`)
-            );
-            for (const log of logs) {
+            for (const unit of codedUnits) {
               controller.enqueue(
-                encoder.encode(`event: log\ndata: ${JSON.stringify(log)}\n\n`)
+                encoder.encode(
+                  `event: result\ndata: ${JSON.stringify({ codedUnit: unit, codedTurn: unit })}\n\n`
+                )
               );
             }
+
+            controller.enqueue(
+              encoder.encode(`event: log\ndata: ${JSON.stringify(log)}\n\n`)
+            );
+
+            completed++;
             controller.enqueue(
               encoder.encode(
                 `event: progress\ndata: ${JSON.stringify({ completed, total })}\n\n`

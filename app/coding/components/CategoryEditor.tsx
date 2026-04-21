@@ -8,11 +8,9 @@ import { X } from "lucide-react";
 interface CategoryEditorProps {
   categories: CategoryDefinition[];
   onChange: (cats: CategoryDefinition[]) => void;
-  rules?: string;
-  onRulesChange?: (rules: string) => void;
 }
 
-export function CategoryEditor({ categories, onChange, rules, onRulesChange }: CategoryEditorProps) {
+export function CategoryEditor({ categories, onChange }: CategoryEditorProps) {
   function updateCategory(index: number, field: keyof CategoryDefinition, value: string) {
     const updated = categories.map((c, i) =>
       i === index ? { ...c, [field]: value } : c
@@ -30,22 +28,6 @@ export function CategoryEditor({ categories, onChange, rules, onRulesChange }: C
 
   return (
     <div className="space-y-3">
-      {onRulesChange !== undefined && (
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-muted-foreground">
-            Coding rules (optional)
-          </label>
-          <textarea
-            className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            placeholder="E.g., precedence hierarchy, context rules, edge cases..."
-            value={rules ?? ""}
-            onChange={(e) => onRulesChange(e.target.value)}
-          />
-        </div>
-      )}
-      <label className="text-sm font-medium text-muted-foreground">
-        Categories
-      </label>
       {categories.map((cat, i) => (
         <div key={i} className="flex items-start gap-2">
           <div className="flex-1 space-y-1.5">
