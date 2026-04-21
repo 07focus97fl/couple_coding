@@ -80,7 +80,7 @@ export default function LandingPage() {
           </div>
           <div className={s.terminalBody}>
             <div className={s.terminalLine}>
-              <span className={s.comment}>// Coding turn 14 of 87 — scheme: SPAFF</span>
+              <span className={s.comment}>{"// Coding turn 14 of 87 — scheme: SPAFF"}</span>
             </div>
             <div className={s.terminalLine}>
               <br />

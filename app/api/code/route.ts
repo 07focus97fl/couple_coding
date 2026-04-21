@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { SpeakingTurn, CodedTurn, CategoryDefinition, CodingScheme } from "@/lib/types";
+import { SpeakingTurn, CodedTurn, CategoryDefinition, CodingScheme, ApiLog } from "@/lib/types";
 import { buildSystemPrompt, buildUserMessage } from "./prompts";
 
 const CONCURRENCY = 5;
@@ -72,12 +72,13 @@ export async function POST(request: Request) {
         let completed = 0;
         const total = turns.length;
 
-        async function processTurn(turn: SpeakingTurn): Promise<CodedTurn> {
+        async function processTurn(turn: SpeakingTurn): Promise<{ codedTurn: CodedTurn; logs: ApiLog[] }> {
           const contextStart = Math.max(0, turn.turnNumber - 1 - contextWindow);
           const contextEnd = turn.turnNumber - 1;
           const contextTurns = turns.slice(contextStart, contextEnd);
 
           const userMessage = buildUserMessage(contextTurns, turn);
+          const turnLogs: ApiLog[] = [];
 
           const MAX_RETRIES = 2;
           for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -94,15 +95,28 @@ export async function POST(request: Request) {
               (b): b is Anthropic.ToolUseBlock => b.type === "tool_use"
             );
 
-            if (toolBlock) {
-              const input = toolBlock.input as { category: string; rationale: string };
-              if (validCategoryNames.has(input.category)) {
-                return { ...turn, category: input.category, rationale: input.rationale };
-              }
+            const input = toolBlock?.input as { category: string; rationale: string } | undefined;
+
+            turnLogs.push({
+              turnNumber: turn.turnNumber,
+              speaker: turn.speaker,
+              model,
+              systemPrompt,
+              userMessage,
+              toolDefinition: tool,
+              rawResponse: message,
+              parsedCategory: input?.category ?? "N/A",
+              parsedRationale: input?.rationale ?? "N/A",
+              attempt,
+              timestamp: new Date().toISOString(),
+            });
+
+            if (toolBlock && input && validCategoryNames.has(input.category)) {
+              return { codedTurn: { ...turn, category: input.category, rationale: input.rationale }, logs: turnLogs };
             }
           }
 
-          return { ...turn, category: "error", rationale: "Failed to parse model response" };
+          return { codedTurn: { ...turn, category: "error", rationale: "Failed to parse model response" }, logs: turnLogs };
         }
 
         // Process with concurrency pool
@@ -111,12 +125,17 @@ export async function POST(request: Request) {
         async function runNext(): Promise<void> {
           while (index < total) {
             const currentIndex = index++;
-            const codedTurn = await processTurn(turns[currentIndex]);
+            const { codedTurn, logs } = await processTurn(turns[currentIndex]);
 
             completed++;
             controller.enqueue(
               encoder.encode(`event: result\ndata: ${JSON.stringify({ codedTurn })}\n\n`)
             );
+            for (const log of logs) {
+              controller.enqueue(
+                encoder.encode(`event: log\ndata: ${JSON.stringify(log)}\n\n`)
+              );
+            }
             controller.enqueue(
               encoder.encode(
                 `event: progress\ndata: ${JSON.stringify({ completed, total })}\n\n`

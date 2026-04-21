@@ -519,6 +519,62 @@
   margin-top: 0.15rem;
 }
 
+/* ─── PROVIDER SECTIONS ─── */
+.providerSection {
+  margin-bottom: 1.4rem;
+}
+.providerSection:last-child {
+  margin-bottom: 0;
+}
+.providerHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.6rem;
+  padding: 0 0.15rem;
+}
+.providerIconWrap {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.providerName {
+  font-family: var(--serif);
+  font-size: 1rem;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+}
+.providerSoonBadge {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  font-weight: 500;
+  background: #f0ece6;
+  color: #8a8680;
+  padding: 0.2rem 0.55rem;
+  border-radius: 100px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.providerModels {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.modelCardDisabled {
+  opacity: 0.55;
+  cursor: not-allowed !important;
+  background: #faf8f5 !important;
+}
+.modelCardDisabled:hover {
+  border-color: #e8e4de !important;
+}
+
 /* ─── CONFIGURE ─── */
 .configLabel {
   font-weight: 600;

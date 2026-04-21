@@ -83,6 +83,20 @@ export interface TranscriptFile {
   error?: string;
 }
 
+export interface ApiLog {
+  turnNumber: number;
+  speaker: string;
+  model: string;
+  systemPrompt: string;
+  userMessage: string;
+  toolDefinition: object;
+  rawResponse: object;
+  parsedCategory: string;
+  parsedRationale: string;
+  attempt: number;
+  timestamp: string;
+}
+
 export const DEFAULT_CONTEXT_WINDOW = 5;
 
 export const DEFAULT_EXPORT_CONFIG: ExportConfig = {

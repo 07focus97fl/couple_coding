@@ -18,17 +18,115 @@ import {
   COLUMN_DEFINITIONS,
   TranscriptFile,
   CategoryDefinition,
+  ApiLog,
   DEFAULT_CONTEXT_WINDOW,
 } from "@/lib/types";
 import s from "./coding.module.css";
 
 const STEP_LABELS = ["Upload", "Model", "Configure", "Run"] as const;
 
-const MODELS = [
-  { id: "claude-sonnet-4-6", name: "Claude Sonnet 4.6", desc: "Fast & capable — ideal for most coding tasks", badge: "Recommended" },
-  { id: "claude-opus-4-6", name: "Claude Opus 4.6", desc: "Highest accuracy for nuanced or ambiguous turns", badge: null },
-  { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5", desc: "Fastest — good for simple binary schemes", badge: null },
+type ModelDef = { id: string; name: string; desc: string; badge: string | null };
+type ProviderDef = {
+  id: "anthropic" | "openai" | "google" | "oss";
+  name: string;
+  accent: string;
+  comingSoon?: boolean;
+  models: ModelDef[];
+};
+
+const MODEL_PROVIDERS: ProviderDef[] = [
+  {
+    id: "anthropic",
+    name: "Anthropic",
+    accent: "#c45d3e",
+    models: [
+      { id: "claude-opus-4-7", name: "Claude Opus 4.7", desc: "Flagship — 1M context, highest accuracy on nuanced turns", badge: "Flagship" },
+      { id: "claude-sonnet-4-6", name: "Claude Sonnet 4.6", desc: "Fast & capable — ideal for most coding tasks", badge: "Recommended" },
+      { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5", desc: "Fastest — good for simple binary schemes", badge: null },
+    ],
+  },
+  {
+    id: "openai",
+    name: "OpenAI",
+    accent: "#10a37f",
+    comingSoon: true,
+    models: [
+      { id: "gpt-5-pro", name: "GPT-5 Pro", desc: "Deepest reasoning — OpenAI's flagship", badge: "Flagship" },
+      { id: "gpt-5", name: "GPT-5", desc: "Balanced general-purpose model", badge: null },
+      { id: "o4", name: "o4", desc: "Reasoning specialist for ambiguous turns", badge: null },
+    ],
+  },
+  {
+    id: "google",
+    name: "Google",
+    accent: "#4285f4",
+    comingSoon: true,
+    models: [
+      { id: "gemini-3-pro", name: "Gemini 3 Pro", desc: "Long-context, multimodal flagship", badge: "Flagship" },
+      { id: "gemini-3-flash", name: "Gemini 3 Flash", desc: "High-throughput, low-latency coding", badge: null },
+    ],
+  },
+  {
+    id: "oss",
+    name: "Open Source",
+    accent: "#8a63d2",
+    comingSoon: true,
+    models: [
+      { id: "llama-4-405b", name: "Llama 4 405B", desc: "Meta's largest open-weight model", badge: "Flagship" },
+      { id: "deepseek-r1", name: "DeepSeek R1", desc: "Open reasoning model — strong at nuance", badge: null },
+      { id: "qwen-3-72b", name: "Qwen 3 72B", desc: "Alibaba's open multilingual flagship", badge: null },
+    ],
+  },
 ];
+
+const MODELS = MODEL_PROVIDERS.flatMap((p) => p.models);
+
+function ProviderIcon({ provider }: { provider: ProviderDef["id"] }) {
+  const common = {
+    width: 14,
+    height: 14,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.9,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+  };
+  if (provider === "anthropic") {
+    return (
+      <svg {...common}>
+        <line x1="12" y1="3" x2="12" y2="21" />
+        <line x1="3" y1="12" x2="21" y2="12" />
+        <line x1="5.6" y1="5.6" x2="18.4" y2="18.4" />
+        <line x1="18.4" y1="5.6" x2="5.6" y2="18.4" />
+      </svg>
+    );
+  }
+  if (provider === "openai") {
+    return (
+      <svg {...common}>
+        <circle cx="12" cy="8.8" r="3.8" />
+        <circle cx="8.6" cy="14.6" r="3.8" />
+        <circle cx="15.4" cy="14.6" r="3.8" />
+      </svg>
+    );
+  }
+  if (provider === "google") {
+    return (
+      <svg {...common}>
+        <path d="M20 12a8 8 0 11-2.3-5.6" />
+        <path d="M20 12h-6" />
+      </svg>
+    );
+  }
+  return (
+    <svg {...common}>
+      <polyline points="8 6 3 12 8 18" />
+      <polyline points="16 6 21 12 16 18" />
+      <line x1="14" y1="5" x2="10" y2="19" />
+    </svg>
+  );
+}
 
 function readJsonFile(file: File): Promise<{ fileName: string; transcript: RawTranscript }> {
   return new Promise((resolve, reject) => {
@@ -65,6 +163,7 @@ export default function CodingPage() {
   const [devSignedIn, setDevSignedIn] = useState(false);
   const [devPassword, setDevPassword] = useState("");
   const [devAuthError, setDevAuthError] = useState("");
+  const [apiLogs, setApiLogs] = useState<ApiLog[]>([]);
   const [selectedModel, setSelectedModel] = useState("");
   const [schemeId, setSchemeId] = useState<string | null>(null);
   const [categories, setCategories] = useState<CategoryDefinition[]>([]);
@@ -79,6 +178,12 @@ export default function CodingPage() {
     if (stored) setApiKey(stored);
     if (localStorage.getItem("dev_signed_in") === "true") setDevSignedIn(true);
   }, []);
+
+  useEffect(() => {
+    if (apiLogs.length > 0) {
+      sessionStorage.setItem("api_logs", JSON.stringify(apiLogs));
+    }
+  }, [apiLogs]);
 
   const handleApiKeyChange = (val: string) => {
     setApiKey(val);
@@ -208,6 +313,7 @@ export default function CodingPage() {
   // ── Coding ──
   const handleCode = async () => {
     if (!hasFiles) return;
+    setApiLogs([]);
     const filesToCode = files.filter((f) => f.selected);
 
     for (const file of filesToCode) {
@@ -270,6 +376,9 @@ export default function CodingPage() {
                 setFiles((prev) =>
                   prev.map((f) => f.id === file.id ? { ...f, progress } : f)
                 );
+              } else if (eventType === "log") {
+                const log = JSON.parse(data) as ApiLog;
+                setApiLogs((prev) => [...prev, log]);
               } else if (eventType === "error") {
                 const { message } = JSON.parse(data);
                 setFiles((prev) =>
@@ -296,7 +405,6 @@ export default function CodingPage() {
     }
   };
 
-  const filesWithResults = files.filter((f) => f.codedTurns.length > 0);
   const doneFiles = files.filter((f) => f.selected && f.status === "done" && f.codedTurns.length > 0);
   const showExportAll = doneFiles.length > 1;
 
@@ -429,7 +537,7 @@ export default function CodingPage() {
             </h1>
             <p className={s.headerDesc}>
               {step === 0 && "Choose your input type and upload files."}
-              {step === 1 && "Select the Claude model for coding. Higher-tier models give more nuanced rationales."}
+              {step === 1 && "Select a model for coding. Anthropic models are available today — more providers coming soon."}
               {step === 2 && "Pick a validated coding scheme and set the context window for conversational dynamics."}
               {step === 3 && "Code selected transcripts — each turn is analyzed with a transparent rationale."}
             </p>
@@ -699,23 +807,46 @@ export default function CodingPage() {
                 )}
               </div>
 
-              {MODELS.map((m) => (
-                <button
-                  key={m.id}
-                  className={`${s.modelCard} ${selectedModel === m.id ? s.modelCardSelected : ""}`}
-                  onClick={() => setSelectedModel(m.id)}
-                >
-                  <div className={s.modelRadio}>
-                    <div className={`${s.modelRadioInner} ${selectedModel === m.id ? s.modelRadioSelected : ""}`} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                      <span className={s.modelName}>{m.name}</span>
-                      {m.badge && <span className={s.modelBadge}>{m.badge}</span>}
+              {MODEL_PROVIDERS.map((provider) => (
+                <div key={provider.id} className={s.providerSection}>
+                  <div className={s.providerHeader}>
+                    <div
+                      className={s.providerIconWrap}
+                      style={{ background: `${provider.accent}1a`, color: provider.accent }}
+                    >
+                      <ProviderIcon provider={provider.id} />
                     </div>
-                    <div className={s.modelDesc}>{m.desc}</div>
+                    <div className={s.providerName}>{provider.name}</div>
+                    {provider.comingSoon && (
+                      <span className={s.providerSoonBadge}>Coming soon</span>
+                    )}
                   </div>
-                </button>
+                  <div className={s.providerModels}>
+                    {provider.models.map((m) => {
+                      const isSelected = selectedModel === m.id;
+                      const disabled = !!provider.comingSoon;
+                      return (
+                        <button
+                          key={m.id}
+                          className={`${s.modelCard} ${isSelected ? s.modelCardSelected : ""} ${disabled ? s.modelCardDisabled : ""}`}
+                          onClick={() => { if (!disabled) setSelectedModel(m.id); }}
+                          disabled={disabled}
+                        >
+                          <div className={s.modelRadio}>
+                            <div className={`${s.modelRadioInner} ${isSelected ? s.modelRadioSelected : ""}`} />
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                              <span className={s.modelName}>{m.name}</span>
+                              {m.badge && <span className={s.modelBadge}>{m.badge}</span>}
+                            </div>
+                            <div className={s.modelDesc}>{m.desc}</div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               ))}
             </div>
           )}
@@ -852,6 +983,29 @@ export default function CodingPage() {
                       <line x1="12" y1="15" x2="12" y2="3" />
                     </svg>
                     Export All ({doneFiles.length} files)
+                  </button>
+                </div>
+              )}
+
+              {/* View Logs */}
+              {apiLogs.length > 0 && (
+                <div style={{ marginBottom: "0.75rem" }}>
+                  <button
+                    type="button"
+                    onClick={() => window.open("/logs", "_blank")}
+                    style={{
+                      background: "none", border: "1px solid #e8e4de", borderRadius: 8,
+                      padding: "0.4rem 0.8rem", fontSize: "0.78rem", color: "#8a8680",
+                      cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "0.35rem",
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
+                    </svg>
+                    View API Logs ({apiLogs.length})
                   </button>
                 </div>
               )}
