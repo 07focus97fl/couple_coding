@@ -80,6 +80,42 @@ function XIcon() {
   );
 }
 
+function EyeIcon({ open }: { open: boolean }) {
+  if (!open) {
+    return (
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
+        <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
+        <line x1="1" y1="1" x2="23" y2="23" />
+      </svg>
+    );
+  }
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
 function formatDuration(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds <= 0) return "—";
   const m = Math.floor(seconds / 60);
@@ -90,6 +126,16 @@ function formatDuration(seconds: number): string {
 function fileDurationSec(words: { end: number }[] | undefined): number {
   if (!words || words.length === 0) return 0;
   return words[words.length - 1].end;
+}
+
+function audioStatusLabel(
+  status: "pending" | "transcribing" | "done" | "error",
+  error?: string,
+): string {
+  if (status === "pending") return "READY";
+  if (status === "transcribing") return "TRANSCRIBING";
+  if (status === "done") return "TRANSCRIBED";
+  return error || "FAILED";
 }
 
 export function SectionUpload() {
@@ -108,6 +154,14 @@ export function SectionUpload() {
     toggleFile,
     totalTurns,
     hasFiles,
+    elevenLabsKey,
+    setElevenLabsKey,
+    showElevenKey,
+    setShowElevenKey,
+    devSignedIn,
+    transcribeAllPending,
+    isAnyTranscribing,
+    pendingAudioCount,
   } = useSession();
 
   const transcriptInputRef = useRef<HTMLInputElement>(null);
@@ -330,27 +384,106 @@ export function SectionUpload() {
 
               {audioFiles.length > 0 && (
                 <div className={s.audioList}>
-                  {audioFiles.map((f, i) => (
-                    <div key={`${f.name}-${i}`} className={s.audioItem}>
-                      <span className={s.fileIcon}>
-                        <MicIcon />
-                      </span>
-                      <span className={s.fileName}>{f.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeAudioFile(i)}
-                        className={s.removeBtn}
-                      >
-                        <XIcon />
-                      </button>
-                    </div>
-                  ))}
+                  {audioFiles.map((entry) => {
+                    const statusKey = `statusDot_${
+                      entry.status === "pending"
+                        ? "ready"
+                        : entry.status === "transcribing"
+                        ? "coding"
+                        : entry.status
+                    }` as const;
+                    const dotClass = s[statusKey] ?? "";
+                    return (
+                      <div key={entry.id} className={s.audioItem}>
+                        <span className={s.fileIcon}>
+                          <MicIcon />
+                        </span>
+                        <span className={s.fileName}>{entry.file.name}</span>
+                        <span
+                          className={`${s.audioStatus} ${
+                            entry.status === "error" ? s.audioStatus_error : ""
+                          }`}
+                        >
+                          <span className={`${s.statusDot} ${dotClass}`} />
+                          {audioStatusLabel(entry.status, entry.error)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeAudioFile(entry.id)}
+                          className={s.removeBtn}
+                          aria-label="Remove"
+                        >
+                          <XIcon />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
-              <div className={s.comingSoon}>
-                Transcription via ElevenLabs — coming soon
-              </div>
+              {audioFiles.length > 0 && (
+                <>
+                  <div className={s.keyBlock}>
+                    <div className={s.keyLabelRow}>
+                      <span className={s.keyLabel}>ELEVENLABS API KEY</span>
+                      <span
+                        className={`${s.keyStatus} ${
+                          devSignedIn || elevenLabsKey ? s.keyStatus_ok : ""
+                        }`}
+                      >
+                        {devSignedIn
+                          ? "Dev signed-in · using server key"
+                          : elevenLabsKey
+                          ? "Stored locally · only sent to ElevenLabs during transcription"
+                          : "Paste your key — stored in this browser only"}
+                      </span>
+                    </div>
+                    <div className={s.keyRow}>
+                      <input
+                        type={showElevenKey ? "text" : "password"}
+                        className={s.keyInput}
+                        value={devSignedIn ? "" : elevenLabsKey}
+                        onChange={(e) => setElevenLabsKey(e.target.value)}
+                        placeholder={
+                          devSignedIn ? "Signed in — server key in use" : "sk_…"
+                        }
+                        spellCheck={false}
+                        autoComplete="off"
+                        disabled={devSignedIn}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowElevenKey(!showElevenKey)}
+                        className={s.keyToggle}
+                        aria-label={showElevenKey ? "Hide key" : "Show key"}
+                        disabled={devSignedIn}
+                      >
+                        <EyeIcon open={showElevenKey} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className={s.transcribeRow}>
+                    <button
+                      type="button"
+                      className={s.transcribeBtn}
+                      disabled={
+                        (!elevenLabsKey && !devSignedIn) ||
+                        pendingAudioCount === 0 ||
+                        isAnyTranscribing
+                      }
+                      onClick={() => transcribeAllPending()}
+                    >
+                      {isAnyTranscribing
+                        ? "Transcribing…"
+                        : pendingAudioCount > 0
+                        ? `Transcribe ${pendingAudioCount} file${
+                            pendingAudioCount === 1 ? "" : "s"
+                          }`
+                        : "Transcribe"}
+                    </button>
+                  </div>
+                </>
+              )}
             </>
           )}
         </div>

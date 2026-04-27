@@ -1,4 +1,5 @@
 import { CodingScheme } from "../types";
+import { buildDefaultPrompt } from "../prompt-defaults";
 
 export const CIRS: CodingScheme = {
   id: "CIRS",
@@ -6,4 +7,5 @@ export const CIRS: CodingScheme = {
   description: "Couples Interaction Rating System",
   categories: [],
   comingSoon: true,
+  defaultPrompt: (g) => buildDefaultPrompt(g),
 };

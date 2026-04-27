@@ -1,10 +1,47 @@
 import { CodingScheme } from "../types";
+import { buildDefaultPrompt } from "../prompt-defaults";
+
+const VTCS_RULES = `## Precedence Hierarchy
+
+When a speaking turn contains elements of multiple categories, apply the highest-precedence code. The hierarchy from highest to lowest:
+
+1. RE (Rejection)
+2. CR (Personal Criticism)
+3. HI (Hostile Imperatives)
+4. HQ (Hostile Questions)
+5. HJ (Hostile Jokes)
+6. JO (Friendly Joking)
+7. PR (Presumptive Remarks)
+8. DR (Denial of Responsibility)
+9. CN (Concessions)
+10. AR (Acceptance of Responsibility)
+11. SC (Soliciting Criticism)
+12. SD (Soliciting Disclosure)
+13. DI (Disclosive Statements)
+14. QU (Qualifying Statements)
+15. DES (Descriptive Statements)
+16. TA (Topic Avoidance)
+17. DEN (Direct Denial)
+18. ID (Implicit Denial)
+19. EV (Evasive Remarks)
+20. SU (Supportive Remarks)
+21. TS (Topic Shifts)
+22. PC (Procedural Remarks)
+23. AB (Abstract Remarks)
+24. NS (Noncommittal Statements)
+25. NQ (Noncommittal Questions)
+26. UC (Uncodable)
+
+## Context Rules
+
+- Consider previous and upcoming speaker turns for context when interpreting the target turn.
+- However, if the target turn contains at least one instance of a substantive code (any code other than UC), it should be coded as that substantive code rather than UC.
+- When multiple substantive codes are present, apply the precedence hierarchy above.`;
 
 export const VTCS: CodingScheme = {
   id: "vtcs",
   label: "VTCS",
   description: "Verbal Tactics Coding Scheme (Sillars, 1986)",
-  authoredFor: "turn",
   categories: [
     // DE — Denial & Equivocation
     { name: "DEN", description: "DE — Denial & Equivocation: Direct Denial. The speaker explicitly states that a conflict or problem does not exist (e.g., \"There's no problem\" or \"We don't disagree about that\"). Must be an overt, unambiguous denial — not merely offering a rationale. If the speaker provides an explanation or justification instead of a flat denial, code as ID." },
@@ -49,40 +86,5 @@ export const VTCS: CodingScheme = {
     { name: "UC", description: "Uncodable. Backchannels (e.g., \"mm-hmm\", \"yeah\", \"uh-huh\"), incomplete or unintelligible utterances, simple agreement/disagreement tokens with no substantive conflict content, or turns that cannot be reliably classified into any other category. Use only when no other code applies." },
   ],
 
-  rules: `## Precedence Hierarchy
-
-When a speaking turn contains elements of multiple categories, apply the highest-precedence code. The hierarchy from highest to lowest:
-
-1. RE (Rejection)
-2. CR (Personal Criticism)
-3. HI (Hostile Imperatives)
-4. HQ (Hostile Questions)
-5. HJ (Hostile Jokes)
-6. JO (Friendly Joking)
-7. PR (Presumptive Remarks)
-8. DR (Denial of Responsibility)
-9. CN (Concessions)
-10. AR (Acceptance of Responsibility)
-11. SC (Soliciting Criticism)
-12. SD (Soliciting Disclosure)
-13. DI (Disclosive Statements)
-14. QU (Qualifying Statements)
-15. DES (Descriptive Statements)
-16. TA (Topic Avoidance)
-17. DEN (Direct Denial)
-18. ID (Implicit Denial)
-19. EV (Evasive Remarks)
-20. SU (Supportive Remarks)
-21. TS (Topic Shifts)
-22. PC (Procedural Remarks)
-23. AB (Abstract Remarks)
-24. NS (Noncommittal Statements)
-25. NQ (Noncommittal Questions)
-26. UC (Uncodable)
-
-## Context Rules
-
-- Consider previous and upcoming speaker turns for context when interpreting the target turn.
-- However, if the target turn contains at least one instance of a substantive code (any code other than UC), it should be coded as that substantive code rather than UC.
-- When multiple substantive codes are present, apply the precedence hierarchy above.`,
+  defaultPrompt: (g) => buildDefaultPrompt(g, VTCS_RULES),
 };

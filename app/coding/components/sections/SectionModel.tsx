@@ -51,10 +51,40 @@ function ProviderIcon({ id }: { id: ProviderDef["id"] }) {
   );
 }
 
-function redactKey(k: string): string {
-  if (!k) return "";
-  if (k.length <= 11) return k;
-  return `${k.slice(0, 7)}…${k.slice(-3)}`;
+function EyeIcon({ open }: { open: boolean }) {
+  if (!open) {
+    return (
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
+        <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
+        <line x1="1" y1="1" x2="23" y2="23" />
+      </svg>
+    );
+  }
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
 }
 
 export function SectionModel() {
@@ -62,8 +92,10 @@ export function SectionModel() {
     selectedModel,
     setSelectedModel,
     apiKey,
+    setApiKey,
+    showKey,
+    setShowKey,
     devSignedIn,
-    setTweaksOpen,
     stepDone,
   } = useSession();
   const [filter, setFilter] = useState("");
@@ -88,6 +120,12 @@ export function SectionModel() {
     ? current.name
     : "No model";
 
+  const keyStatus = devSignedIn
+    ? "Dev signed-in · using server key"
+    : apiKey
+    ? "Stored locally · only sent to Anthropic during runs"
+    : "Paste your key — stored in this browser only";
+
   return (
     <SectionShell
       id="s-model"
@@ -100,51 +138,48 @@ export function SectionModel() {
       state={stepDone[1] ? "done" : "idle"}
     >
       <div className={s.wrap}>
-        <div className={s.topRow}>
-          <button
-            type="button"
-            onClick={() => setPickerOpen((v) => !v)}
-            className={s.selectedModel}
-          >
-            {current ? (
-              <ModelLine model={current} variant="selected" />
-            ) : (
-              <div className={s.noModel}>Click to select a model</div>
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={() => setTweaksOpen(true)}
-            className={s.keyChip}
-            title="Open Tweaks to edit your key"
-          >
-            <div className={s.keyChipInner}>
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.7"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
-              </svg>
-              <span className={s.keyChipCode}>
-                {devSignedIn
-                  ? "dev signed-in"
-                  : apiKey
-                  ? redactKey(apiKey)
-                  : "no key"}
-              </span>
-            </div>
-            <div className={s.keyChipSub}>
-              {devSignedIn || apiKey
-                ? "Session key · never persisted"
-                : "Add a key in Tweaks"}
-            </div>
-          </button>
+        <button
+          type="button"
+          onClick={() => setPickerOpen((v) => !v)}
+          className={s.selectedModel}
+        >
+          {current ? (
+            <ModelLine model={current} variant="selected" />
+          ) : (
+            <div className={s.noModel}>Click to select a model</div>
+          )}
+        </button>
+
+        <div className={s.keyBlock}>
+          <div className={s.keyLabelRow}>
+            <span className={s.keyLabel}>ANTHROPIC API KEY</span>
+            <span
+              className={`${s.keyStatus} ${devSignedIn || apiKey ? s.keyStatus_ok : ""}`}
+            >
+              {keyStatus}
+            </span>
+          </div>
+          <div className={s.keyRow}>
+            <input
+              type={showKey ? "text" : "password"}
+              className={s.keyInput}
+              value={devSignedIn ? "" : apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder={devSignedIn ? "Signed in — server key in use" : "sk-ant-…"}
+              spellCheck={false}
+              autoComplete="off"
+              disabled={devSignedIn}
+            />
+            <button
+              type="button"
+              onClick={() => setShowKey(!showKey)}
+              className={s.keyToggle}
+              aria-label={showKey ? "Hide key" : "Show key"}
+              disabled={devSignedIn}
+            >
+              <EyeIcon open={showKey} />
+            </button>
+          </div>
         </div>
 
         {pickerOpen && (
@@ -212,7 +247,7 @@ export function SectionModel() {
                 </div>
               ))}
               {byProvider.length === 0 && (
-                <div className={s.noMatch}>No models match "{filter}"</div>
+                <div className={s.noMatch}>No models match &quot;{filter}&quot;</div>
               )}
             </div>
           </div>

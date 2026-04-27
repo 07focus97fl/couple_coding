@@ -1,20 +1,19 @@
-import {
-  PromptBlocks,
-  PROMPT_BLOCK_ORDER,
-  SpeakingTurn,
-} from "@/lib/types";
+import { CategoryDefinition, SpeakingTurn } from "@/lib/types";
 
-export function buildSystemPrompt(blocks: PromptBlocks): string {
-  return PROMPT_BLOCK_ORDER
-    .map((key) => blocks[key])
-    .map((v) => (typeof v === "string" ? v.trim() : ""))
-    .filter((v) => v.length > 0)
-    .join("\n\n");
+export function buildSystemPrompt(
+  userPrompt: string,
+  categories: CategoryDefinition[],
+): string {
+  const block = categories
+    .filter((c) => c.name.trim() !== "")
+    .map((c) => `- "${c.name}": ${c.description}`)
+    .join("\n");
+  return `${userPrompt.trim()}\n\nCategories to choose from:\n${block}`;
 }
 
 export function buildUserMessage(
   contextTurns: SpeakingTurn[],
-  targetTurn: SpeakingTurn
+  targetTurn: SpeakingTurn,
 ): string {
   let message = "";
 

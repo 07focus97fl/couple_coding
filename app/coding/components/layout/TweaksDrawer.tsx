@@ -21,50 +21,10 @@ function XIcon() {
   );
 }
 
-function EyeIcon({ open }: { open: boolean }) {
-  if (!open) {
-    return (
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
-        <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
-        <line x1="1" y1="1" x2="23" y2="23" />
-      </svg>
-    );
-  }
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}
-
 export function TweaksDrawer() {
   const {
     tweaksOpen,
     setTweaksOpen,
-    apiKey,
-    setApiKey,
-    showKey,
-    setShowKey,
     devSignedIn,
     devPassword,
     devAuthError,
@@ -86,7 +46,7 @@ export function TweaksDrawer() {
         <div className={s.head}>
           <div>
             <div className={s.eyebrow}>TWEAKS</div>
-            <h2 className={s.title}>Keys & environment</h2>
+            <h2 className={s.title}>Environment</h2>
           </div>
           <button
             type="button"
@@ -101,6 +61,10 @@ export function TweaksDrawer() {
         <div className={s.body}>
           <section className={s.group}>
             <div className={s.groupLabel}>DEVELOPER ACCESS</div>
+            <p className={s.sub}>
+              Signing in with the dev password routes API calls through this
+              project&apos;s server-side keys — no personal keys needed.
+            </p>
             {devSignedIn ? (
               <div className={s.row}>
                 <div className={s.signedInBadge}>
@@ -145,37 +109,12 @@ export function TweaksDrawer() {
           </section>
 
           <section className={s.group}>
-            <div className={s.groupLabel}>ANTHROPIC API KEY</div>
-            <p className={s.sub}>
-              Stored locally in your browser. Never sent anywhere except the
-              Anthropic API during a run.
-            </p>
-            <div className={s.row}>
-              <input
-                type={showKey ? "text" : "password"}
-                className={s.input}
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="sk-ant-…"
-                spellCheck={false}
-                autoComplete="off"
-              />
-              <button
-                type="button"
-                onClick={() => setShowKey(!showKey)}
-                className={s.iconBtn}
-                aria-label={showKey ? "Hide key" : "Show key"}
-              >
-                <EyeIcon open={showKey} />
-              </button>
-            </div>
-          </section>
-
-          <section className={s.group}>
             <div className={s.groupLabel}>SESSION</div>
             <p className={s.sub}>
               Session data autosaves to this browser. Clearing site storage
-              will reset your uploads, scheme edits, and model choice.
+              will reset your uploads, scheme edits, and model choice. API
+              keys are entered inline in the steps that use them — ElevenLabs
+              in Upload, Anthropic in Model.
             </p>
           </section>
         </div>

@@ -86,42 +86,18 @@ export interface CodingScheme {
   label: string;
   description: string;
   categories: CategoryDefinition[];
-  rules?: string;
+  defaultPrompt: (granularity: Granularity) => string;
   comingSoon?: boolean;
   badge?: string;
-  authoredFor?: Granularity;
 }
 
-export interface PromptBlocks {
-  role: string;
-  granularity: string;
-  categories: string;
-  rules: string;
-  contextFraming: string;
-  outputInstruction: string;
+export interface AudioFileEntry {
+  id: string;
+  file: File;
+  status: 'pending' | 'transcribing' | 'done' | 'error';
+  error?: string;
+  transcriptFileId?: string;
 }
-
-export type PromptBlockKey = keyof PromptBlocks;
-
-export type PromptBlockDirty = { [K in PromptBlockKey]: boolean };
-
-export const PROMPT_BLOCK_ORDER: PromptBlockKey[] = [
-  "role",
-  "granularity",
-  "categories",
-  "rules",
-  "contextFraming",
-  "outputInstruction",
-];
-
-export const PROMPT_BLOCK_LABELS: Record<PromptBlockKey, string> = {
-  role: "ROLE",
-  granularity: "GRANULARITY",
-  categories: "CATEGORIES",
-  rules: "RULES",
-  contextFraming: "CONTEXT FRAMING",
-  outputInstruction: "OUTPUT INSTRUCTION",
-};
 
 export interface TranscriptFile {
   id: string;

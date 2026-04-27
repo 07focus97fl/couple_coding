@@ -24,8 +24,8 @@ export function useAutosave(
 
   useEffect(() => {
     if (!session || !enabled) return;
-    setState("saving");
     const handle = window.setTimeout(() => {
+      setState("saving");
       try {
         const blob = serialize(session);
         if (blob.length <= AUTOSAVE_MAX_BYTES) {

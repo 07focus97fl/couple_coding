@@ -294,14 +294,141 @@
   border-radius: 9px;
 }
 
-.comingSoon {
+.audioStatus {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   font-family: var(--mono);
-  font-size: 0.7rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
   color: var(--muted);
-  padding: 0.4rem 0.7rem;
-  background: #f0ece6;
-  border-radius: 6px;
-  align-self: flex-start;
+  text-transform: uppercase;
+}
+
+.audioStatus_error {
+  color: var(--accent);
+  text-transform: none;
+  letter-spacing: 0;
+  font-family: var(--sans);
+  font-size: 0.72rem;
+}
+
+.keyBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.15rem;
+}
+
+.keyLabelRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.keyLabel {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.keyStatus {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.keyStatus_ok {
+  color: #5e8761;
+}
+
+.keyRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.keyInput {
+  flex: 1;
+  min-width: 0;
+  padding: 0.6rem 0.85rem;
+  border-radius: 9px;
+  border: 1.5px solid rgba(26, 26, 30, 0.12);
+  background: #fff;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.keyInput::placeholder {
+  color: var(--muted);
+}
+
+.keyInput:focus {
+  border-color: var(--accent);
+}
+
+.keyInput:disabled {
+  background: #f5f2ed;
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.keyToggle {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1.5px solid rgba(26, 26, 30, 0.12);
+  background: #fff;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.keyToggle:hover {
+  color: var(--ink);
+  border-color: rgba(26, 26, 30, 0.24);
+}
+
+.transcribeRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.25rem;
+}
+
+.transcribeBtn {
+  padding: 0.65rem 1.25rem;
+  background: var(--ink);
+  color: var(--paper);
+  border: none;
+  border-radius: 11px;
+  font-family: var(--sans);
+  font-size: 0.84rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: all 0.18s;
+  white-space: nowrap;
+}
+
+.transcribeBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(26, 26, 30, 0.14);
+}
+
+.transcribeBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 @keyframes pulseDot {

@@ -13,6 +13,7 @@ function readHeaderHeight(): number {
 
 export function useScrollSpy(ids: string[]): string | null {
   const [active, setActive] = useState<string | null>(ids[0] ?? null);
+  const idsKey = ids.join(",");
 
   useEffect(() => {
     const headerH = readHeaderHeight();
@@ -31,12 +32,12 @@ export function useScrollSpy(ids: string[]): string | null {
       },
     );
 
-    for (const id of ids) {
+    for (const id of idsKey.split(",")) {
       const el = document.getElementById(id);
       if (el) observer.observe(el);
     }
     return () => observer.disconnect();
-  }, [ids.join(",")]);
+  }, [idsKey]);
 
   return active;
 }

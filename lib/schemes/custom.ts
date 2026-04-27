@@ -1,4 +1,5 @@
 import { CodingScheme } from "../types";
+import { buildDefaultPrompt } from "../prompt-defaults";
 
 export const CUSTOM: CodingScheme = {
   id: "custom",
@@ -8,4 +9,5 @@ export const CUSTOM: CodingScheme = {
     { name: "", description: "" },
     { name: "", description: "" },
   ],
+  defaultPrompt: (g) => buildDefaultPrompt(g),
 };

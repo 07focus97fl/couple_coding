@@ -1,12 +1,10 @@
 import {
   CategoryDefinition,
   Granularity,
-  PromptBlockDirty,
-  PromptBlocks,
   RawTranscript,
 } from "./types";
 
-export const AUTOSAVE_KEY = "ccc_session_v1";
+export const AUTOSAVE_KEY = "ccc_session_v2";
 export const AUTOSAVE_MAX_BYTES = 3_000_000;
 
 export type UploadMode = "audio" | "transcript";
@@ -19,7 +17,7 @@ export interface PersistedFile {
 }
 
 export interface PersistedSession {
-  version: 1;
+  version: 2;
   uploadMode: UploadMode;
   files: PersistedFile[];
   selectedModel: string;
@@ -27,9 +25,8 @@ export interface PersistedSession {
   granularity: Granularity;
   categories: CategoryDefinition[];
   categoriesDirty: boolean;
-  blocks: PromptBlocks;
-  dirty: PromptBlockDirty;
-  rawSystemOverride: string | null;
+  systemPrompt: string;
+  promptDirty: boolean;
   contextWindow: number;
 }
 
@@ -40,9 +37,9 @@ export function serialize(session: PersistedSession): string {
 export function deserialize(raw: string): PersistedSession | null {
   try {
     const parsed = JSON.parse(raw) as Partial<PersistedSession>;
-    if (parsed.version !== 1) return null;
+    if (parsed.version !== 2) return null;
     if (!parsed.files || !Array.isArray(parsed.files)) return null;
-    if (!parsed.blocks || typeof parsed.blocks !== "object") return null;
+    if (typeof parsed.systemPrompt !== "string") return null;
     if (!parsed.categories || !Array.isArray(parsed.categories)) return null;
     return parsed as PersistedSession;
   } catch {

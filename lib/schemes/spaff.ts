@@ -1,4 +1,5 @@
 import { CodingScheme } from "../types";
+import { buildDefaultPrompt } from "../prompt-defaults";
 
 export const SPAFF: CodingScheme = {
   id: "SPAFF",
@@ -6,4 +7,5 @@ export const SPAFF: CodingScheme = {
   description: "Specific Affect Coding System (Gottman)",
   categories: [],
   comingSoon: true,
+  defaultPrompt: (g) => buildDefaultPrompt(g),
 };

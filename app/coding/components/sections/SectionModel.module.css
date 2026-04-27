@@ -5,13 +5,8 @@
   padding-top: 0.35rem;
 }
 
-.topRow {
-  display: grid;
-  grid-template-columns: 1fr 220px;
-  gap: 0.7rem;
-}
-
 .selectedModel {
+  width: 100%;
   padding: 0.85rem 1rem;
   background: #fbf8f3;
   border: 1.5px solid rgba(26, 26, 30, 0.08);
@@ -32,43 +27,88 @@
   padding: 0.35rem 0;
 }
 
-.keyChip {
+.keyBlock {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 0.7rem 0.95rem;
-  background: #fbf8f3;
-  border: 1.5px solid rgba(26, 26, 30, 0.08);
-  border-radius: 12px;
-  cursor: pointer;
-  text-align: left;
-  transition: all 0.18s;
-  font-family: var(--sans);
+  gap: 0.35rem;
 }
 
-.keyChip:hover {
-  border-color: rgba(26, 26, 30, 0.2);
-}
-
-.keyChipInner {
+.keyLabelRow {
   display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  color: var(--ink);
-  font-size: 0.82rem;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
 }
 
-.keyChipCode {
+.keyLabel {
   font-family: var(--mono);
-  font-size: 0.78rem;
-  color: var(--ink);
+  font-size: 0.66rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
 }
 
-.keyChipSub {
+.keyStatus {
   font-size: 0.72rem;
   color: var(--muted);
+}
+
+.keyStatus_ok {
+  color: #5e8761;
+}
+
+.keyRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.keyInput {
+  flex: 1;
+  padding: 0.6rem 0.85rem;
+  border-radius: 9px;
+  border: 1.5px solid rgba(26, 26, 30, 0.12);
+  background: #fff;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.keyInput::placeholder {
+  color: var(--muted);
+}
+
+.keyInput:focus {
+  border-color: var(--accent);
+}
+
+.keyInput:disabled {
+  background: #f5f2ed;
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.keyToggle {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1.5px solid rgba(26, 26, 30, 0.12);
+  background: #fff;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.keyToggle:hover {
+  color: var(--ink);
+  border-color: rgba(26, 26, 30, 0.24);
 }
 
 .picker {

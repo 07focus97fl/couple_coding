@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import s from "./prompt-preview.module.css";
+import s from "./PromptViewer.module.css";
 
 type Tab = "system" | "user" | "tool";
 

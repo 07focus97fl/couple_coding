@@ -8,7 +8,6 @@ import { SectionUpload } from "./components/sections/SectionUpload";
 import { SectionModel } from "./components/sections/SectionModel";
 import { SectionScheme } from "./components/sections/SectionScheme";
 import { SectionRun } from "./components/sections/SectionRun";
-import { RulesDrawer } from "./components/sections/RulesDrawer";
 import s from "./coding.module.css";
 
 export default function CodingPage() {
@@ -23,7 +22,6 @@ export default function CodingPage() {
           <SectionScheme />
           <SectionRun />
         </main>
-        <RulesDrawer />
         <TweaksDrawer />
       </div>
     </CodingSessionProvider>

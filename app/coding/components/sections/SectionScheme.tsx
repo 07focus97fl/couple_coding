@@ -6,6 +6,7 @@ import { SectionShell } from "../layout/SectionShell";
 import { CODING_SCHEMES } from "@/lib/coding-schemes";
 import { CategoryDefinition } from "@/lib/types";
 import { codeFor, FALLBACK_COLOR } from "@/lib/category-colors";
+import { PromptEditor } from "./PromptEditor";
 import s from "./SectionScheme.module.css";
 
 function firstSentence(text: string): string {
@@ -89,9 +90,7 @@ export function SectionScheme() {
     contextWindow,
     setContextWindow,
     categoryColorMap,
-    setRulesOpen,
     stepDone,
-    schemeName,
   } = useSession();
 
   const schemesNav = CODING_SCHEMES.filter((sc) => sc.id !== "custom");
@@ -116,17 +115,6 @@ export function SectionScheme() {
       cardTitle="Scheme"
       cardMeta={meta}
       state={stepDone[2] ? "done" : "idle"}
-      headAction={
-        schemeId && !activeScheme?.comingSoon ? (
-          <button
-            type="button"
-            className={s.rulesBtn}
-            onClick={() => setRulesOpen(true)}
-          >
-            Rules
-          </button>
-        ) : null
-      }
     >
       <div className={s.grid}>
         <nav className={s.nav}>
@@ -214,6 +202,8 @@ export function SectionScheme() {
                   the codes the model can choose.
                 </div>
               )}
+
+              <PromptEditor />
 
               <div className={s.sliderRow}>
                 <label className={s.sliderLabel}>Context window</label>

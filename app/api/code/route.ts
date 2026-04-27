@@ -6,7 +6,6 @@ import {
   ApiLog,
   ApiLogParsedUnit,
   Granularity,
-  PromptBlocks,
 } from "@/lib/types";
 import { buildSystemPrompt, buildUserMessage } from "./prompts";
 
@@ -17,7 +16,7 @@ interface CodeRequest {
   model: string;
   granularity: Granularity;
   categories: CategoryDefinition[];
-  blocks: PromptBlocks;
+  systemPrompt: string;
   contextWindow?: number;
   apiKey?: string;
 }
@@ -43,7 +42,7 @@ export async function POST(request: Request) {
     model,
     granularity,
     categories,
-    blocks,
+    systemPrompt: rawPrompt,
     contextWindow = 5,
     apiKey: clientKey,
   } = (await request.json()) as CodeRequest;
@@ -70,9 +69,9 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!blocks || typeof blocks !== "object") {
+  if (!rawPrompt || typeof rawPrompt !== "string" || rawPrompt.trim().length === 0) {
     return new Response(
-      JSON.stringify({ error: "Prompt blocks missing" }),
+      JSON.stringify({ error: "System prompt is empty" }),
       { status: 400, headers: { "Content-Type": "application/json" } }
     );
   }
@@ -84,7 +83,7 @@ export async function POST(request: Request) {
   const categoryEnum = Array.from(validCategoryNames);
 
   const client = new Anthropic({ apiKey });
-  const systemPrompt = buildSystemPrompt(blocks);
+  const systemPrompt = buildSystemPrompt(rawPrompt, categories);
 
   const tool: Anthropic.Tool =
     activeGranularity === "turn"

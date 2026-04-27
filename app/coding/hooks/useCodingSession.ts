@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ApiLog,
+  AudioFileEntry,
   CategoryDefinition,
   CodedUnit,
   CodingScheme,
@@ -10,23 +11,11 @@ import {
   DEFAULT_CONTEXT_WINDOW,
   DEFAULT_GRANULARITY,
   Granularity,
-  PromptBlockDirty,
-  PromptBlockKey,
-  PromptBlocks,
   RawTranscript,
   SpeakingTurn,
   TranscriptFile,
 } from "@/lib/types";
 import { CODING_SCHEMES } from "@/lib/coding-schemes";
-import {
-  buildDefaultBlocks,
-  defaultCategories,
-  defaultContextFraming,
-  defaultGranularity as defaultGranularityBlock,
-  defaultOutputInstruction,
-  defaultRole,
-  defaultRules,
-} from "@/lib/prompt-defaults";
 import { alignUtteranceToWords, getTurnWords } from "@/lib/align-utterances";
 import { parseTranscript } from "@/lib/parse-transcript";
 import { generateCsv } from "@/lib/generate-csv";
@@ -42,26 +31,13 @@ import { useAutosave, AutosaveState } from "./useAutosave";
 import { useRunStats, RunStats } from "./useRunStats";
 import { useScrollSpy } from "./useScrollSpy";
 
-export const SECTION_IDS = ["s-upload", "s-model", "s-scheme", "s-run"] as const;
+export const SECTION_IDS = [
+  "s-upload",
+  "s-model",
+  "s-scheme",
+  "s-run",
+] as const;
 export type SectionId = (typeof SECTION_IDS)[number];
-
-const INITIAL_BLOCKS: PromptBlocks = {
-  role: "",
-  granularity: "",
-  categories: "",
-  rules: "",
-  contextFraming: "",
-  outputInstruction: "",
-};
-
-const INITIAL_DIRTY: PromptBlockDirty = {
-  role: false,
-  granularity: false,
-  categories: false,
-  rules: false,
-  contextFraming: false,
-  outputInstruction: false,
-};
 
 function readJsonFile(
   file: File,
@@ -86,30 +62,6 @@ function readJsonFile(
     };
     reader.readAsText(file);
   });
-}
-
-function resetBlockValue(
-  key: PromptBlockKey,
-  granularity: Granularity,
-  scheme: CodingScheme | null,
-  categories: CategoryDefinition[],
-): string {
-  switch (key) {
-    case "role":
-      return defaultRole();
-    case "granularity":
-      return defaultGranularityBlock(granularity);
-    case "categories":
-      return defaultCategories(categories);
-    case "rules":
-      return scheme ? defaultRules(scheme) : "";
-    case "contextFraming":
-      return defaultContextFraming(granularity);
-    case "outputInstruction":
-      return defaultOutputInstruction(granularity);
-    default:
-      return "";
-  }
 }
 
 function alignIncomingUnit(
@@ -144,7 +96,7 @@ export interface CodingSession {
   // Upload
   uploadMode: UploadMode;
   files: TranscriptFile[];
-  audioFiles: File[];
+  audioFiles: AudioFileEntry[];
   dragOver: boolean;
   uploadError: string | null;
   setUploadMode: (m: UploadMode) => void;
@@ -152,8 +104,12 @@ export interface CodingSession {
   processFiles: (fl: FileList) => Promise<void>;
   processAudioInput: (fl: FileList) => void;
   removeFile: (id: string) => void;
-  removeAudioFile: (i: number) => void;
+  removeAudioFile: (id: string) => void;
   toggleFile: (id: string) => void;
+  transcribeAudio: (id: string) => Promise<void>;
+  transcribeAllPending: () => Promise<void>;
+  isAnyTranscribing: boolean;
+  pendingAudioCount: number;
 
   // Auth / model
   selectedModel: string;
@@ -162,6 +118,10 @@ export interface CodingSession {
   setApiKey: (k: string) => void;
   showKey: boolean;
   setShowKey: (b: boolean) => void;
+  elevenLabsKey: string;
+  setElevenLabsKey: (k: string) => void;
+  showElevenKey: boolean;
+  setShowElevenKey: (b: boolean) => void;
   devSignedIn: boolean;
   devPassword: string;
   devAuthError: string;
@@ -169,24 +129,21 @@ export interface CodingSession {
   handleDevSignIn: () => Promise<void>;
   handleDevSignOut: () => void;
 
-  // Scheme + prompt blocks
+  // Scheme + prompt
   schemeId: string | null;
   activeScheme: CodingScheme | null;
   categories: CategoryDefinition[];
   categoriesDirty: boolean;
   granularity: Granularity;
-  blocks: PromptBlocks;
-  dirty: PromptBlockDirty;
-  rawSystemOverride: string | null;
+  systemPrompt: string;
+  promptDirty: boolean;
   contextWindow: number;
   setSchemeId: (id: string) => void;
   setGranularity: (g: Granularity) => void;
   setCategories: (c: CategoryDefinition[]) => void;
   resetCategories: () => void;
-  updateBlock: (k: PromptBlockKey, v: string) => void;
-  resetBlock: (k: PromptBlockKey) => void;
-  commitRawOverride: (raw: string) => void;
-  revertRawOverride: () => void;
+  setSystemPrompt: (v: string) => void;
+  resetPrompt: () => void;
   setContextWindow: (n: number) => void;
 
   // Run
@@ -213,8 +170,6 @@ export interface CodingSession {
   doneFiles: TranscriptFile[];
 
   // UI
-  rulesOpen: boolean;
-  setRulesOpen: (b: boolean) => void;
   tweaksOpen: boolean;
   setTweaksOpen: (b: boolean) => void;
   activeSectionId: string | null;
@@ -226,11 +181,14 @@ export interface CodingSession {
 export function useCodingSession(): CodingSession {
   const [uploadMode, setUploadMode] = useState<UploadMode>("transcript");
   const [files, setFiles] = useState<TranscriptFile[]>([]);
-  const [audioFiles, setAudioFiles] = useState<File[]>([]);
+  const [audioFiles, setAudioFiles] = useState<AudioFileEntry[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [apiKey, setApiKeyState] = useState("");
   const [showKey, setShowKey] = useState(false);
+  const [elevenLabsKey, setElevenLabsKeyState] = useState("");
+  const [showElevenKey, setShowElevenKey] = useState(false);
+  const audioAbortersRef = useRef<Map<string, AbortController>>(new Map());
   const [devSignedIn, setDevSignedIn] = useState(false);
   const [devPassword, setDevPasswordState] = useState("");
   const [devAuthError, setDevAuthError] = useState("");
@@ -242,22 +200,22 @@ export function useCodingSession(): CodingSession {
   );
   const [categories, setCategoriesState] = useState<CategoryDefinition[]>([]);
   const [categoriesDirty, setCategoriesDirty] = useState(false);
-  const [blocks, setBlocks] = useState<PromptBlocks>(INITIAL_BLOCKS);
-  const [dirty, setDirty] = useState<PromptBlockDirty>(INITIAL_DIRTY);
-  const [rawSystemOverride, setRawSystemOverride] = useState<string | null>(
-    null,
-  );
+  const [systemPrompt, setSystemPromptState] = useState("");
+  const [promptDirty, setPromptDirty] = useState(false);
   const [contextWindow, setContextWindow] = useState(DEFAULT_CONTEXT_WINDOW);
   const [openResults, setOpenResults] = useState<Record<string, boolean>>({});
   const [runStartedAt, setRunStartedAt] = useState<number | null>(null);
-  const [rulesOpen, setRulesOpen] = useState(false);
   const [tweaksOpen, setTweaksOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
-  const activeSectionId = useScrollSpy(SECTION_IDS as readonly string[] as string[]);
+  const activeSectionId = useScrollSpy(
+    SECTION_IDS as readonly string[] as string[],
+  );
 
   useEffect(() => {
     const storedKey = localStorage.getItem("anthropic_api_key");
     if (storedKey) setApiKeyState(storedKey);
+    const storedEleven = localStorage.getItem("elevenlabs_api_key");
+    if (storedEleven) setElevenLabsKeyState(storedEleven);
     if (localStorage.getItem("dev_signed_in") === "true") setDevSignedIn(true);
 
     try {
@@ -285,9 +243,8 @@ export function useCodingSession(): CodingSession {
           setGranularityState(parsed.granularity);
           setCategoriesState(parsed.categories);
           setCategoriesDirty(parsed.categoriesDirty);
-          setBlocks(parsed.blocks);
-          setDirty(parsed.dirty);
-          setRawSystemOverride(parsed.rawSystemOverride);
+          setSystemPromptState(parsed.systemPrompt);
+          setPromptDirty(parsed.promptDirty);
           setContextWindow(parsed.contextWindow);
         }
       }
@@ -297,13 +254,6 @@ export function useCodingSession(): CodingSession {
       setHydrated(true);
     }
   }, []);
-
-  useEffect(() => {
-    setBlocks((prev) => ({
-      ...prev,
-      categories: defaultCategories(categories),
-    }));
-  }, [categories]);
 
   useEffect(() => {
     if (apiLogs.length > 0) {
@@ -318,6 +268,13 @@ export function useCodingSession(): CodingSession {
     () => files.filter((f) => f.selected),
     [files],
   );
+
+  const isAnyTranscribing = audioFiles.some(
+    (e) => e.status === "transcribing",
+  );
+  const pendingAudioCount = audioFiles.filter(
+    (e) => e.status === "pending",
+  ).length;
 
   const activeScheme = useMemo(
     () => CODING_SCHEMES.find((sc) => sc.id === schemeId) ?? null,
@@ -350,10 +307,7 @@ export function useCodingSession(): CodingSession {
     [activeScheme, categories],
   );
 
-  const totalTurns = selectedFiles.reduce(
-    (s, f) => s + f.progress.total,
-    0,
-  );
+  const totalTurns = selectedFiles.reduce((s, f) => s + f.progress.total, 0);
   const completedTurns = selectedFiles.reduce(
     (s, f) => s + f.progress.completed,
     0,
@@ -363,7 +317,7 @@ export function useCodingSession(): CodingSession {
     if (!hydrated) return null;
     if (isAnyCoding) return null;
     return {
-      version: 1,
+      version: 2,
       uploadMode,
       files: files.map((f) => ({
         id: f.id,
@@ -376,9 +330,8 @@ export function useCodingSession(): CodingSession {
       granularity,
       categories,
       categoriesDirty,
-      blocks,
-      dirty,
-      rawSystemOverride,
+      systemPrompt,
+      promptDirty,
       contextWindow,
     };
   }, [
@@ -390,14 +343,16 @@ export function useCodingSession(): CodingSession {
     granularity,
     categories,
     categoriesDirty,
-    blocks,
-    dirty,
-    rawSystemOverride,
+    systemPrompt,
+    promptDirty,
     contextWindow,
     isAnyCoding,
   ]);
 
-  const autosaveState = useAutosave(persistedSession, hydrated && !isAnyCoding);
+  const autosaveState = useAutosave(
+    persistedSession,
+    hydrated && !isAnyCoding,
+  );
 
   const runStats = useRunStats(
     apiLogs,
@@ -414,6 +369,12 @@ export function useCodingSession(): CodingSession {
     setApiKeyState(val);
     if (val) localStorage.setItem("anthropic_api_key", val);
     else localStorage.removeItem("anthropic_api_key");
+  }, []);
+
+  const setElevenLabsKey = useCallback((val: string) => {
+    setElevenLabsKeyState(val);
+    if (val) localStorage.setItem("elevenlabs_api_key", val);
+    else localStorage.removeItem("elevenlabs_api_key");
   }, []);
 
   const setDevPassword = useCallback((s: string) => {
@@ -482,15 +443,33 @@ export function useCodingSession(): CodingSession {
       setUploadError("Only MP3, MP4, or WAV files are accepted.");
       return;
     }
-    setAudioFiles((prev) => [...prev, ...added]);
+    const entries: AudioFileEntry[] = added.map((file) => ({
+      id: crypto.randomUUID(),
+      file,
+      status: "pending" as const,
+    }));
+    setAudioFiles((prev) => [...prev, ...entries]);
   }, []);
 
   const removeFile = useCallback((id: string) => {
     setFiles((prev) => prev.filter((f) => f.id !== id));
   }, []);
 
-  const removeAudioFile = useCallback((i: number) => {
-    setAudioFiles((prev) => prev.filter((_, idx) => idx !== i));
+  const removeAudioFile = useCallback((id: string) => {
+    const aborter = audioAbortersRef.current.get(id);
+    if (aborter) {
+      aborter.abort();
+      audioAbortersRef.current.delete(id);
+    }
+    setAudioFiles((prev) => prev.filter((e) => e.id !== id));
+  }, []);
+
+  const transcribeAudio = useCallback(async () => {
+    // Stub — ElevenLabs transcription not yet wired up.
+  }, []);
+
+  const transcribeAllPending = useCallback(async () => {
+    // Stub — ElevenLabs transcription not yet wired up.
   }, []);
 
   const toggleFile = useCallback((id: string) => {
@@ -506,64 +485,45 @@ export function useCodingSession(): CodingSession {
       if (!scheme) return;
       setCategoriesState(scheme.categories);
       setCategoriesDirty(false);
-      setBlocks(buildDefaultBlocks(scheme, granularity));
-      setDirty({ ...INITIAL_DIRTY });
-      setRawSystemOverride(null);
+      setSystemPromptState(scheme.defaultPrompt(granularity));
+      setPromptDirty(false);
     },
     [granularity],
   );
 
   const setGranularity = useCallback(
     (next: Granularity) => {
-      if (rawSystemOverride !== null) {
-        const ok =
-          typeof window !== "undefined"
-            ? window.confirm(
-                "Switching granularity will clear your raw prompt override. Continue?",
-              )
-            : true;
+      if (next === granularity) return;
+      const scheme =
+        CODING_SCHEMES.find((sc) => sc.id === schemeId) ?? null;
+
+      if (promptDirty && typeof window !== "undefined") {
+        const ok = window.confirm(
+          "Switching granularity will reset your prompt edits to the new default. Continue?",
+        );
         if (!ok) return;
-        setRawSystemOverride(null);
       }
+
       setGranularityState(next);
-      const scheme =
-        CODING_SCHEMES.find((sc) => sc.id === schemeId) ?? null;
-      setBlocks((prev) => {
-        const nextBlocks: PromptBlocks = { ...prev };
-        if (!dirty.granularity)
-          nextBlocks.granularity = defaultGranularityBlock(next);
-        if (!dirty.contextFraming)
-          nextBlocks.contextFraming = defaultContextFraming(next);
-        if (!dirty.outputInstruction)
-          nextBlocks.outputInstruction = defaultOutputInstruction(next);
-        if (!dirty.role) nextBlocks.role = defaultRole();
-        if (!dirty.rules && scheme) nextBlocks.rules = defaultRules(scheme);
-        return nextBlocks;
-      });
+      if (scheme) {
+        setSystemPromptState(scheme.defaultPrompt(next));
+        setPromptDirty(false);
+      }
     },
-    [dirty, rawSystemOverride, schemeId],
+    [granularity, schemeId, promptDirty],
   );
 
-  const updateBlock = useCallback(
-    (key: PromptBlockKey, value: string) => {
-      setBlocks((prev) => ({ ...prev, [key]: value }));
-      setDirty((prev) => ({ ...prev, [key]: true }));
-    },
-    [],
-  );
+  const setSystemPrompt = useCallback((v: string) => {
+    setSystemPromptState(v);
+    setPromptDirty(true);
+  }, []);
 
-  const resetBlock = useCallback(
-    (key: PromptBlockKey) => {
-      const scheme =
-        CODING_SCHEMES.find((sc) => sc.id === schemeId) ?? null;
-      setBlocks((prev) => ({
-        ...prev,
-        [key]: resetBlockValue(key, granularity, scheme, categories),
-      }));
-      setDirty((prev) => ({ ...prev, [key]: false }));
-    },
-    [schemeId, granularity, categories],
-  );
+  const resetPrompt = useCallback(() => {
+    const scheme = CODING_SCHEMES.find((sc) => sc.id === schemeId);
+    if (!scheme) return;
+    setSystemPromptState(scheme.defaultPrompt(granularity));
+    setPromptDirty(false);
+  }, [schemeId, granularity]);
 
   const setCategories = useCallback(
     (next: CategoryDefinition[]) => {
@@ -592,14 +552,6 @@ export function useCodingSession(): CodingSession {
     setCategoriesDirty(false);
   }, [schemeId]);
 
-  const commitRawOverride = useCallback((raw: string) => {
-    setRawSystemOverride(raw);
-  }, []);
-
-  const revertRawOverride = useCallback(() => {
-    setRawSystemOverride(null);
-  }, []);
-
   const toggleResultsOpen = useCallback((fileId: string) => {
     setOpenResults((prev) => ({ ...prev, [fileId]: !prev[fileId] }));
   }, []);
@@ -609,18 +561,6 @@ export function useCodingSession(): CodingSession {
     setApiLogs([]);
     setRunStartedAt(Date.now());
     const filesToCode = files.filter((f) => f.selected);
-
-    const effectiveBlocks: PromptBlocks =
-      rawSystemOverride !== null
-        ? {
-            role: rawSystemOverride,
-            granularity: "",
-            categories: "",
-            rules: "",
-            contextFraming: "",
-            outputInstruction: "",
-          }
-        : blocks;
 
     for (const file of filesToCode) {
       const turns =
@@ -652,7 +592,7 @@ export function useCodingSession(): CodingSession {
             model: selectedModel,
             granularity,
             categories,
-            blocks: effectiveBlocks,
+            systemPrompt,
             contextWindow,
             ...(devSignedIn ? {} : { apiKey }),
           }),
@@ -757,11 +697,10 @@ export function useCodingSession(): CodingSession {
     selectedModel,
     granularity,
     categories,
-    blocks,
+    systemPrompt,
     contextWindow,
     devSignedIn,
     apiKey,
-    rawSystemOverride,
   ]);
 
   const doneFiles = useMemo(
@@ -815,6 +754,10 @@ export function useCodingSession(): CodingSession {
     removeFile,
     removeAudioFile,
     toggleFile,
+    transcribeAudio,
+    transcribeAllPending,
+    isAnyTranscribing,
+    pendingAudioCount,
 
     selectedModel,
     setSelectedModel,
@@ -822,6 +765,10 @@ export function useCodingSession(): CodingSession {
     setApiKey,
     showKey,
     setShowKey,
+    elevenLabsKey,
+    setElevenLabsKey,
+    showElevenKey,
+    setShowElevenKey,
     devSignedIn,
     devPassword,
     devAuthError,
@@ -834,18 +781,15 @@ export function useCodingSession(): CodingSession {
     categories,
     categoriesDirty,
     granularity,
-    blocks,
-    dirty,
-    rawSystemOverride,
+    systemPrompt,
+    promptDirty,
     contextWindow,
     setSchemeId,
     setGranularity,
     setCategories,
     resetCategories,
-    updateBlock,
-    resetBlock,
-    commitRawOverride,
-    revertRawOverride,
+    setSystemPrompt,
+    resetPrompt,
     setContextWindow,
 
     apiLogs,
@@ -869,8 +813,6 @@ export function useCodingSession(): CodingSession {
     schemeName,
     doneFiles,
 
-    rulesOpen,
-    setRulesOpen,
     tweaksOpen,
     setTweaksOpen,
     activeSectionId,
