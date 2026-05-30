@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { useSession } from "../../hooks/CodingSessionContext";
 import { SectionShell } from "../layout/SectionShell";
+import { TranscriptFile } from "@/lib/types";
 import s from "./SectionUpload.module.css";
 
 function FileIcon() {
@@ -80,6 +81,25 @@ function XIcon() {
   );
 }
 
+function DownloadIcon() {
+  return (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+  );
+}
+
 function EyeIcon({ open }: { open: boolean }) {
   if (!open) {
     return (
@@ -128,30 +148,75 @@ function fileDurationSec(words: { end: number }[] | undefined): number {
   return words[words.length - 1].end;
 }
 
-function audioStatusLabel(
-  status: "pending" | "transcribing" | "done" | "error",
-  error?: string,
-): string {
-  if (status === "pending") return "READY";
-  if (status === "transcribing") return "TRANSCRIBING";
-  if (status === "done") return "TRANSCRIBED";
-  return error || "FAILED";
+type RowState =
+  | "transcribe-pending"
+  | "transcribe-running"
+  | "transcribe-error"
+  | "ready"
+  | "coding"
+  | "done"
+  | "error"
+  | "off";
+
+function rowState(f: TranscriptFile): RowState {
+  if (f.audioSource && f.transcribeStatus && f.transcribeStatus !== "done") {
+    if (f.transcribeStatus === "transcribing") return "transcribe-running";
+    if (f.transcribeStatus === "error") return "transcribe-error";
+    return "transcribe-pending";
+  }
+  if (f.status === "coding") return "coding";
+  if (f.status === "done") return "done";
+  if (f.status === "error") return "error";
+  return f.selected ? "ready" : "off";
 }
+
+function rowStatusLabel(state: RowState, f: TranscriptFile): string {
+  switch (state) {
+    case "transcribe-pending":
+      return "READY";
+    case "transcribe-running":
+      return "TRANSCRIBING";
+    case "transcribe-error":
+      return f.transcribeError || "FAILED";
+    case "coding":
+      return "CODING";
+    case "done":
+      return "DONE";
+    case "error":
+      return f.error || "ERROR";
+    case "ready":
+      return "READY";
+    case "off":
+      return "OFF";
+  }
+}
+
+const STATE_TO_DOT_CLASS: Record<RowState, string> = {
+  "transcribe-pending": "statusDot_ready",
+  "transcribe-running": "statusDot_coding",
+  "transcribe-error": "statusDot_error",
+  ready: "statusDot_ready",
+  coding: "statusDot_coding",
+  done: "statusDot_done",
+  error: "statusDot_error",
+  off: "statusDot_off",
+};
 
 export function SectionUpload() {
   const {
-    uploadMode,
-    setUploadMode,
     files,
-    audioFiles,
     dragOver,
     setDragOver,
     uploadError,
     processFiles,
-    processAudioInput,
     removeFile,
-    removeAudioFile,
     toggleFile,
+    setFileTopic,
+    transcribeAudio,
+    transcribeAllPending,
+    downloadRawTranscript,
+    isAnyTranscribing,
+    pendingAudioCount,
     totalTurns,
     hasFiles,
     elevenLabsKey,
@@ -159,35 +224,20 @@ export function SectionUpload() {
     showElevenKey,
     setShowElevenKey,
     devSignedIn,
-    transcribeAllPending,
-    isAnyTranscribing,
-    pendingAudioCount,
   } = useSession();
 
-  const transcriptInputRef = useRef<HTMLInputElement>(null);
-  const audioInputRef = useRef<HTMLInputElement>(null);
-
-  const transcriptActive = uploadMode === "transcript";
-  const audioActive = uploadMode === "audio";
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const selectedFiles = files.filter((f) => f.selected);
-  const summaryCount = transcriptActive ? selectedFiles.length : audioFiles.length;
+  const hasAudioRow = files.some((f) => f.audioSource);
   const summary = hasFiles
-    ? `${summaryCount} · ${totalTurns} turns`
-    : audioActive && audioFiles.length > 0
-    ? `${audioFiles.length} audio`
+    ? `${selectedFiles.length} · ${totalTurns} turns`
     : "0 files";
 
-  const onTranscriptDrop = (e: React.DragEvent) => {
+  const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
     if (e.dataTransfer.files.length > 0) processFiles(e.dataTransfer.files);
-  };
-
-  const onAudioDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    if (e.dataTransfer.files.length > 0) processAudioInput(e.dataTransfer.files);
   };
 
   return (
@@ -196,297 +246,234 @@ export function SectionUpload() {
       number="01"
       label="Upload"
       title="Start with your recordings."
-      description="Drop in word-level transcripts, or hand us raw audio and we'll transcribe with speaker diarization first. Couple-coding needs speaker-attributed turns — anything else we'll reject with a clear error."
+      description="Drop in word-level transcripts or raw audio. Audio rows can be transcribed with ElevenLabs (with speaker diarization), then coded alongside any transcripts you uploaded directly."
       cardTitle="Upload"
       cardMeta={summary}
       state={hasFiles ? "done" : "idle"}
     >
-      <div className={s.grid}>
-        <div className={s.formatStack}>
-          <button
-            type="button"
-            onClick={() => setUploadMode("transcript")}
-            className={`${s.formatCard} ${transcriptActive ? s.formatCardActive : ""}`}
-          >
-            <div className={s.formatIcon}>
-              <FileIcon />
+      <div className={s.stack}>
+        <div
+          className={`${s.dropzone} ${dragOver ? s.dropzoneActive : ""}`}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragOver(true);
+          }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={onDrop}
+          onClick={() => inputRef.current?.click()}
+        >
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".json,.mp3,.mp4,.wav"
+            multiple
+            style={{ display: "none" }}
+            onChange={(e) => {
+              if (e.target.files && e.target.files.length > 0) {
+                processFiles(e.target.files);
+              }
+              e.target.value = "";
+            }}
+          />
+          <div className={s.dropIcon}>
+            <UploadIcon />
+          </div>
+          <div>
+            <div className={s.dropTitle}>
+              Drop transcripts or audio
             </div>
-            <div>
-              <div className={s.formatName}>Transcripts</div>
-              <div className={s.formatDesc}>
-                Word-level JSON · ElevenLabs, AssemblyAI
-              </div>
+            <div className={s.dropSub}>
+              JSON · MP3 · MP4 · WAV
             </div>
-          </button>
-          <button
-            type="button"
-            onClick={() => setUploadMode("audio")}
-            className={`${s.formatCard} ${audioActive ? s.formatCardActive : ""}`}
-          >
-            <div className={s.formatIcon}>
-              <MicIcon />
-            </div>
-            <div>
-              <div className={s.formatName}>Audio / video</div>
-              <div className={s.formatDesc}>
-                MP3, MP4 · +$0.30/min transcription
-              </div>
-            </div>
-          </button>
+          </div>
         </div>
 
-        <div className={s.rightPane}>
-          {transcriptActive ? (
-            <>
-              <div
-                className={`${s.dropzone} ${dragOver ? s.dropzoneActive : ""}`}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDragOver(true);
-                }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={onTranscriptDrop}
-                onClick={() => transcriptInputRef.current?.click()}
-              >
-                <input
-                  ref={transcriptInputRef}
-                  type="file"
-                  accept=".json"
-                  multiple
-                  style={{ display: "none" }}
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files.length > 0) {
-                      processFiles(e.target.files);
-                    }
-                    e.target.value = "";
-                  }}
-                />
-                <div className={s.dropIcon}>
-                  <UploadIcon />
-                </div>
-                <div>
-                  <div className={s.dropTitle}>
-                    Drop to add more, or click to browse
-                  </div>
-                  <div className={s.dropSub}>
-                    JSON · VTT with speaker tags
-                  </div>
-                </div>
-              </div>
+        {uploadError && <div className={s.error}>{uploadError}</div>}
 
-              {uploadError && <div className={s.error}>{uploadError}</div>}
+        {files.length > 0 && (
+          <div className={s.table}>
+            <div className={s.tableHead}>
+              <div className={s.thCheck} />
+              <div className={s.thFile}>FILE</div>
+              <div className={s.thTurns}>TURNS</div>
+              <div className={s.thDuration}>DURATION</div>
+              <div className={s.thStatus}>STATUS</div>
+              <div className={s.thAction} />
+              <div className={s.thRemove} />
+            </div>
+            {files.map((f) => {
+              const state = rowState(f);
+              const isAudio = f.audioSource !== undefined;
+              const checkboxDisabled = isAudio && !f.rawTranscript;
+              const duration = fileDurationSec(f.rawTranscript?.words);
+              const showTranscribe =
+                isAudio &&
+                (f.transcribeStatus === "pending" ||
+                  f.transcribeStatus === "error");
+              const showDownload = isAudio && f.rawTranscript !== null;
+              const dotClass = s[STATE_TO_DOT_CLASS[state]] ?? "";
+              const statusLabel = rowStatusLabel(state, f);
 
-              {files.length > 0 && (
-                <div className={s.table}>
-                  <div className={s.tableHead}>
-                    <div className={s.thCheck} />
-                    <div className={s.thFile}>FILE</div>
-                    <div className={s.thTurns}>TURNS</div>
-                    <div className={s.thDuration}>DURATION</div>
-                    <div className={s.thStatus} />
-                    <div className={s.thRemove} />
-                  </div>
-                  {files.map((f) => {
-                    const duration = fileDurationSec(f.rawTranscript?.words);
-                    const status =
-                      f.status === "coding"
-                        ? "coding"
-                        : f.status === "done"
-                        ? "done"
-                        : f.status === "error"
-                        ? "error"
-                        : f.selected
-                        ? "ready"
-                        : "off";
-                    return (
-                      <div key={f.id} className={s.tr}>
-                        <div className={s.tdCheck}>
-                          <input
-                            type="checkbox"
-                            checked={f.selected}
-                            onChange={() => toggleFile(f.id)}
-                            className={s.checkbox}
-                          />
-                        </div>
-                        <div className={s.tdFile}>
-                          <span className={s.fileIcon}>
-                            <FileIcon />
-                          </span>
-                          <span
-                            className={`${s.fileName} ${!f.selected ? s.fileNameOff : ""}`}
-                          >
-                            {f.fileName}
-                          </span>
-                        </div>
-                        <div className={s.tdTurns}>{f.turns.length || "—"}</div>
-                        <div className={s.tdDuration}>
-                          {formatDuration(duration)}
-                        </div>
-                        <div className={s.tdStatus}>
-                          <span
-                            className={`${s.statusDot} ${s[`statusDot_${status}`] ?? ""}`}
-                          />
-                        </div>
-                        <div className={s.tdRemove}>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removeFile(f.id);
-                            }}
-                            className={s.removeBtn}
-                            aria-label="Remove"
-                          >
-                            <XIcon />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </>
-          ) : (
-            <>
-              <div
-                className={`${s.dropzone} ${dragOver ? s.dropzoneActive : ""}`}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDragOver(true);
-                }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={onAudioDrop}
-                onClick={() => audioInputRef.current?.click()}
-              >
-                <input
-                  ref={audioInputRef}
-                  type="file"
-                  accept=".mp3,.mp4,.wav"
-                  multiple
-                  style={{ display: "none" }}
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files.length > 0) {
-                      processAudioInput(e.target.files);
-                    }
-                    e.target.value = "";
-                  }}
-                />
-                <div className={s.dropIcon}>
-                  <MicIcon />
-                </div>
-                <div>
-                  <div className={s.dropTitle}>Drop audio files here</div>
-                  <div className={s.dropSub}>MP3, MP4, or WAV</div>
-                </div>
-              </div>
-
-              {uploadError && <div className={s.error}>{uploadError}</div>}
-
-              {audioFiles.length > 0 && (
-                <div className={s.audioList}>
-                  {audioFiles.map((entry) => {
-                    const statusKey = `statusDot_${
-                      entry.status === "pending"
-                        ? "ready"
-                        : entry.status === "transcribing"
-                        ? "coding"
-                        : entry.status
-                    }` as const;
-                    const dotClass = s[statusKey] ?? "";
-                    return (
-                      <div key={entry.id} className={s.audioItem}>
-                        <span className={s.fileIcon}>
-                          <MicIcon />
-                        </span>
-                        <span className={s.fileName}>{entry.file.name}</span>
-                        <span
-                          className={`${s.audioStatus} ${
-                            entry.status === "error" ? s.audioStatus_error : ""
-                          }`}
-                        >
-                          <span className={`${s.statusDot} ${dotClass}`} />
-                          {audioStatusLabel(entry.status, entry.error)}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => removeAudioFile(entry.id)}
-                          className={s.removeBtn}
-                          aria-label="Remove"
-                        >
-                          <XIcon />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {audioFiles.length > 0 && (
-                <>
-                  <div className={s.keyBlock}>
-                    <div className={s.keyLabelRow}>
-                      <span className={s.keyLabel}>ELEVENLABS API KEY</span>
+              const topicEnabled = f.rawTranscript !== null;
+              return (
+                <div key={f.id} className={s.fileGroup}>
+                  <div className={s.tr}>
+                    <div className={s.tdCheck}>
+                      <input
+                        type="checkbox"
+                        checked={f.selected}
+                        disabled={checkboxDisabled}
+                        onChange={() => toggleFile(f.id)}
+                        className={s.checkbox}
+                      />
+                    </div>
+                    <div className={s.tdFile}>
+                      <span className={s.fileIcon}>
+                        {isAudio ? <MicIcon /> : <FileIcon />}
+                      </span>
                       <span
-                        className={`${s.keyStatus} ${
-                          devSignedIn || elevenLabsKey ? s.keyStatus_ok : ""
-                        }`}
+                        className={`${s.fileName} ${!f.selected ? s.fileNameOff : ""}`}
                       >
-                        {devSignedIn
-                          ? "Dev signed-in · using server key"
-                          : elevenLabsKey
-                          ? "Stored locally · only sent to ElevenLabs during transcription"
-                          : "Paste your key — stored in this browser only"}
+                        {f.fileName}
                       </span>
                     </div>
-                    <div className={s.keyRow}>
-                      <input
-                        type={showElevenKey ? "text" : "password"}
-                        className={s.keyInput}
-                        value={devSignedIn ? "" : elevenLabsKey}
-                        onChange={(e) => setElevenLabsKey(e.target.value)}
-                        placeholder={
-                          devSignedIn ? "Signed in — server key in use" : "sk_…"
-                        }
-                        spellCheck={false}
-                        autoComplete="off"
-                        disabled={devSignedIn}
-                      />
+                    <div className={s.tdTurns}>{f.turns.length || "—"}</div>
+                    <div className={s.tdDuration}>
+                      {formatDuration(duration)}
+                    </div>
+                    <div
+                      className={s.tdStatus}
+                      data-state={state}
+                      title={statusLabel}
+                    >
+                      <span className={`${s.statusDot} ${dotClass}`} />
+                      <span className={s.statusLabel}>{statusLabel}</span>
+                    </div>
+                    <div className={s.tdAction}>
+                      {showTranscribe && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            transcribeAudio(f.id);
+                          }}
+                          disabled={
+                            (!elevenLabsKey && !devSignedIn) || isAnyTranscribing
+                          }
+                          className={s.transcribeRowBtn}
+                        >
+                          Transcribe
+                        </button>
+                      )}
+                      {showDownload && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            downloadRawTranscript(f.id);
+                          }}
+                          className={s.downloadBtn}
+                          aria-label="Download transcript JSON"
+                          title="Download transcript JSON"
+                        >
+                          <DownloadIcon />
+                        </button>
+                      )}
+                    </div>
+                    <div className={s.tdRemove}>
                       <button
                         type="button"
-                        onClick={() => setShowElevenKey(!showElevenKey)}
-                        className={s.keyToggle}
-                        aria-label={showElevenKey ? "Hide key" : "Show key"}
-                        disabled={devSignedIn}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeFile(f.id);
+                        }}
+                        className={s.removeBtn}
+                        aria-label="Remove"
                       >
-                        <EyeIcon open={showElevenKey} />
+                        <XIcon />
                       </button>
                     </div>
                   </div>
-                  <div className={s.transcribeRow}>
-                    <button
-                      type="button"
-                      className={s.transcribeBtn}
-                      disabled={
-                        (!elevenLabsKey && !devSignedIn) ||
-                        pendingAudioCount === 0 ||
-                        isAnyTranscribing
-                      }
-                      onClick={() => transcribeAllPending()}
-                    >
-                      {isAnyTranscribing
-                        ? "Transcribing…"
-                        : pendingAudioCount > 0
-                        ? `Transcribe ${pendingAudioCount} file${
-                            pendingAudioCount === 1 ? "" : "s"
-                          }`
-                        : "Transcribe"}
-                    </button>
-                  </div>
-                </>
-              )}
-            </>
-          )}
-        </div>
+                  {topicEnabled && (
+                    <div className={s.topicRow}>
+                      <span className={s.topicLabel}>Topic</span>
+                      <input
+                        type="text"
+                        className={s.topicInput}
+                        value={f.topic ?? ""}
+                        onChange={(e) => setFileTopic(f.id, e.target.value)}
+                        placeholder="e.g., division of household chores"
+                        spellCheck={false}
+                        autoComplete="off"
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {hasAudioRow && (
+          <div className={s.keyBlock}>
+            <div className={s.keyLabelRow}>
+              <span className={s.keyLabel}>ELEVENLABS API KEY</span>
+              <span
+                className={`${s.keyStatus} ${
+                  devSignedIn || elevenLabsKey ? s.keyStatus_ok : ""
+                }`}
+              >
+                {devSignedIn
+                  ? "Dev signed-in · using server key"
+                  : elevenLabsKey
+                  ? "Stored locally · only sent to ElevenLabs during transcription"
+                  : "Paste your key — stored in this browser only"}
+              </span>
+            </div>
+            <div className={s.keyRow}>
+              <input
+                type={showElevenKey ? "text" : "password"}
+                className={s.keyInput}
+                value={devSignedIn ? "" : elevenLabsKey}
+                onChange={(e) => setElevenLabsKey(e.target.value)}
+                placeholder={
+                  devSignedIn ? "Signed in — server key in use" : "sk_…"
+                }
+                spellCheck={false}
+                autoComplete="off"
+                disabled={devSignedIn}
+              />
+              <button
+                type="button"
+                onClick={() => setShowElevenKey(!showElevenKey)}
+                className={s.keyToggle}
+                aria-label={showElevenKey ? "Hide key" : "Show key"}
+                disabled={devSignedIn}
+              >
+                <EyeIcon open={showElevenKey} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {pendingAudioCount > 0 && (
+          <div className={s.transcribeRow}>
+            <button
+              type="button"
+              className={s.transcribeBtn}
+              disabled={
+                (!elevenLabsKey && !devSignedIn) || isAnyTranscribing
+              }
+              onClick={() => transcribeAllPending()}
+            >
+              {isAnyTranscribing
+                ? "Transcribing…"
+                : `Transcribe ${pendingAudioCount} file${
+                    pendingAudioCount === 1 ? "" : "s"
+                  }`}
+            </button>
+          </div>
+        )}
       </div>
     </SectionShell>
   );

@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ApiLog,
-  AudioFileEntry,
   CategoryDefinition,
   CodedUnit,
   CodingScheme,
@@ -25,7 +24,6 @@ import {
   AUTOSAVE_KEY,
   deserialize,
   PersistedSession,
-  UploadMode,
 } from "@/lib/autosave-schema";
 import { useAutosave, AutosaveState } from "./useAutosave";
 import { useRunStats, RunStats } from "./useRunStats";
@@ -38,6 +36,8 @@ export const SECTION_IDS = [
   "s-run",
 ] as const;
 export type SectionId = (typeof SECTION_IDS)[number];
+
+const ELEVENLABS_MODEL_ID = "scribe_v1";
 
 function readJsonFile(
   file: File,
@@ -75,6 +75,7 @@ function alignIncomingUnit(
   }
   const parentTurn = turns.find((t) => t.turnNumber === unit.turnNumber);
   if (!parentTurn) return unit;
+  if (!file.rawTranscript) return unit;
   const turnWords = getTurnWords(file.rawTranscript, parentTurn);
   const aligned = alignUtteranceToWords(unit.text, turnWords);
   if (aligned.ok) {
@@ -94,20 +95,17 @@ export function sortUnits(units: CodedUnit[]): CodedUnit[] {
 
 export interface CodingSession {
   // Upload
-  uploadMode: UploadMode;
   files: TranscriptFile[];
-  audioFiles: AudioFileEntry[];
   dragOver: boolean;
   uploadError: string | null;
-  setUploadMode: (m: UploadMode) => void;
   setDragOver: (b: boolean) => void;
   processFiles: (fl: FileList) => Promise<void>;
-  processAudioInput: (fl: FileList) => void;
   removeFile: (id: string) => void;
-  removeAudioFile: (id: string) => void;
   toggleFile: (id: string) => void;
+  setFileTopic: (id: string, topic: string) => void;
   transcribeAudio: (id: string) => Promise<void>;
   transcribeAllPending: () => Promise<void>;
+  downloadRawTranscript: (fileId: string) => void;
   isAnyTranscribing: boolean;
   pendingAudioCount: number;
 
@@ -170,8 +168,6 @@ export interface CodingSession {
   doneFiles: TranscriptFile[];
 
   // UI
-  tweaksOpen: boolean;
-  setTweaksOpen: (b: boolean) => void;
   activeSectionId: string | null;
 
   // Autosave
@@ -179,9 +175,7 @@ export interface CodingSession {
 }
 
 export function useCodingSession(): CodingSession {
-  const [uploadMode, setUploadMode] = useState<UploadMode>("transcript");
   const [files, setFiles] = useState<TranscriptFile[]>([]);
-  const [audioFiles, setAudioFiles] = useState<AudioFileEntry[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [apiKey, setApiKeyState] = useState("");
@@ -189,6 +183,7 @@ export function useCodingSession(): CodingSession {
   const [elevenLabsKey, setElevenLabsKeyState] = useState("");
   const [showElevenKey, setShowElevenKey] = useState(false);
   const audioAbortersRef = useRef<Map<string, AbortController>>(new Map());
+  const filesRef = useRef<TranscriptFile[]>([]);
   const [devSignedIn, setDevSignedIn] = useState(false);
   const [devPassword, setDevPasswordState] = useState("");
   const [devAuthError, setDevAuthError] = useState("");
@@ -205,7 +200,6 @@ export function useCodingSession(): CodingSession {
   const [contextWindow, setContextWindow] = useState(DEFAULT_CONTEXT_WINDOW);
   const [openResults, setOpenResults] = useState<Record<string, boolean>>({});
   const [runStartedAt, setRunStartedAt] = useState<number | null>(null);
-  const [tweaksOpen, setTweaksOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const activeSectionId = useScrollSpy(
     SECTION_IDS as readonly string[] as string[],
@@ -223,7 +217,6 @@ export function useCodingSession(): CodingSession {
       if (raw) {
         const parsed = deserialize(raw);
         if (parsed) {
-          setUploadMode(parsed.uploadMode);
           setFiles(
             parsed.files
               .filter((f) => f.rawTranscript !== null)
@@ -236,6 +229,7 @@ export function useCodingSession(): CodingSession {
                 selected: f.selected,
                 status: "pending" as const,
                 progress: { completed: 0, total: 0 },
+                topic: f.topic ?? "",
               })),
           );
           if (parsed.selectedModel) setSelectedModel(parsed.selectedModel);
@@ -261,6 +255,10 @@ export function useCodingSession(): CodingSession {
     }
   }, [apiLogs]);
 
+  useEffect(() => {
+    filesRef.current = files;
+  }, [files]);
+
   const hasFiles = files.length > 0;
   const isAnyCoding = files.some((f) => f.status === "coding");
   const anySelected = files.some((f) => f.selected);
@@ -269,11 +267,11 @@ export function useCodingSession(): CodingSession {
     [files],
   );
 
-  const isAnyTranscribing = audioFiles.some(
-    (e) => e.status === "transcribing",
+  const isAnyTranscribing = files.some(
+    (f) => f.transcribeStatus === "transcribing",
   );
-  const pendingAudioCount = audioFiles.filter(
-    (e) => e.status === "pending",
+  const pendingAudioCount = files.filter(
+    (f) => f.transcribeStatus === "pending",
   ).length;
 
   const activeScheme = useMemo(
@@ -317,13 +315,13 @@ export function useCodingSession(): CodingSession {
     if (!hydrated) return null;
     if (isAnyCoding) return null;
     return {
-      version: 2,
-      uploadMode,
+      version: 3,
       files: files.map((f) => ({
         id: f.id,
         fileName: f.fileName,
         rawTranscript: f.rawTranscript,
         selected: f.selected,
+        topic: f.topic ?? "",
       })),
       selectedModel,
       schemeId,
@@ -336,7 +334,6 @@ export function useCodingSession(): CodingSession {
     };
   }, [
     hydrated,
-    uploadMode,
     files,
     selectedModel,
     schemeId,
@@ -411,70 +408,205 @@ export function useCodingSession(): CodingSession {
 
   const processFiles = useCallback(async (fileList: FileList) => {
     setUploadError(null);
-    try {
-      const results = await Promise.all(Array.from(fileList).map(readJsonFile));
-      const newFiles: TranscriptFile[] = results.map((f) => {
-        const parsedTurns = parseTranscript(f.transcript.words);
-        return {
-          id: crypto.randomUUID(),
-          fileName: f.fileName,
-          rawTranscript: f.transcript,
-          turns: parsedTurns,
-          codedUnits: [],
-          selected: true,
-          status: "pending" as const,
-          progress: { completed: 0, total: parsedTurns.length },
-        };
-      });
-      setFiles((prev) => [...prev, ...newFiles]);
-    } catch (err) {
-      setUploadError(
-        err instanceof Error ? err.message : "Failed to read files.",
-      );
-    }
-  }, []);
+    const incoming = Array.from(fileList);
+    const errors: string[] = [];
+    const newFiles: TranscriptFile[] = [];
 
-  const processAudioInput = useCallback((fileList: FileList) => {
-    setUploadError(null);
-    const added = Array.from(fileList).filter((f) =>
-      /\.(mp3|mp4|wav)$/i.test(f.name),
-    );
-    if (added.length === 0) {
-      setUploadError("Only MP3, MP4, or WAV files are accepted.");
-      return;
+    for (const file of incoming) {
+      const lower = file.name.toLowerCase();
+      if (lower.endsWith(".json")) {
+        try {
+          const { transcript } = await readJsonFile(file);
+          const parsedTurns = parseTranscript(transcript.words);
+          newFiles.push({
+            id: crypto.randomUUID(),
+            fileName: file.name,
+            rawTranscript: transcript,
+            turns: parsedTurns,
+            codedUnits: [],
+            selected: true,
+            status: "pending",
+            progress: { completed: 0, total: parsedTurns.length },
+            topic: "",
+          });
+        } catch (err) {
+          errors.push(
+            err instanceof Error ? err.message : `Failed to read "${file.name}".`,
+          );
+        }
+      } else if (/\.(mp3|mp4|wav)$/i.test(lower)) {
+        newFiles.push({
+          id: crypto.randomUUID(),
+          fileName: file.name,
+          rawTranscript: null,
+          turns: [],
+          codedUnits: [],
+          selected: false,
+          status: "pending",
+          progress: { completed: 0, total: 0 },
+          audioSource: file,
+          transcribeStatus: "pending",
+          topic: "",
+        });
+      } else {
+        errors.push(
+          `"${file.name}": unsupported file type. Use JSON, MP3, MP4, or WAV.`,
+        );
+      }
     }
-    const entries: AudioFileEntry[] = added.map((file) => ({
-      id: crypto.randomUUID(),
-      file,
-      status: "pending" as const,
-    }));
-    setAudioFiles((prev) => [...prev, ...entries]);
+
+    if (newFiles.length > 0) setFiles((prev) => [...prev, ...newFiles]);
+    if (errors.length > 0) setUploadError(errors.join(" "));
   }, []);
 
   const removeFile = useCallback((id: string) => {
-    setFiles((prev) => prev.filter((f) => f.id !== id));
-  }, []);
-
-  const removeAudioFile = useCallback((id: string) => {
     const aborter = audioAbortersRef.current.get(id);
     if (aborter) {
       aborter.abort();
       audioAbortersRef.current.delete(id);
     }
-    setAudioFiles((prev) => prev.filter((e) => e.id !== id));
+    setFiles((prev) => prev.filter((f) => f.id !== id));
   }, []);
 
-  const transcribeAudio = useCallback(async () => {
-    // Stub — ElevenLabs transcription not yet wired up.
-  }, []);
+  const transcribeAudio = useCallback(
+    async (id: string) => {
+      const target = filesRef.current.find((f) => f.id === id);
+      if (!target?.audioSource) return;
+      if (
+        target.transcribeStatus !== "pending" &&
+        target.transcribeStatus !== "error"
+      ) {
+        return;
+      }
+
+      setFiles((prev) =>
+        prev.map((f) =>
+          f.id === id
+            ? {
+                ...f,
+                transcribeStatus: "transcribing",
+                transcribeError: undefined,
+              }
+            : f,
+        ),
+      );
+
+      const controller = new AbortController();
+      audioAbortersRef.current.set(id, controller);
+
+      try {
+        const formData = new FormData();
+        formData.append("file", target.audioSource);
+        formData.append("model_id", ELEVENLABS_MODEL_ID);
+        formData.append("diarize", "true");
+        formData.append("num_speakers", "2");
+        formData.append("timestamps_granularity", "word");
+        formData.append("tag_audio_events", "false");
+
+        const headers: Record<string, string> = {};
+        if (!devSignedIn && elevenLabsKey) {
+          headers["x-elevenlabs-key"] = elevenLabsKey;
+        }
+
+        const response = await fetch("/api/transcribe", {
+          method: "POST",
+          body: formData,
+          headers,
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}));
+          throw new Error(
+            body.error || `Transcription failed (${response.status})`,
+          );
+        }
+
+        const data = (await response.json()) as RawTranscript;
+        if (!Array.isArray(data.words) || data.words.length === 0) {
+          throw new Error("ElevenLabs returned no word-level data.");
+        }
+
+        const turns = parseTranscript(data.words);
+
+        setFiles((prev) =>
+          prev.map((f) =>
+            f.id === id
+              ? {
+                  ...f,
+                  rawTranscript: data,
+                  turns,
+                  selected: true,
+                  status: "pending",
+                  progress: { completed: 0, total: turns.length },
+                  transcribeStatus: "done",
+                  transcribeError: undefined,
+                }
+              : f,
+          ),
+        );
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.name === "AbortError"
+              ? "Cancelled"
+              : err.message
+            : "Transcription failed";
+        setFiles((prev) =>
+          prev.map((f) =>
+            f.id === id
+              ? {
+                  ...f,
+                  transcribeStatus: "error",
+                  transcribeError: message,
+                }
+              : f,
+          ),
+        );
+      } finally {
+        audioAbortersRef.current.delete(id);
+      }
+    },
+    [elevenLabsKey, devSignedIn],
+  );
 
   const transcribeAllPending = useCallback(async () => {
-    // Stub — ElevenLabs transcription not yet wired up.
-  }, []);
+    const ids = filesRef.current
+      .filter((f) => f.transcribeStatus === "pending")
+      .map((f) => f.id);
+    for (const id of ids) {
+      await transcribeAudio(id);
+    }
+  }, [transcribeAudio]);
+
+  const downloadRawTranscript = useCallback(
+    (fileId: string) => {
+      const file = files.find((f) => f.id === fileId);
+      if (!file?.rawTranscript) return;
+
+      const blob = new Blob([JSON.stringify(file.rawTranscript, null, 2)], {
+        type: "application/json;charset=utf-8;",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const baseName = file.fileName.replace(/\.[^.]+$/, "");
+      a.download = `${baseName}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+    [files],
+  );
 
   const toggleFile = useCallback((id: string) => {
     setFiles((prev) =>
       prev.map((f) => (f.id === id ? { ...f, selected: !f.selected } : f)),
+    );
+  }, []);
+
+  const setFileTopic = useCallback((id: string, topic: string) => {
+    setFiles((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, topic } : f)),
     );
   }, []);
 
@@ -563,6 +695,7 @@ export function useCodingSession(): CodingSession {
     const filesToCode = files.filter((f) => f.selected);
 
     for (const file of filesToCode) {
+      if (!file.rawTranscript) continue;
       const turns =
         file.turns.length > 0
           ? file.turns
@@ -594,6 +727,7 @@ export function useCodingSession(): CodingSession {
             categories,
             systemPrompt,
             contextWindow,
+            topic: file.topic ?? "",
             ...(devSignedIn ? {} : { apiKey }),
           }),
         });
@@ -713,20 +847,24 @@ export function useCodingSession(): CodingSession {
 
   const handleExportAll = useCallback(() => {
     const fileHeader = "File";
+    const topicHeader = "Topic";
     const colHeaders = COLUMN_DEFINITIONS.map((c) => c.csvHeader);
-    const header = [fileHeader, ...colHeaders].join(",");
+    const header = [fileHeader, topicHeader, ...colHeaders].join(",");
+
+    const escapeField = (v: string) =>
+      v.includes(",") || v.includes('"') || v.includes("\n")
+        ? `"${v.replace(/"/g, '""')}"`
+        : v;
 
     const rows: string[] = [];
     for (const f of doneFiles) {
       const sorted = sortUnits(f.codedUnits);
       const csv = generateCsv(sorted);
       const csvLines = csv.split("\n").slice(1);
+      const escapedName = escapeField(f.fileName);
+      const escapedTopic = escapeField(f.topic ?? "");
       for (const line of csvLines) {
-        const escapedName =
-          f.fileName.includes(",") || f.fileName.includes('"')
-            ? `"${f.fileName.replace(/"/g, '""')}"`
-            : f.fileName;
-        rows.push(`${escapedName},${line}`);
+        rows.push(`${escapedName},${escapedTopic},${line}`);
       }
     }
 
@@ -742,20 +880,17 @@ export function useCodingSession(): CodingSession {
   }, [doneFiles]);
 
   return {
-    uploadMode,
     files,
-    audioFiles,
     dragOver,
     uploadError,
-    setUploadMode,
     setDragOver,
     processFiles,
-    processAudioInput,
     removeFile,
-    removeAudioFile,
     toggleFile,
+    setFileTopic,
     transcribeAudio,
     transcribeAllPending,
+    downloadRawTranscript,
     isAnyTranscribing,
     pendingAudioCount,
 
@@ -813,8 +948,6 @@ export function useCodingSession(): CodingSession {
     schemeName,
     doneFiles,
 
-    tweaksOpen,
-    setTweaksOpen,
     activeSectionId,
 
     autosaveState,

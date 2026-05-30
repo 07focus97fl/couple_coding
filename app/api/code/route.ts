@@ -19,17 +19,22 @@ interface CodeRequest {
   systemPrompt: string;
   contextWindow?: number;
   apiKey?: string;
+  topic?: string;
 }
 
 interface TurnModeInput {
   category: string;
   rationale: string;
+  subcategory?: string | null;
+  alternatives_considered?: string[];
 }
 
 interface UtteranceInputEntry {
   text: string;
   category: string;
   rationale: string;
+  subcategory?: string | null;
+  alternatives_considered?: string[];
 }
 
 interface UtteranceModeInput {
@@ -45,6 +50,7 @@ export async function POST(request: Request) {
     systemPrompt: rawPrompt,
     contextWindow = 5,
     apiKey: clientKey,
+    topic,
   } = (await request.json()) as CodeRequest;
 
   const apiKey = clientKey || process.env.ANTHROPIC_API_KEY;
@@ -95,6 +101,17 @@ export async function POST(request: Request) {
             properties: {
               category: { type: "string", enum: categoryEnum },
               rationale: { type: "string" },
+              subcategory: {
+                type: ["string", "null"],
+                description:
+                  "Optional. When the scheme defines subcategories for a code (e.g., HQ/MR/DR/HJ for ID), specify which one applies. Null otherwise.",
+              },
+              alternatives_considered: {
+                type: "array",
+                items: { type: "string" },
+                description:
+                  "Optional. Codes that were close but not chosen.",
+              },
             },
             required: ["category", "rationale"],
           },
@@ -118,6 +135,17 @@ export async function POST(request: Request) {
                     },
                     category: { type: "string", enum: categoryEnum },
                     rationale: { type: "string" },
+                    subcategory: {
+                      type: ["string", "null"],
+                      description:
+                        "Optional. When the scheme defines subcategories for a code (e.g., HQ/MR/DR/HJ for ID), specify which one applies. Null otherwise.",
+                    },
+                    alternatives_considered: {
+                      type: "array",
+                      items: { type: "string" },
+                      description:
+                        "Optional. Codes that were close but not chosen.",
+                    },
                   },
                   required: ["text", "category", "rationale"],
                 },
@@ -143,7 +171,7 @@ export async function POST(request: Request) {
           const contextEnd = turn.turnNumber - 1;
           const contextTurns = turns.slice(contextStart, contextEnd);
 
-          const userMessage = buildUserMessage(contextTurns, turn);
+          const userMessage = buildUserMessage(contextTurns, turn, topic);
 
           const MAX_RETRIES = 2;
           let lastResponse: Anthropic.Message | null = null;
@@ -175,6 +203,15 @@ export async function POST(request: Request) {
                 typeof parsed.rationale === "string" &&
                 validCategoryNames.has(parsed.category)
               ) {
+                const subcategory =
+                  typeof parsed.subcategory === "string" && parsed.subcategory.trim().length > 0
+                    ? parsed.subcategory
+                    : null;
+                const alternativesConsidered = Array.isArray(parsed.alternatives_considered)
+                  ? parsed.alternatives_considered.filter(
+                      (s): s is string => typeof s === "string",
+                    )
+                  : [];
                 const unit: CodedUnit = {
                   unitId: `T${turn.turnNumber}`,
                   turnNumber: turn.turnNumber,
@@ -185,9 +222,17 @@ export async function POST(request: Request) {
                   wordCount: turn.wordCount,
                   category: parsed.category,
                   rationale: parsed.rationale,
+                  subcategory,
+                  alternativesConsidered,
                 };
                 lastParsedUnits = [
-                  { unitId: unit.unitId, category: parsed.category, rationale: parsed.rationale },
+                  {
+                    unitId: unit.unitId,
+                    category: parsed.category,
+                    rationale: parsed.rationale,
+                    subcategory,
+                    alternativesConsidered,
+                  },
                 ];
                 return {
                   codedUnits: [unit],
@@ -226,6 +271,15 @@ export async function POST(request: Request) {
                 const units: CodedUnit[] = list.map((u, i) => {
                   const utteranceIndex = i + 1;
                   const unitId = `T${turn.turnNumber}.U${utteranceIndex}`;
+                  const subcategory =
+                    typeof u.subcategory === "string" && u.subcategory.trim().length > 0
+                      ? u.subcategory
+                      : null;
+                  const alternativesConsidered = Array.isArray(u.alternatives_considered)
+                    ? u.alternatives_considered.filter(
+                        (s): s is string => typeof s === "string",
+                      )
+                    : [];
                   return {
                     unitId,
                     turnNumber: turn.turnNumber,
@@ -237,6 +291,8 @@ export async function POST(request: Request) {
                     wordCount: u.text.trim().split(/\s+/).length,
                     category: u.category,
                     rationale: u.rationale,
+                    subcategory,
+                    alternativesConsidered,
                   };
                 });
                 lastParsedUnits = units.map((u) => ({
@@ -244,6 +300,8 @@ export async function POST(request: Request) {
                   category: u.category,
                   rationale: u.rationale,
                   text: u.text,
+                  subcategory: u.subcategory,
+                  alternativesConsidered: u.alternativesConsidered,
                 }));
                 return {
                   codedUnits: units,

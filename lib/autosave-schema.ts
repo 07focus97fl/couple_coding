@@ -4,21 +4,19 @@ import {
   RawTranscript,
 } from "./types";
 
-export const AUTOSAVE_KEY = "ccc_session_v2";
+export const AUTOSAVE_KEY = "ccc_session_v3";
 export const AUTOSAVE_MAX_BYTES = 3_000_000;
-
-export type UploadMode = "audio" | "transcript";
 
 export interface PersistedFile {
   id: string;
   fileName: string;
   rawTranscript: RawTranscript | null;
   selected: boolean;
+  topic?: string;
 }
 
 export interface PersistedSession {
-  version: 2;
-  uploadMode: UploadMode;
+  version: 3;
   files: PersistedFile[];
   selectedModel: string;
   schemeId: string | null;
@@ -37,7 +35,7 @@ export function serialize(session: PersistedSession): string {
 export function deserialize(raw: string): PersistedSession | null {
   try {
     const parsed = JSON.parse(raw) as Partial<PersistedSession>;
-    if (parsed.version !== 2) return null;
+    if (parsed.version !== 3) return null;
     if (!parsed.files || !Array.isArray(parsed.files)) return null;
     if (typeof parsed.systemPrompt !== "string") return null;
     if (!parsed.categories || !Array.isArray(parsed.categories)) return null;

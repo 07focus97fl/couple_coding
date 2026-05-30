@@ -224,9 +224,9 @@ export function SectionScheme() {
             <div className={s.empty}>
               <div className={s.emptyTitle}>Pick a scheme →</div>
               <div className={s.emptyDesc}>
-                Start with VTCS for general conflict coding, Valence for
-                quick positive/negative classification, or Custom to build
-                from scratch.
+                Start with VCTS for the 6-code couple-conflict scheme,
+                Valence for quick positive/negative classification, or
+                Custom to build from scratch.
               </div>
             </div>
           )}

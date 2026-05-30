@@ -1,70 +1,8 @@
-.grid {
-  display: grid;
-  grid-template-columns: 200px 1fr;
-  gap: 0.8rem;
-  padding-top: 0.5rem;
-}
-
-.formatStack {
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-}
-
-.formatCard {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.7rem;
-  padding: 0.85rem 0.95rem;
-  border: 1.5px solid rgba(26, 26, 30, 0.08);
-  background: #fff;
-  border-radius: 11px;
-  cursor: pointer;
-  text-align: left;
-  font-family: var(--sans);
-  transition: all 0.18s;
-}
-
-.formatCard:hover {
-  border-color: rgba(26, 26, 30, 0.18);
-}
-
-.formatCardActive {
-  border-color: var(--accent);
-  background: #c45d3e07;
-  box-shadow: 0 0 0 3px rgba(196, 93, 62, 0.08);
-}
-
-.formatIcon {
-  width: 28px;
-  height: 28px;
-  border-radius: 7px;
-  background: #c45d3e10;
-  color: var(--accent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.formatName {
-  font-weight: 600;
-  font-size: 0.88rem;
-  color: var(--ink);
-}
-
-.formatDesc {
-  font-size: 0.74rem;
-  color: var(--muted);
-  margin-top: 0.18rem;
-  line-height: 1.4;
-}
-
-.rightPane {
+.stack {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  padding-top: 0.5rem;
   min-width: 0;
 }
 
@@ -130,10 +68,12 @@
 
 .tableHead {
   display: grid;
-  grid-template-columns: 36px 1fr 70px 90px 32px 32px;
+  grid-template-columns: 26px 1fr 46px 64px 120px 96px 26px;
+  column-gap: 0.7rem;
   padding: 0.55rem 0.8rem;
   background: #f0ece6;
   border-bottom: 1px solid rgba(26, 26, 30, 0.05);
+  align-items: center;
 }
 
 .tableHead > div {
@@ -154,21 +94,64 @@
   text-align: right;
 }
 
-.tr {
-  display: grid;
-  grid-template-columns: 36px 1fr 70px 90px 32px 32px;
-  padding: 0.55rem 0.8rem;
-  align-items: center;
+.fileGroup {
   border-bottom: 1px solid rgba(26, 26, 30, 0.04);
-  transition: background 0.15s;
 }
 
-.tr:last-child {
+.fileGroup:last-child {
   border-bottom: none;
+}
+
+.tr {
+  display: grid;
+  grid-template-columns: 26px 1fr 46px 64px 120px 96px 26px;
+  column-gap: 0.7rem;
+  padding: 0.55rem 0.8rem;
+  align-items: center;
+  transition: background 0.15s;
 }
 
 .tr:hover {
   background: #fff;
+}
+
+.topicRow {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.1rem 0.8rem 0.55rem calc(26px + 0.8rem + 0.7rem);
+}
+
+.topicLabel {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.topicInput {
+  flex: 1;
+  min-width: 0;
+  padding: 0.32rem 0.55rem;
+  border: 1px solid rgba(26, 26, 30, 0.08);
+  border-radius: 6px;
+  background: #fff;
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.topicInput::placeholder {
+  color: rgba(26, 26, 30, 0.32);
+}
+
+.topicInput:focus {
+  border-color: var(--accent);
 }
 
 .tdCheck {
@@ -181,6 +164,11 @@
   height: 15px;
   accent-color: var(--accent);
   cursor: pointer;
+}
+
+.checkbox:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .tdFile {
@@ -219,9 +207,39 @@
 }
 
 .tdStatus {
-  display: flex;
+  justify-self: start;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 0.4rem;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0.24rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(26, 26, 30, 0.05);
+}
+
+.tdStatus[data-state="ready"],
+.tdStatus[data-state="done"],
+.tdStatus[data-state="transcribe-pending"] {
+  background: rgba(94, 135, 97, 0.13);
+}
+
+.tdStatus[data-state="coding"],
+.tdStatus[data-state="transcribe-running"],
+.tdStatus[data-state="error"],
+.tdStatus[data-state="transcribe-error"] {
+  background: rgba(196, 93, 62, 0.12);
+}
+
+.statusLabel {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .statusDot {
@@ -229,11 +247,11 @@
   height: 7px;
   border-radius: 50%;
   background: #c2bdb5;
+  flex-shrink: 0;
 }
 
 .statusDot_ready {
   background: #5e8761;
-  box-shadow: 0 0 0 3px rgba(94, 135, 97, 0.18);
 }
 
 .statusDot_coding {
@@ -251,6 +269,13 @@
 
 .statusDot_off {
   background: #c2bdb5;
+}
+
+.tdAction {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
 }
 
 .tdRemove {
@@ -278,40 +303,49 @@
   color: var(--accent);
 }
 
-.audioList {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-}
-
-.audioItem {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  padding: 0.55rem 0.75rem;
+.downloadBtn {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  border: 1px solid rgba(26, 26, 30, 0.08);
   background: #fff;
-  border: 1px solid rgba(26, 26, 30, 0.06);
-  border-radius: 9px;
-}
-
-.audioStatus {
-  margin-left: auto;
+  color: var(--muted);
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  font-family: var(--mono);
-  font-size: 0.68rem;
-  letter-spacing: 0.04em;
-  color: var(--muted);
-  text-transform: uppercase;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
 }
 
-.audioStatus_error {
+.downloadBtn:hover {
+  border-color: var(--accent);
   color: var(--accent);
-  text-transform: none;
-  letter-spacing: 0;
+  background: #c45d3e0a;
+}
+
+.transcribeRowBtn {
+  padding: 0.32rem 0.7rem;
+  background: var(--ink);
+  color: var(--paper);
+  border: none;
+  border-radius: 7px;
   font-family: var(--sans);
   font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.transcribeRowBtn:hover:not(:disabled) {
+  background: var(--accent);
+}
+
+.transcribeRowBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .keyBlock {
@@ -437,18 +471,10 @@
 }
 
 @media (max-width: 720px) {
-  .grid {
-    grid-template-columns: 1fr;
-  }
-  .formatStack {
-    flex-direction: row;
-  }
-  .formatCard {
-    flex: 1;
-  }
   .tableHead,
   .tr {
-    grid-template-columns: 28px 1fr 50px 60px 26px 26px;
+    grid-template-columns: 22px 1fr 40px 54px 104px 80px 24px;
+    column-gap: 0.5rem;
     font-size: 0.78rem;
   }
 }

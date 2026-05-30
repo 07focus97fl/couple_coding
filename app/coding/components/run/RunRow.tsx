@@ -18,6 +18,12 @@ interface RunRowProps {
 function RunRowImpl({ unit, index, color }: RunRowProps) {
   const sk = speakerKey(unit.speaker);
   const c = color || FALLBACK_COLOR;
+  const chipText = unit.subcategory
+    ? `${codeFor(unit.category)}/${unit.subcategory}`
+    : codeFor(unit.category);
+  const chipTitle = unit.subcategory
+    ? `${unit.category} (${unit.subcategory})`
+    : unit.category;
   return (
     <div className={s.row}>
       <div className={s.idx}>{index + 1}</div>
@@ -35,9 +41,9 @@ function RunRowImpl({ unit, index, color }: RunRowProps) {
           background: colorWithAlpha(c, 0.18),
           color: c,
         }}
-        title={unit.category}
+        title={chipTitle}
       >
-        {codeFor(unit.category)}
+        {chipText}
       </div>
     </div>
   );

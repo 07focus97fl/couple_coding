@@ -40,6 +40,8 @@ export interface CodingUnit {
 export interface CodedUnit extends CodingUnit {
   category: string;
   rationale: string;
+  subcategory?: string | null;
+  alternativesConsidered?: string[];
 }
 
 export type CodedTurn = CodedUnit;
@@ -52,6 +54,8 @@ export type ColumnKey =
   | "text"
   | "wordCount"
   | "category"
+  | "subcategory"
+  | "alternativesConsidered"
   | "rationale"
   | "startTime"
   | "endTime";
@@ -71,6 +75,8 @@ export const COLUMN_DEFINITIONS: { key: ColumnKey; label: string; csvHeader: str
   { key: "text", label: "Text", csvHeader: "Text" },
   { key: "wordCount", label: "Words", csvHeader: "Word Count" },
   { key: "category", label: "Category", csvHeader: "Category" },
+  { key: "subcategory", label: "Subcat", csvHeader: "Subcategory" },
+  { key: "alternativesConsidered", label: "Alts", csvHeader: "Alternatives Considered" },
   { key: "rationale", label: "Rationale", csvHeader: "Rationale" },
   { key: "startTime", label: "Start (s)", csvHeader: "Start Time (s)" },
   { key: "endTime", label: "End (s)", csvHeader: "End Time (s)" },
@@ -91,24 +97,20 @@ export interface CodingScheme {
   badge?: string;
 }
 
-export interface AudioFileEntry {
-  id: string;
-  file: File;
-  status: 'pending' | 'transcribing' | 'done' | 'error';
-  error?: string;
-  transcriptFileId?: string;
-}
-
 export interface TranscriptFile {
   id: string;
   fileName: string;
-  rawTranscript: RawTranscript;
+  rawTranscript: RawTranscript | null;
   turns: SpeakingTurn[];
   codedUnits: CodedUnit[];
   selected: boolean;
   status: 'pending' | 'coding' | 'done' | 'error';
   progress: { completed: number; total: number };
   error?: string;
+  audioSource?: File;
+  transcribeStatus?: 'pending' | 'transcribing' | 'done' | 'error';
+  transcribeError?: string;
+  topic?: string;
 }
 
 export interface ApiLogParsedUnit {
@@ -116,6 +118,8 @@ export interface ApiLogParsedUnit {
   category: string;
   rationale: string;
   text?: string;
+  subcategory?: string | null;
+  alternativesConsidered?: string[];
 }
 
 export interface ApiLog {

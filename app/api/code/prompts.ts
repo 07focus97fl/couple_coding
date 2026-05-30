@@ -14,8 +14,13 @@ export function buildSystemPrompt(
 export function buildUserMessage(
   contextTurns: SpeakingTurn[],
   targetTurn: SpeakingTurn,
+  topic?: string,
 ): string {
   let message = "";
+
+  if (topic && topic.trim().length > 0) {
+    message += `CONVERSATION TOPIC: ${topic.trim()}\n\n`;
+  }
 
   if (contextTurns.length > 0) {
     message += "PRIOR CONTEXT:\n";

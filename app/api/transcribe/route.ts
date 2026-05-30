@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     return new Response(
       JSON.stringify({
         error:
-          "No ElevenLabs API key. Add one in Tweaks, or sign in with the dev password.",
+          "No ElevenLabs API key. Add one in the Upload step, or use developer sign-in.",
       }),
       { status: 400, headers: { "Content-Type": "application/json" } },
     );

@@ -2,8 +2,8 @@
 
 import { CodingSessionProvider } from "./hooks/CodingSessionContext";
 import { StickyHeader } from "./components/layout/StickyHeader";
+import { StageRail } from "./components/layout/StageRail";
 import { Hero } from "./components/layout/Hero";
-import { TweaksDrawer } from "./components/layout/TweaksDrawer";
 import { SectionUpload } from "./components/sections/SectionUpload";
 import { SectionModel } from "./components/sections/SectionModel";
 import { SectionScheme } from "./components/sections/SectionScheme";
@@ -15,14 +15,16 @@ export default function CodingPage() {
     <CodingSessionProvider>
       <div className={s.pageShell}>
         <StickyHeader />
-        <main className={s.shell}>
-          <Hero />
-          <SectionUpload />
-          <SectionModel />
-          <SectionScheme />
-          <SectionRun />
-        </main>
-        <TweaksDrawer />
+        <div className={s.workspace}>
+          <StageRail />
+          <main className={s.shell}>
+            <Hero />
+            <SectionUpload />
+            <SectionModel />
+            <SectionScheme />
+            <SectionRun />
+          </main>
+        </div>
       </div>
     </CodingSessionProvider>
   );

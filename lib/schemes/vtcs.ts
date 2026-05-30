@@ -1,90 +1,191 @@
 import { CodingScheme } from "../types";
-import { buildDefaultPrompt } from "../prompt-defaults";
 
-const VTCS_RULES = `## Precedence Hierarchy
+const VCTS_TURN_PROMPT = `You are an expert coder of couple conflict communication. You assign ONE code to each complete speaker turn using the 6-category scheme below.
 
-When a speaking turn contains elements of multiple categories, apply the highest-precedence code. The hierarchy from highest to lowest:
+The conversation topic will be provided in the user message — you must know the topic to code accurately.
 
-1. RE (Rejection)
-2. CR (Personal Criticism)
-3. HI (Hostile Imperatives)
-4. HQ (Hostile Questions)
-5. HJ (Hostile Jokes)
-6. JO (Friendly Joking)
-7. PR (Presumptive Remarks)
-8. DR (Denial of Responsibility)
-9. CN (Concessions)
-10. AR (Acceptance of Responsibility)
-11. SC (Soliciting Criticism)
-12. SD (Soliciting Disclosure)
-13. DI (Disclosive Statements)
-14. QU (Qualifying Statements)
-15. DES (Descriptive Statements)
-16. TA (Topic Avoidance)
-17. DEN (Direct Denial)
-18. ID (Implicit Denial)
-19. EV (Evasive Remarks)
-20. SU (Supportive Remarks)
-21. TS (Topic Shifts)
-22. PC (Procedural Remarks)
-23. AB (Abstract Remarks)
-24. NS (Noncommittal Statements)
-25. NQ (Noncommittal Questions)
-26. UC (Uncodable)
+## CRITICAL RULES (apply before everything else)
 
-## Context Rules
+1. ALL questions are coded ID — no exceptions. A question can never receive NC, IN, P, B, or R.
+2. Be conservative. When in doubt, code IN.
+3. One code per speaker turn.
+4. When a turn contains both IN-codable and non-IN-codable content, assign the non-IN code as primary and note IN in alternatives_considered.
+5. NC can co-occur with a content code. When NC combines with another code, report the content code as primary and note NC in alternatives_considered.
 
-- Consider previous and upcoming speaker turns for context when interpreting the target turn.
-- However, if the target turn contains at least one instance of a substantive code (any code other than UC), it should be coded as that substantive code rather than UC.
-- When multiple substantive codes are present, apply the precedence hierarchy above.`;
+## Decision Tree (follow in order for every turn)
+
+Work through these checks in sequence. Assign the first code that matches.
+
+1. Is it a question? → **ID** (always, no exceptions)
+2. Is it a comment about the conversation process itself, with no substantive content? → **NC**
+3. Does it mock, mimic, or use sarcasm toward the partner? → **ID**
+4. Does it attribute thoughts, feelings, or motives to the partner (without using "I think…" framing)? → **ID**
+5. Does it deny responsibility for something the speaker could reasonably be held accountable for? → **ID**
+6. Does it attack who the partner IS — character, insults, dismissive buzzwords? → **R**
+7. Does it attribute fault to the partner's BEHAVIOR globally and one-sidedly? → **B**
+8. Does it prescribe a global, one-sided solution that was not requested? → **P**
+9. Everything else, or when ambiguous → **IN**
+
+If a turn triggers NC alongside any of steps 3–8, report the non-NC code as primary and note NC in alternatives_considered.
+
+## Worked Examples
+
+**Topic: Division of housework**
+
+> Partner A: "I feel like I've been doing most of the dishes and laundry this month."
+
+Decision tree: Not a question. Not process commentary. No mocking, mind reading, denial, character attack, or global blame — it's a specific, concrete description of events. → **IN**
+
+> Partner B: "Why is it always about what YOU do?"
+
+Decision tree: Step 1 — it's a question. → **ID** (subcategory: HQ)
+
+> Partner A: "You never clean up after yourself. Ever."
+
+Decision tree: Not a question. Not process commentary. No mocking or mind reading. No denial. Not a character attack. Step 7 — global, one-sided fault attribution targeting partner's behavior ("never," "ever"). → **B**
+
+> Partner B: "You're just a nag."
+
+Decision tree: Not a question. Not process commentary. No mocking or mind reading. No denial. Step 6 — attacks who the partner IS (character label: "nag"). → **R**
+
+> Partner A: "Maybe we could split the chores differently. I'll take trash and dishes, you take laundry and vacuuming."
+
+Decision tree: Not a question. Not process commentary. No mocking, mind reading, denial, character attack, or global blame. Step 8 — proposes a solution, but it distributes responsibility equally between both partners, so it does NOT qualify as one-sided prescription. → **IN**
+
+## Output Format
+
+For each speaker turn, return a JSON object:
+
+\`\`\`json
+{
+  "speaker": "A",
+  "turn_number": 1,
+  "code": "IN",
+  "subcategory": null,
+  "alternatives_considered": [],
+  "reasoning": "Speaker describes specific recent events without blame or prescription."
+}
+\`\`\`
+
+- **speaker**: Speaker identifier as given in the transcript.
+- **turn_number**: Sequential turn number (1-indexed).
+- **code**: One of IN, NC, ID, P, B, R.
+- **subcategory**: For ID, specify HQ, MR, DR, or HJ if applicable. Null otherwise.
+- **alternatives_considered**: List any codes that were close but not assigned, including NC when it co-occurs with a content code.
+- **reasoning**: One sentence explaining the decision, referencing the decision tree step that determined the code.
+
+Return the full set of coded turns as a JSON array.`;
+
+const VCTS_UTTERANCE_PROMPT = `You are an expert coder of couple conflict communication. You assign ONE code to each utterance — a contiguous stretch of speech within a speaker turn that represents a single coherent behavioral act relative to the 6-category scheme below. A single speaker turn may contain multiple utterances when behavioral intent shifts mid-turn (e.g., a blame followed by a concession). Use the categories themselves — not grammatical sentence boundaries — to decide where one utterance ends and the next begins. Each utterance's text MUST be a verbatim contiguous substring of the target turn.
+
+The conversation topic will be provided in the user message — you must know the topic to code accurately.
+
+## CRITICAL RULES (apply before everything else)
+
+1. ALL questions are coded ID — no exceptions. A question can never receive NC, IN, P, B, or R.
+2. Be conservative. When in doubt, code IN.
+3. One code per utterance.
+4. When an utterance contains both IN-codable and non-IN-codable content, assign the non-IN code as primary and note IN in alternatives_considered.
+5. NC can co-occur with a content code. When NC combines with another code, report the content code as primary and note NC in alternatives_considered.
+
+## Decision Tree (follow in order for every utterance)
+
+Work through these checks in sequence. Assign the first code that matches.
+
+1. Is it a question? → **ID** (always, no exceptions)
+2. Is it a comment about the conversation process itself, with no substantive content? → **NC**
+3. Does it mock, mimic, or use sarcasm toward the partner? → **ID**
+4. Does it attribute thoughts, feelings, or motives to the partner (without using "I think…" framing)? → **ID**
+5. Does it deny responsibility for something the speaker could reasonably be held accountable for? → **ID**
+6. Does it attack who the partner IS — character, insults, dismissive buzzwords? → **R**
+7. Does it attribute fault to the partner's BEHAVIOR globally and one-sidedly? → **B**
+8. Does it prescribe a global, one-sided solution that was not requested? → **P**
+9. Everything else, or when ambiguous → **IN**
+
+If an utterance triggers NC alongside any of steps 3–8, report the non-NC code as primary and note NC in alternatives_considered.
+
+## Worked Examples
+
+**Topic: Division of housework**
+
+> Partner A: "I feel like I've been doing most of the dishes and laundry this month."
+
+Decision tree: Not a question. Not process commentary. No mocking, mind reading, denial, character attack, or global blame — it's a specific, concrete description of events. → **IN**
+
+> Partner B: "Why is it always about what YOU do?"
+
+Decision tree: Step 1 — it's a question. → **ID** (subcategory: HQ)
+
+> Partner A: "You never clean up after yourself. Ever."
+
+Decision tree: Not a question. Not process commentary. No mocking or mind reading. No denial. Not a character attack. Step 7 — global, one-sided fault attribution targeting partner's behavior ("never," "ever"). → **B**
+
+> Partner B: "You're just a nag."
+
+Decision tree: Not a question. Not process commentary. No mocking or mind reading. No denial. Step 6 — attacks who the partner IS (character label: "nag"). → **R**
+
+> Partner A: "Maybe we could split the chores differently. I'll take trash and dishes, you take laundry and vacuuming."
+
+Decision tree: Not a question. Not process commentary. No mocking, mind reading, denial, character attack, or global blame. Step 8 — proposes a solution, but it distributes responsibility equally between both partners, so it does NOT qualify as one-sided prescription. → **IN**
+
+## Output Format
+
+For each utterance, return a JSON object with:
+
+\`\`\`json
+{
+  "text": "verbatim substring of the speaker turn",
+  "code": "IN",
+  "subcategory": null,
+  "alternatives_considered": [],
+  "reasoning": "Speaker describes specific recent events without blame or prescription."
+}
+\`\`\`
+
+- **text**: Verbatim contiguous substring of the target turn — copy it exactly, preserving punctuation, capitalization, and spacing.
+- **code**: One of IN, NC, ID, P, B, R.
+- **subcategory**: For ID, specify HQ, MR, DR, or HJ if applicable. Null otherwise.
+- **alternatives_considered**: List any codes that were close but not assigned, including NC when it co-occurs with a content code.
+- **reasoning**: One sentence explaining the decision, referencing the decision tree step that determined the code.
+
+Return the utterances in the order they appear in the turn.`;
 
 export const VTCS: CodingScheme = {
   id: "vtcs",
-  label: "VTCS",
-  description: "Verbal Tactics Coding Scheme (Sillars, 1986)",
+  label: "VCTS",
+  description: "Couple conflict — 6-code scheme (IN, NC, ID, P, B, R)",
   categories: [
-    // DE — Denial & Equivocation
-    { name: "DEN", description: "DE — Denial & Equivocation: Direct Denial. The speaker explicitly states that a conflict or problem does not exist (e.g., \"There's no problem\" or \"We don't disagree about that\"). Must be an overt, unambiguous denial — not merely offering a rationale. If the speaker provides an explanation or justification instead of a flat denial, code as ID." },
-    { name: "ID", description: "DE — Denial & Equivocation: Implicit Denial. The speaker implies that a conflict does not exist by offering a rationale, explanation, or justification without explicitly denying it (e.g., \"I only did that because…\" or \"That's just how things work\"). Distinguished from DEN by the absence of an explicit denial statement, and from DR by not specifically minimizing personal fault — ID addresses the existence of the issue itself." },
-    { name: "EV", description: "DE — Denial & Equivocation: Evasive Remarks. The speaker fails to acknowledge or deny the conflict; responses are ambiguous, uncommitted, or vague (e.g., \"I don't know\" when avoidance is the intent, or changing tone without addressing the topic). Distinguished from NS by being a response to a conflict-relevant prompt but deliberately non-substantive. Distinguished from TS by not introducing a new topic." },
-
-    // TM — Topic Management
-    { name: "TS", description: "TM — Topic Management: Topic Shifts. The speaker implicitly terminates conflict discussion by changing the subject to a different, unrelated topic without explicitly refusing to discuss the original one (e.g., shifting from finances to weekend plans). Distinguished from TA by the absence of an explicit refusal — the speaker simply moves on." },
-    { name: "TA", description: "TM — Topic Management: Topic Avoidance. The speaker explicitly refuses to discuss a conflict topic (e.g., \"I don't want to talk about this\" or \"Let's not go there\"). Distinguished from TS by being an overt, stated refusal rather than a silent redirect." },
-
-    // NR — Noncommittal Remarks
-    { name: "NS", description: "NR — Noncommittal Remarks: Noncommittal Statements. Neutral, declarative statements that are unrelated to the conflict topic and do not advance or avoid it (e.g., commenting on the weather, stating a mundane fact). Distinguished from EV by not being a response to a conflict-relevant prompt, and from DES by lacking any conflict content." },
-    { name: "NQ", description: "NR — Noncommittal Remarks: Noncommittal Questions. Unfocused or conflict-irrelevant questions that do not advance or avoid the conflict (e.g., \"What time is it?\" during a conflict discussion). Distinguished from SD and HQ by having no conflict relevance." },
-    { name: "AB", description: "NR — Noncommittal Remarks: Abstract Remarks. Generalizations, hypotheticals, or philosophical statements that stand in for engagement with the specific conflict (e.g., \"Well, nobody's perfect\" or \"That's just how relationships are\"). Distinguished from QU by not limiting the scope of a specific issue, and from DES by not referring to specific conflict events." },
-    { name: "PC", description: "NR — Noncommittal Remarks: Procedural Remarks. Meta-conversational statements about the discussion process itself rather than the conflict content (e.g., \"Can we take a break?\" or \"You interrupted me\"). Distinguished from TA by not refusing a topic — instead commenting on how the conversation is being conducted." },
-
-    // IR — Irreverent Remarks
-    { name: "JO", description: "IR — Irreverent Remarks: Friendly Joking. Humor that is NOT at the partner's expense — lighthearted, tension-reducing, or self-deprecating (e.g., \"Well, at least we're consistent!\" said warmly). Distinguished from HJ by the absence of targeting the partner with sarcasm or ridicule. If humor contains any implicit criticism of the partner, code as HJ instead." },
-
-    // AN — Analytic Remarks
-    { name: "DES", description: "AN — Analytic Remarks: Descriptive Statements. Nonevaluative, observable, verifiable statements about conflict events or behaviors (e.g., \"You came home at 9 last night\" or \"We haven't discussed the budget this month\"). Must describe facts without evaluation or judgment. Distinguished from CR by the absence of criticism or character assessment, and from DI by referring to observable events rather than internal states." },
-    { name: "DI", description: "AN — Analytic Remarks: Disclosive Statements. Nonevaluative statements about the speaker's own unobservable thoughts, feelings, or internal states (e.g., \"I feel worried when…\" or \"I've been thinking that…\"). Must be self-referential and nonhostile. Distinguished from DES by referring to internal states rather than observable events, and from CR by being about oneself rather than the partner." },
-    { name: "QU", description: "AN — Analytic Remarks: Qualifying Statements. Statements that explicitly limit the scope, severity, or generality of the conflict (e.g., \"It's only about the weekends\" or \"This isn't a huge deal\"). Distinguished from AB by addressing the specific conflict rather than making general statements, and from SU by not expressing acceptance or warmth." },
-    { name: "SD", description: "AN — Analytic Remarks: Soliciting Disclosure. Nonhostile questions inviting the partner to share their thoughts, feelings, or perspective (e.g., \"How do you feel about that?\" or \"What are you thinking?\"). Must be genuinely open-ended and nonleading. Distinguished from HQ by the absence of implied blame, and from SC by asking about the partner's perspective rather than inviting criticism of oneself." },
-    { name: "SC", description: "AN — Analytic Remarks: Soliciting Criticism. Nonhostile questions explicitly inviting the partner to criticize the speaker (e.g., \"What am I doing wrong?\" or \"Tell me what bothers you about my behavior\"). Must be a genuine, nondefensive invitation. Distinguished from SD by specifically inviting criticism of oneself." },
-
-    // CF — Confrontive Remarks
-    { name: "CR", description: "CF — Confrontive Remarks: Personal Criticism. Criticizes the partner's character traits, personality, or past behavior — backward-looking evaluation (e.g., \"You're so irresponsible\" or \"You always forget\"). Distinguished from HI by being backward-looking (evaluating what was done) rather than forward-looking (demanding change). Distinguished from RE by not being a strong reactive dismissal of what the partner just said." },
-    { name: "RE", description: "CF — Confrontive Remarks: Rejection. Antagonistic disagreement with strong reactive dismissal — the speaker forcefully rejects the partner's statement, position, or character (e.g., \"That's ridiculous\" or \"You're completely wrong\"). Distinguished from CR by being a direct reactive dismissal rather than a general character critique." },
-    { name: "HI", description: "CF — Confrontive Remarks: Hostile Imperatives. Prescriptive demands that implicitly blame the partner — forward-looking commands (e.g., \"You need to stop doing that\" or \"Just clean up after yourself\"). Distinguished from CR by being forward-looking (demanding future change) rather than backward-looking (evaluating past behavior)." },
-    { name: "HJ", description: "CF — Confrontive Remarks: Hostile Jokes. Humor or sarcasm that targets the partner — mockery, ridicule, or veiled insults disguised as humor (e.g., \"Oh sure, because you're such an expert\" said sarcastically). Distinguished from JO by targeting the partner with negativity. If humor is warm or self-deprecating, code as JO instead." },
-    { name: "HQ", description: "CF — Confrontive Remarks: Hostile Questions. Leading or rhetorical questions that imply blame or criticism (e.g., \"Why can't you ever…?\" or \"Don't you think you should have…?\"). Distinguished from SD by the presence of implied blame, and from SC by criticizing the partner rather than inviting criticism of oneself." },
-    { name: "PR", description: "CF — Confrontive Remarks: Presumptive Remarks. The speaker attributes thoughts, feelings, motives, or intentions to the partner that the partner has not acknowledged (e.g., \"You obviously don't care\" or \"You're just saying that to avoid the issue\"). Distinguished from CR by attributing unacknowledged internal states rather than criticizing observable traits or behavior." },
-    { name: "DR", description: "CF — Confrontive Remarks: Denial of Responsibility. The speaker minimizes or denies their own role in the conflict (e.g., \"It's not my fault\" or \"I had nothing to do with that\"). Distinguished from ID by specifically deflecting personal blame rather than denying the conflict's existence, and from AR by being the opposite — refusing responsibility rather than accepting it." },
-
-    // CL — Conciliatory Remarks
-    { name: "SU", description: "CL — Conciliatory Remarks: Supportive Remarks. Statements expressing understanding, acceptance, or positive regard for the partner while still acknowledging the conflict exists (e.g., \"I understand why you feel that way\" or \"I appreciate you telling me\"). Distinguished from CN by not offering to change or compromise, and from JO by being earnest rather than humorous." },
-    { name: "CN", description: "CL — Conciliatory Remarks: Concessions. The speaker expresses willingness to change, compromise, or meet the partner partway (e.g., \"I can try to do that differently\" or \"Let's find a middle ground\"). Distinguished from AR by offering future change rather than accepting past blame, and from SU by going beyond understanding to propose action." },
-    { name: "AR", description: "CL — Conciliatory Remarks: Acceptance of Responsibility. The speaker attributes conflict responsibility to themselves or to both partners (e.g., \"I should have handled that better\" or \"We both contributed to this\"). Distinguished from DR by accepting rather than denying responsibility, and from CN by acknowledging past fault rather than proposing future change." },
-
-    // Other
-    { name: "UC", description: "Uncodable. Backchannels (e.g., \"mm-hmm\", \"yeah\", \"uh-huh\"), incomplete or unintelligible utterances, simple agreement/disagreement tokens with no substantive conflict content, or turns that cannot be reliably classified into any other category. Use only when no other code applies." },
+    {
+      name: "IN",
+      description:
+        "Integrative (the default). Specific or concrete recounting of events, behaviors, or feelings; agreement, compromise, accepting responsibility; disagreeing with or disputing the partner's framing (this ALWAYS shifts toward IN); rejecting advice from close others but ultimately agreeing with the partner; prescriptions or blame distributed equally between both partners. When in doubt, when ambiguous, or when no other code clearly fits, default to IN.",
+    },
+    {
+      name: "NC",
+      description:
+        "Non-Constructive. Process-focused comments about how the conversation is going rather than the content of the conflict (e.g., \"We're not getting anywhere\", \"You're not listening to me\", \"This conversation isn't helping\"). Apply leniency early in the conversation. Can combine with a content code: when NC co-occurs with another code, report the content code as primary and note NC in alternatives_considered.",
+    },
+    {
+      name: "ID",
+      description:
+        "Indirect Distributive. Covers ALL questions (no exceptions) plus four subcategories — use the `subcategory` field to specify which when applicable. HQ (Hostile Questions): any question directed at the partner; the answer to a hostile question is also ID; sarcasm is always ID. MR (Mind Reading): speaker attributes thoughts, feelings, or motives to the partner without 'I think…' framing — if 'I think…' framing is used, code IN instead. DR (Denying Responsibility): speaker denies responsibility for something they could reasonably be held accountable for — future-focused; if responsibility is unreasonable or impossible, code IN. HJ (Hostile Joking): speaker mimics or mocks the partner; always ID unless the mimicry is clearly a compliment.",
+    },
+    {
+      name: "P",
+      description:
+        "Prescription. Proposes a global solution or tells the partner what to do (e.g., \"You need to stop doing that\", \"You should just communicate better\"). Only assign P when (1) the prescription is one-sided — if equally distributed between partners, code IN — and (2) it is NOT a response to a direct request for a solution; if the partner asked for a solution, code IN.",
+    },
+    {
+      name: "B",
+      description:
+        "Blame. Attributes fault to something the partner DID — behavior-focused, not character-focused (e.g., \"You're always late\", \"You never do your share of the housework\"). Assign B when the attribution is global in scope, targets the partner's BEHAVIOR (not character), and is one-sided (if equally distributed, code IN). Distinguish from R: Blame targets behavior; Rejection targets character.",
+    },
+    {
+      name: "R",
+      description:
+        "Rejection. Attacks who the partner IS — character-focused (e.g., \"You're so immature\", \"You're pathetic\"). Includes insulting/demeaning statements, dismissive buzzwords like \"duh\" or \"whatever\", and the 'Mom rule' — speaker rejects or dismisses a person (unless the speaker ultimately agrees with them, in which case code IN). Off-topic but mean: assign the relevant content code and note R in alternatives_considered. Distinguish from B: Rejection targets character; Blame targets behavior.",
+    },
   ],
-
-  defaultPrompt: (g) => buildDefaultPrompt(g, VTCS_RULES),
+  defaultPrompt: (g) =>
+    g === "utterance" ? VCTS_UTTERANCE_PROMPT : VCTS_TURN_PROMPT,
 };

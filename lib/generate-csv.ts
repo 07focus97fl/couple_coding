@@ -23,6 +23,10 @@ function getCellValue(unit: CodedUnit, key: ColumnKey): string {
       return String(unit.wordCount);
     case "category":
       return escapeCsvField(unit.category);
+    case "subcategory":
+      return escapeCsvField(unit.subcategory ?? "");
+    case "alternativesConsidered":
+      return escapeCsvField((unit.alternativesConsidered ?? []).join("; "));
     case "rationale":
       return escapeCsvField(unit.rationale);
     case "startTime":
