@@ -33,8 +33,11 @@ export default function LandingPage() {
     <div className={s.page}>
       {/* NAV */}
       <nav ref={navRef} className={`${s.nav} ${scrolled ? s.navScrolled : ""}`}>
-        <div className={s.navLogo}>
-          CCC<span>.</span>
+        <div className={s.navBrand}>
+          <span className={s.navLogo}>
+            CCC<span>.</span>
+          </span>
+          <span className={s.navWordmark}>Couple Conversation Coder</span>
         </div>
         <div className={s.navLinks}>
           <a href="#how" className={s.navLink}>How it works</a>
@@ -69,47 +72,181 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* DEMO TERMINAL */}
+      {/* APP PREVIEW — a faithful look at the Run & Review panel */}
       <div className={s.demoSection}>
-        <div className={s.terminal}>
-          <div className={s.terminalBar}>
-            <div className={s.terminalDot} />
-            <div className={s.terminalDot} />
-            <div className={s.terminalDot} />
-            <span className={s.terminalBarLabel}>ccc — output stream</span>
+        <div className={s.appPreview}>
+          <div className={s.appHead}>
+            <div className={s.appCircle}>4</div>
+            <div className={s.appHeadTitle}>Run</div>
+            <div className={s.appHeadMeta}>14/87</div>
+            <div className={s.appHeadRight}>
+              <span className={s.appRunBtn}>Running…</span>
+              <svg
+                className={s.appChevron}
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </div>
           </div>
-          <div className={s.terminalBody}>
-            <div className={s.terminalLine}>
-              <span className={s.comment}>{"// Coding turn 14 of 87 — scheme: SPAFF"}</span>
+          <div className={s.appBody}>
+            <div className={s.appStats}>
+              <span className={s.appStatsLeft}>
+                <span className={s.appStateDot} />
+                <span className={s.appStatsText}>14/87</span>
+                <span className={s.appStatsDot}>·</span>
+                <span className={s.appStatsDim}>42.3s elapsed</span>
+                <span className={s.appStatsDot}>·</span>
+                <span className={s.appStatsDim}>~3m 39s left</span>
+                <span className={s.appStatsDot}>·</span>
+                <span className={s.appStatsDim}>20/min</span>
+                <span className={s.appStatsDot}>·</span>
+                <span className={s.appStatsDim}>$0.064</span>
+              </span>
+              <span className={s.appLogsBtn}>
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                </svg>
+                API logs (14)
+              </span>
             </div>
-            <div className={s.terminalLine}>
-              <br />
-              <span className={s.keyword}>speaker</span>{"  "}
-              <span className={s.string}>&quot;Partner A&quot;</span>
+
+            <div className={s.appProgress}>
+              <div className={s.appProgressFill} style={{ width: "16%" }} />
             </div>
-            <div className={s.terminalLine}>
-              <span className={s.keyword}>text</span>{"     "}
-              <span className={s.string}>&quot;I just feel like you never actually listen to me.&quot;</span>
+
+            <div className={s.appHist}>
+              <div className={s.appHistChart}>
+                <div className={s.appHistCol}>
+                  <div className={s.appHistBarWrap}>
+                    <div className={s.appHistCount}>6</div>
+                    <div
+                      className={s.appHistBar}
+                      style={{ height: "75%", background: "#7b9068" }}
+                    />
+                  </div>
+                  <div className={s.appHistLabel}>PO</div>
+                </div>
+                <div className={s.appHistCol}>
+                  <div className={s.appHistBarWrap}>
+                    <div className={s.appHistCount}>8</div>
+                    <div
+                      className={s.appHistBar}
+                      style={{ height: "100%", background: "#a88a5e" }}
+                    />
+                  </div>
+                  <div className={s.appHistLabel}>NE</div>
+                </div>
+              </div>
             </div>
-            <div className={s.terminalLine}>
-              <span className={s.keyword}>context</span>{"  "}
-              <span className={s.dim}>3 prior turns loaded</span>
-            </div>
-            <div className={s.terminalLine}>
-              <br />
-              <span className={s.label}>{"\u2192"} code</span>{"     "}
-              <span className={s.string}>&quot;Criticism&quot;</span>
-            </div>
-            <div className={s.terminalLine}>
-              <span className={s.label}>{"\u2192"} rationale</span>{"  "}
-              <span className={s.dim}>&quot;Speaker uses global attribution (&apos;never&apos;) and</span>
-            </div>
-            <div className={s.terminalLine}>
-              <span className={s.dim}>{"              "}frames the complaint as a character flaw rather</span>
-            </div>
-            <div className={s.terminalLine}>
-              <span className={s.dim}>{"              "}than a specific behavior.&quot;</span>
-              <span className={s.cursor} />
+
+            <div className={s.appRows}>
+              <div className={s.appRow}>
+                <div className={s.appIdx}>11</div>
+                <div className={s.appSpeaker} data-speaker="a">
+                  <span className={s.appSpkDot} />
+                  <span className={s.appSpkNum}>11</span>
+                </div>
+                <div className={s.appText}>
+                  <div className={s.appUtter}>
+                    {"Honestly, thank you for handling dinner tonight — that took a lot off my plate."}
+                  </div>
+                  <div className={s.appRationale}>
+                    {"Expresses gratitude and validates the partner’s contribution — clear positive affect."}
+                  </div>
+                </div>
+                <div
+                  className={s.appChip}
+                  style={{ background: "#7b90682e", color: "#7b9068" }}
+                >
+                  PO
+                </div>
+              </div>
+
+              <div className={s.appRow}>
+                <div className={s.appIdx}>12</div>
+                <div className={s.appSpeaker} data-speaker="b">
+                  <span className={s.appSpkDot} />
+                  <span className={s.appSpkNum}>12</span>
+                </div>
+                <div className={s.appText}>
+                  <div className={s.appUtter}>
+                    {"I just feel like I’m the only one who ever notices when something needs doing."}
+                  </div>
+                  <div className={s.appRationale}>
+                    {"Frames her effort as one-sided and casts the partner as inattentive — a complaint carrying negative affect."}
+                  </div>
+                </div>
+                <div
+                  className={s.appChip}
+                  style={{ background: "#a88a5e2e", color: "#a88a5e" }}
+                >
+                  NE
+                </div>
+              </div>
+
+              <div className={s.appRow}>
+                <div className={s.appIdx}>13</div>
+                <div className={s.appSpeaker} data-speaker="a">
+                  <span className={s.appSpkDot} />
+                  <span className={s.appSpkNum}>13</span>
+                </div>
+                <div className={s.appText}>
+                  <div className={s.appUtter}>
+                    {"That’s not fair — I do plenty around here, you just don’t see it."}
+                  </div>
+                  <div className={s.appRationale}>
+                    {"Defensive counter-claim that dismisses the partner’s experience instead of engaging with it."}
+                  </div>
+                </div>
+                <div
+                  className={s.appChip}
+                  style={{ background: "#a88a5e2e", color: "#a88a5e" }}
+                >
+                  NE
+                </div>
+              </div>
+
+              <div className={s.appRow}>
+                <div className={s.appIdx}>14</div>
+                <div className={s.appSpeaker} data-speaker="b">
+                  <span className={s.appSpkDot} />
+                  <span className={s.appSpkNum}>14</span>
+                </div>
+                <div className={s.appText}>
+                  <div className={s.appUtter}>
+                    {"Okay. Maybe we can find a system that actually works for both of us."}
+                  </div>
+                  <div className={s.appRationale}>
+                    {"Shifts toward repair, proposing a mutual, collaborative solution."}
+                  </div>
+                </div>
+                <div
+                  className={s.appChip}
+                  style={{ background: "#7b90682e", color: "#7b9068" }}
+                >
+                  PO
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -262,25 +399,47 @@ export default function LandingPage() {
           <div className={s.rationaleExample}>
             <div className={s.rationaleHeader}>
               <div className={s.indicator} />
-              Turn 14 — coded
+              Coded · turns 12–13
             </div>
-            <div className={s.rationaleBody}>
-              <div className={`${s.rationaleTurn} ${s.speakerA}`}>
-                <div className={s.speakerLabel}>Partner A</div>
-                &quot;I just feel like you never actually listen to me.&quot;
+            <div className={s.rationaleRows}>
+              <div className={s.rationaleRow}>
+                <div className={s.rRowHead}>
+                  <span className={s.rSpeaker} data-speaker="b">
+                    <span className={s.rDot} />
+                    Turn 12
+                  </span>
+                  <span
+                    className={s.rChip}
+                    style={{ background: "#a88a5e2e", color: "#a88a5e" }}
+                  >
+                    NE
+                  </span>
+                </div>
+                <div className={s.rUtter}>
+                  {"I just feel like I’m the only one who ever notices when something needs doing."}
+                </div>
+                <div className={s.rRationale}>
+                  {"Frames her effort as one-sided and casts the partner as inattentive — a complaint carrying negative affect."}
+                </div>
               </div>
-              <div className={`${s.rationaleTurn} ${s.speakerB}`}>
-                <div className={s.speakerLabel}>Partner B</div>
-                &quot;That&apos;s not fair, I was literally sitting right here the whole time.&quot;
-              </div>
-              <div className={s.rationaleCode}>
-                <div className={s.codeLabel}>Claude&apos;s coding — Turn 15</div>
-                <div className={s.codeCategory}>Defensiveness</div>
-                <div className={s.codeRationale}>
-                  &quot;Partner B responds with counter-complaint and self-justification
-                  rather than acknowledging Partner A&apos;s emotional experience.
-                  The phrase &apos;that&apos;s not fair&apos; redirects focus away
-                  from the original concern.&quot;
+              <div className={s.rationaleRow}>
+                <div className={s.rRowHead}>
+                  <span className={s.rSpeaker} data-speaker="a">
+                    <span className={s.rDot} />
+                    Turn 13
+                  </span>
+                  <span
+                    className={s.rChip}
+                    style={{ background: "#a88a5e2e", color: "#a88a5e" }}
+                  >
+                    NE
+                  </span>
+                </div>
+                <div className={s.rUtter}>
+                  {"That’s not fair — I do plenty around here, you just don’t see it."}
+                </div>
+                <div className={s.rRationale}>
+                  {"Defensive counter-claim that dismisses the partner’s experience. Read against turn 12, it escalates the exchange rather than repairing it."}
                 </div>
               </div>
             </div>

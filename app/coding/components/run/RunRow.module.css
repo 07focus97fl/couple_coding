@@ -90,3 +90,82 @@
     font-size: 0.74rem;
   }
 }
+
+/* ── Time-window identity ── */
+.window {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 2px;
+}
+
+.windowId {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.windowRange {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.windowDots {
+  display: flex;
+  gap: 3px;
+  margin-top: 1px;
+}
+
+.utterMulti {
+  white-space: pre-wrap;
+}
+
+/* ── Continuous per-dimension rating bars ── */
+.ratings {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  justify-self: stretch;
+  width: 100%;
+}
+
+.ratingRow {
+  display: grid;
+  grid-template-columns: 26px 1fr 18px;
+  align-items: center;
+  gap: 4px;
+}
+
+.ratingLabel {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ratingBar {
+  height: 6px;
+  background: rgba(26, 26, 30, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.ratingFill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.ratingVal {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  color: var(--muted);
+  text-align: right;
+}

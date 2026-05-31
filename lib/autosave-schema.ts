@@ -5,7 +5,8 @@ import {
   RatingScale,
   RawTranscript,
   SegmentationStrategy,
-  DEFAULT_CONTEXT_WINDOW,
+  DEFAULT_CONTEXT_BEFORE,
+  DEFAULT_CONTEXT_AFTER,
   DEFAULT_OUTPUT_TYPE,
   DEFAULT_SCALE,
   DEFAULT_WINDOW_SECONDS,
@@ -39,7 +40,8 @@ export interface PersistedSession {
   categoriesDirty: boolean;
   systemPrompt: string;
   promptDirty: boolean;
-  contextWindow: number;
+  contextBefore: number;
+  contextAfter: number;
 }
 
 export function serialize(session: PersistedSession): string {
@@ -50,6 +52,8 @@ export function deserialize(raw: string): PersistedSession | null {
   try {
     const p = JSON.parse(raw) as Partial<Omit<PersistedSession, "version">> & {
       version?: number;
+      /** Legacy single-window field (pre-before/after split); migrated to contextBefore. */
+      contextWindow?: number;
     };
     if (!p.files || !Array.isArray(p.files)) return null;
     if (typeof p.systemPrompt !== "string") return null;
@@ -74,7 +78,8 @@ export function deserialize(raw: string): PersistedSession | null {
       categoriesDirty: p.categoriesDirty ?? false,
       systemPrompt: p.systemPrompt,
       promptDirty: p.promptDirty ?? false,
-      contextWindow: p.contextWindow ?? DEFAULT_CONTEXT_WINDOW,
+      contextBefore: p.contextBefore ?? p.contextWindow ?? DEFAULT_CONTEXT_BEFORE,
+      contextAfter: p.contextAfter ?? DEFAULT_CONTEXT_AFTER,
     };
   } catch {
     return null;

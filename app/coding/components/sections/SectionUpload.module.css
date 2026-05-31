@@ -68,7 +68,7 @@
 
 .tableHead {
   display: grid;
-  grid-template-columns: 26px 1fr 46px 64px 120px 96px 26px;
+  grid-template-columns: 26px 1fr 46px 64px 132px 96px 26px;
   column-gap: 0.7rem;
   padding: 0.55rem 0.8rem;
   background: #f0ece6;
@@ -104,7 +104,7 @@
 
 .tr {
   display: grid;
-  grid-template-columns: 26px 1fr 46px 64px 120px 96px 26px;
+  grid-template-columns: 26px 1fr 46px 64px 132px 96px 26px;
   column-gap: 0.7rem;
   padding: 0.55rem 0.8rem;
   align-items: center;
@@ -180,8 +180,7 @@
 }
 
 .tdStatus[data-state="ready"],
-.tdStatus[data-state="done"],
-.tdStatus[data-state="transcribe-pending"] {
+.tdStatus[data-state="done"] {
   background: rgba(94, 135, 97, 0.13);
 }
 
@@ -194,10 +193,9 @@
 
 .statusLabel {
   font-family: var(--mono);
-  font-size: 0.66rem;
-  letter-spacing: 0.08em;
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
   color: var(--muted);
-  text-transform: uppercase;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -434,7 +432,7 @@
 @media (max-width: 720px) {
   .tableHead,
   .tr {
-    grid-template-columns: 22px 1fr 40px 54px 104px 80px 24px;
+    grid-template-columns: 22px 1fr 40px 54px 114px 80px 24px;
     column-gap: 0.5rem;
     font-size: 0.78rem;
   }

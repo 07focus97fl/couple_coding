@@ -1,5 +1,11 @@
-import { CodingMode, PreSegment, TranscriptWord } from "./types";
+import {
+  CodingMode,
+  PreSegment,
+  TranscriptWord,
+  DEFAULT_WINDOW_SECONDS,
+} from "./types";
 import { parseTranscript } from "./parse-transcript";
+import { segmentByTime } from "./segment-time";
 
 /** Adapt deterministic speaking turns into the common PreSegment shape. */
 function turnsToPreSegments(words: TranscriptWord[]): PreSegment[] {
@@ -26,10 +32,7 @@ function turnsToPreSegments(words: TranscriptWord[]): PreSegment[] {
  */
 export function segment(words: TranscriptWord[], mode: CodingMode): PreSegment[] {
   if (mode.segmentation === "time") {
-    // Reserved extension point. The time-segmentation slice implements
-    // lib/segment-time.ts (segmentByTime(words, mode.windowSeconds ?? 30)) and
-    // returns it here.
-    throw new Error("time segmentation is not yet implemented");
+    return segmentByTime(words, mode.windowSeconds ?? DEFAULT_WINDOW_SECONDS);
   }
   return turnsToPreSegments(words);
 }

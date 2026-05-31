@@ -74,8 +74,16 @@ export default function LogsPage() {
       {logs.map((log, i) => {
         const isOpen = expanded[i] ?? false;
         const units: ApiLogParsedUnit[] = log.parsedUnits ?? [];
-        const ctxNumbers = log.contextTurnNumbers ?? [];
-        const ctxCount = ctxNumbers.length;
+        // Pre-split logs only had a single prior-context field; read it as a fallback.
+        const legacy = log as Partial<{
+          contextTurnNumbers: number[];
+          contextWindow: number;
+        }>;
+        const beforeNumbers =
+          log.contextBeforeTurnNumbers ?? legacy.contextTurnNumbers ?? [];
+        const afterNumbers = log.contextAfterTurnNumbers ?? [];
+        const beforeCount = beforeNumbers.length;
+        const afterCount = afterNumbers.length;
         const primaryCategory =
           units.length === 1 ? units[0].category : `${units.length} utterances`;
         return (
@@ -90,7 +98,7 @@ export default function LogsPage() {
                 </span>
                 <span style={badge}>{primaryCategory}</span>
                 <span style={{ fontSize: "0.75rem", color: "#8a8680" }}>
-                  {(log.unitIds ?? []).join(", ")} &middot; {ctxCount}-turn context &middot; attempt {log.attempt + 1} &middot; {log.model}
+                  {(log.unitIds ?? []).join(", ")} &middot; {beforeCount} before / {afterCount} after &middot; attempt {log.attempt + 1} &middot; {log.model}
                 </span>
                 <span style={{ fontSize: "0.85rem" }}>{isOpen ? "\u25B2" : "\u25BC"}</span>
               </span>
@@ -100,17 +108,30 @@ export default function LogsPage() {
               <div style={{ padding: "0 1rem 1rem" }}>
                 <div style={contextPanel}>
                   <span style={{ fontWeight: 600 }}>Context sent to model:</span>{" "}
-                  {ctxCount > 0 ? (
-                    <>
-                      {ctxCount} prior turn{ctxCount !== 1 ? "s" : ""} (Turn
-                      {ctxCount !== 1 ? "s" : ""} {ctxNumbers.join(", ")})
-                    </>
-                  ) : (
+                  {beforeCount === 0 && afterCount === 0 ? (
                     <>none — this turn was coded in isolation</>
+                  ) : (
+                    <>
+                      {beforeCount > 0 ? (
+                        <>
+                          {beforeCount} prior turn{beforeCount !== 1 ? "s" : ""} (Turn
+                          {beforeCount !== 1 ? "s" : ""} {beforeNumbers.join(", ")})
+                        </>
+                      ) : null}
+                      {beforeCount > 0 && afterCount > 0 ? " · " : ""}
+                      {afterCount > 0 ? (
+                        <>
+                          {afterCount} following turn{afterCount !== 1 ? "s" : ""} (Turn
+                          {afterCount !== 1 ? "s" : ""} {afterNumbers.join(", ")})
+                        </>
+                      ) : null}
+                    </>
                   )}
                   <span style={{ color: "#8a8680" }}>
                     {" "}
-                    &middot; window setting: {log.contextWindow ?? "?"}
+                    &middot; settings:{" "}
+                    {log.contextBefore ?? legacy.contextWindow ?? "?"} before /{" "}
+                    {log.contextAfter ?? 0} after
                   </span>
                   <div
                     style={{
@@ -120,7 +141,7 @@ export default function LogsPage() {
                     }}
                   >
                     Full text is under <strong>User message</strong> below, in
-                    the PRIOR CONTEXT block.
+                    the PRIOR CONTEXT and FOLLOWING CONTEXT blocks.
                   </div>
                 </div>
 

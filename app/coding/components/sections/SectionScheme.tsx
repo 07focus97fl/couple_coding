@@ -10,6 +10,21 @@ import { PromptEditor } from "./PromptEditor";
 import { TopicTable } from "./TopicTable";
 import s from "./SectionScheme.module.css";
 
+/**
+ * Split a category definition into a human title (its leading sentence/name)
+ * and the remaining preview text — e.g. "Non-Constructive. Process-focused…"
+ * → { title: "Non-Constructive", rest: "Process-focused…" }.
+ */
+function splitDefinition(description: string): { title: string; rest: string } {
+  const text = (description ?? "").trim();
+  if (!text) return { title: "", rest: "" };
+  const m = text.match(/^([^.!?]*[.!?])\s+([\s\S]*)$/);
+  if (m && m[2].trim()) {
+    return { title: m[1].replace(/[.!?]+\s*$/, "").trim(), rest: m[2].trim() };
+  }
+  return { title: text.replace(/[.!?]+\s*$/, "").trim(), rest: "" };
+}
+
 function XIcon() {
   return (
     <svg
@@ -51,18 +66,21 @@ function ChevronIcon({ open }: { open: boolean }) {
 function CategoryRow({
   cat,
   color,
-  nameEditable,
   onUpdate,
   onRemove,
 }: {
   cat: CategoryDefinition;
   color: string;
-  nameEditable: boolean;
   onUpdate: (next: CategoryDefinition) => void;
   onRemove: () => void;
 }) {
-  const [open, setOpen] = useState(false);
+  // Newly added (empty) categories start expanded so the code/definition
+  // fields are immediately visible.
+  const [open, setOpen] = useState(() => !cat.name && !cat.description);
   const descRef = useRef<HTMLTextAreaElement>(null);
+
+  const { title, rest } = splitDefinition(cat.description);
+  const displayTitle = title || cat.name || "Untitled";
 
   // Grow the textarea to fit its content so the full definition is visible
   // (capped by max-height in CSS, after which it scrolls).
@@ -92,10 +110,10 @@ function CategoryRow({
           >
             {codeFor(cat.name)}
           </span>
-          <span className={s.rowName}>{cat.name || "Untitled"}</span>
-          {!open && cat.description && (
-            <span className={s.rowPreview}>{cat.description}</span>
-          )}
+          <span className={s.rowText}>
+            <span className={s.rowName}>{displayTitle}</span>
+            {!open && rest && <span className={s.rowPreview}>{rest}</span>}
+          </span>
           <ChevronIcon open={open} />
         </button>
         <button
@@ -110,15 +128,16 @@ function CategoryRow({
       </div>
       {open && (
         <div className={s.rowBody}>
-          {nameEditable && (
+          <label className={s.codeField}>
+            <span className={s.codeFieldLabel}>Code</span>
             <input
               className={s.codeInput}
               value={cat.name}
-              placeholder="Code (e.g. DEN)"
+              placeholder="e.g. DEN"
               spellCheck={false}
               onChange={(e) => onUpdate({ ...cat, name: e.target.value })}
             />
-          )}
+          </label>
           <textarea
             ref={descRef}
             className={s.rowDesc}
@@ -141,18 +160,27 @@ export function SectionScheme() {
     setSchemeId,
     categories,
     setCategories,
-    contextWindow,
-    setContextWindow,
+    contextBefore,
+    setContextBefore,
+    contextAfter,
+    setContextAfter,
     categoryColorMap,
     stepDone,
+    segmentation,
+    outputType,
+    scale,
+    setScale,
+    windowSeconds,
+    setWindowSeconds,
   } = useSession();
 
   const schemesNav = CODING_SCHEMES.filter((sc) => sc.id !== "custom");
+  const ctxUnit = segmentation === "time" ? "window" : "turn";
 
   const meta = activeScheme
-    ? `${activeScheme.label} · ${categories.length} · ${contextWindow}-turn context`
+    ? `${activeScheme.label} · ${categories.length} · ${contextBefore}+${contextAfter} ${ctxUnit} context`
     : schemeId === "custom"
-    ? `Custom · ${categories.length} · ${contextWindow}-turn context`
+    ? `Custom · ${categories.length} · ${contextBefore}+${contextAfter} ${ctxUnit} context`
     : "No scheme selected";
 
   const handleAdd = () => {
@@ -236,7 +264,6 @@ export function SectionScheme() {
                       color={
                         categoryColorMap[cat.name] ?? FALLBACK_COLOR
                       }
-                      nameEditable={schemeId === "custom"}
                       onUpdate={(next) => {
                         const updated = categories.map((c, idx) =>
                           idx === i ? next : c,
@@ -260,37 +287,150 @@ export function SectionScheme() {
 
               <PromptEditor />
 
+              {outputType === "continuous" && (
+                <div className={s.scaleBlock}>
+                  <div className={s.scaleHead}>Rating scale</div>
+                  <div className={s.scaleGrid}>
+                    <label className={s.scaleField}>
+                      <span>Min</span>
+                      <input
+                        type="number"
+                        value={scale.min}
+                        onChange={(e) =>
+                          setScale({ ...scale, min: Number(e.target.value) })
+                        }
+                      />
+                    </label>
+                    <label className={s.scaleField}>
+                      <span>Max</span>
+                      <input
+                        type="number"
+                        value={scale.max}
+                        onChange={(e) =>
+                          setScale({ ...scale, max: Number(e.target.value) })
+                        }
+                      />
+                    </label>
+                    <label className={s.scaleField}>
+                      <span>Low anchor</span>
+                      <input
+                        type="text"
+                        value={scale.minLabel ?? ""}
+                        placeholder="e.g. not present"
+                        onChange={(e) =>
+                          setScale({ ...scale, minLabel: e.target.value })
+                        }
+                      />
+                    </label>
+                    <label className={s.scaleField}>
+                      <span>High anchor</span>
+                      <input
+                        type="text"
+                        value={scale.maxLabel ?? ""}
+                        placeholder="e.g. strongly present"
+                        onChange={(e) =>
+                          setScale({ ...scale, maxLabel: e.target.value })
+                        }
+                      />
+                    </label>
+                  </div>
+                  <p className={s.scaleHint}>
+                    Each behavior above is rated independently on this scale. The
+                    range and anchors are added to the prompt automatically.
+                  </p>
+                </div>
+              )}
+
+              {segmentation === "time" && (
+                <div className={s.sliderBlock}>
+                  <div className={s.sliderRow}>
+                    <label className={s.sliderLabel}>Window size</label>
+                    <input
+                      type="number"
+                      min={5}
+                      max={600}
+                      step={5}
+                      value={windowSeconds}
+                      onChange={(e) =>
+                        setWindowSeconds(Number(e.target.value))
+                      }
+                      className={s.windowInput}
+                    />
+                    <div className={s.sliderVal}>seconds</div>
+                  </div>
+                  <p className={s.sliderHint}>
+                    The conversation is split into fixed{" "}
+                    <strong>{windowSeconds}-second</strong> windows; each window
+                    — which may include both speakers — is coded as one unit.
+                  </p>
+                </div>
+              )}
+
               <div className={s.sliderBlock}>
                 <div className={s.sliderRow}>
-                  <label className={s.sliderLabel}>Context window</label>
+                  <label className={s.sliderLabel}>Context before target</label>
                   <input
                     type="range"
                     min={0}
                     max={20}
-                    value={contextWindow}
-                    onChange={(e) => setContextWindow(+e.target.value)}
+                    value={contextBefore}
+                    onChange={(e) => setContextBefore(+e.target.value)}
                     className={s.slider}
                   />
                   <div className={s.sliderVal}>
-                    {contextWindow} turn{contextWindow !== 1 ? "s" : ""}
+                    {contextBefore} {ctxUnit}{contextBefore !== 1 ? "s" : ""}
                   </div>
                 </div>
                 <p className={s.sliderHint}>
-                  {contextWindow === 0 ? (
+                  {contextBefore === 0 ? (
                     <>
-                      Each turn is coded <strong>on its own</strong> — no
-                      earlier conversation is shown to the model.
+                      No <strong>earlier</strong> {ctxUnit}s are shown before the
+                      one being coded.
                     </>
                   ) : (
                     <>
                       The model also sees the{" "}
                       <strong>
-                        {contextWindow} turn{contextWindow !== 1 ? "s" : ""}{" "}
-                        before
+                        {contextBefore} {ctxUnit}
+                        {contextBefore !== 1 ? "s" : ""} before
                       </strong>{" "}
                       each one it codes, so it can read escalation, repair, and
-                      who&apos;s responding to whom — not just the turn on its
-                      own.
+                      who&apos;s responding to whom.
+                    </>
+                  )}
+                </p>
+              </div>
+
+              <div className={s.sliderBlock}>
+                <div className={s.sliderRow}>
+                  <label className={s.sliderLabel}>Context after target</label>
+                  <input
+                    type="range"
+                    min={0}
+                    max={20}
+                    value={contextAfter}
+                    onChange={(e) => setContextAfter(+e.target.value)}
+                    className={s.slider}
+                  />
+                  <div className={s.sliderVal}>
+                    {contextAfter} {ctxUnit}{contextAfter !== 1 ? "s" : ""}
+                  </div>
+                </div>
+                <p className={s.sliderHint}>
+                  {contextAfter === 0 ? (
+                    <>
+                      No <strong>later</strong> {ctxUnit}s are shown — each one is
+                      coded without seeing how the conversation continues.
+                    </>
+                  ) : (
+                    <>
+                      The model also sees the{" "}
+                      <strong>
+                        {contextAfter} {ctxUnit}
+                        {contextAfter !== 1 ? "s" : ""} after
+                      </strong>{" "}
+                      each one it codes, so it can tell whether a turn was
+                      answered, ignored, or escalated.
                     </>
                   )}
                 </p>

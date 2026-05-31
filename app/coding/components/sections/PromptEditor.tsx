@@ -28,8 +28,10 @@ export function PromptEditor() {
     setSystemPrompt,
     promptDirty,
     resetPrompt,
-    granularity,
-    setGranularity,
+    segmentation,
+    setSegmentation,
+    outputType,
+    setOutputType,
     activeScheme,
     schemeId,
   } = useSession();
@@ -70,25 +72,43 @@ export function PromptEditor() {
             className={s.granularity}
             onClick={(e) => e.stopPropagation()}
           >
+            {(["turn", "utterance", "time"] as const).map((seg) => (
+              <button
+                key={seg}
+                type="button"
+                className={`${s.granBtn} ${segmentation === seg ? s.granBtnActive : ""}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSegmentation(seg);
+                }}
+              >
+                {seg}
+              </button>
+            ))}
+          </div>
+          <div
+            className={s.granularity}
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
               type="button"
-              className={`${s.granBtn} ${granularity === "turn" ? s.granBtnActive : ""}`}
+              className={`${s.granBtn} ${outputType === "categorical" ? s.granBtnActive : ""}`}
               onClick={(e) => {
                 e.stopPropagation();
-                setGranularity("turn");
+                setOutputType("categorical");
               }}
             >
-              turn
+              category
             </button>
             <button
               type="button"
-              className={`${s.granBtn} ${granularity === "utterance" ? s.granBtnActive : ""}`}
+              className={`${s.granBtn} ${outputType === "continuous" ? s.granBtnActive : ""}`}
               onClick={(e) => {
                 e.stopPropagation();
-                setGranularity("utterance");
+                setOutputType("continuous");
               }}
             >
-              utterance
+              rating
             </button>
           </div>
           {promptDirty && schemeReady && (

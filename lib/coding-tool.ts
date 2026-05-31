@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { CategoryDefinition, CodingMode } from "./types";
+import { CategoryDefinition, CodingMode, RatingScale, DEFAULT_SCALE } from "./types";
 
 export const TOOL_NAME = "code_exchange";
 
@@ -29,6 +29,31 @@ function categoricalLeaf(categoryEnum: string[]): Leaf {
   };
 }
 
+/** The per-unit continuous payload: one numeric rating per behavioral dimension. */
+function continuousLeaf(dimNames: string[], scale: RatingScale): Leaf {
+  const ratingProps: Record<string, unknown> = {};
+  for (const name of dimNames) {
+    ratingProps[name] = {
+      type: "number",
+      minimum: scale.min,
+      maximum: scale.max,
+      description: `Rating for "${name}" from ${scale.min} to ${scale.max}.`,
+    };
+  }
+  return {
+    properties: {
+      ratings: {
+        type: "object",
+        properties: ratingProps,
+        required: dimNames, // every dimension must be rated
+        additionalProperties: false,
+      },
+      rationale: { type: "string" },
+    },
+    required: ["ratings", "rationale"],
+  };
+}
+
 /**
  * Build the forced `code_exchange` tool for a coding run. Branches on the two
  * axes: outputType (what the leaf payload is) and segmentation (whether the unit
@@ -45,22 +70,19 @@ export function buildCodingTool(
     new Set(categories.filter((c) => c.name.trim() !== "").map((c) => c.name)),
   );
 
-  let leaf: Leaf;
-  if (mode.outputType === "continuous") {
-    // Reserved extension point. The continuous-ratings slice fills this in with a
-    // `ratings` object of named numeric properties (every dimension required), e.g.
-    //   ratings: { type: "object", properties: { <dim>: { type: "number", minimum, maximum } },
-    //              required: categoryEnum, additionalProperties: false }
-    throw new Error("continuous output type is not yet implemented");
-  } else {
-    leaf = categoricalLeaf(categoryEnum);
-  }
+  const leaf: Leaf =
+    mode.outputType === "continuous"
+      ? continuousLeaf(categoryEnum, mode.scale ?? DEFAULT_SCALE)
+      : categoricalLeaf(categoryEnum);
 
   const isMulti = mode.segmentation === "utterance";
   if (!isMulti) {
     return {
       name: TOOL_NAME,
-      description: "Categorize a speaking turn and provide a rationale.",
+      description:
+        mode.outputType === "continuous"
+          ? "Rate a unit on each behavioral dimension and provide a rationale."
+          : "Categorize a speaking turn and provide a rationale.",
       input_schema: {
         type: "object" as const,
         properties: leaf.properties,

@@ -4,14 +4,12 @@ export const maxDuration = 300;
 const ELEVENLABS_URL = "https://api.elevenlabs.io/v1/speech-to-text";
 
 export async function POST(request: Request) {
-  const clientKey = request.headers.get("x-elevenlabs-key") || undefined;
-  const apiKey = clientKey || process.env.ELEVENLABS_API_KEY;
+  const apiKey = request.headers.get("x-elevenlabs-key") || undefined;
 
   if (!apiKey) {
     return new Response(
       JSON.stringify({
-        error:
-          "No ElevenLabs API key. Add one in the Upload step, or use developer sign-in.",
+        error: "No ElevenLabs API key. Add your ElevenLabs key in the Upload step.",
       }),
       { status: 400, headers: { "Content-Type": "application/json" } },
     );

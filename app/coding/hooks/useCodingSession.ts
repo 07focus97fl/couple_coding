@@ -6,22 +6,27 @@ import {
   CategoryDefinition,
   CodedUnit,
   CodingScheme,
-  COLUMN_DEFINITIONS,
-  DEFAULT_CONTEXT_WINDOW,
-  DEFAULT_GRANULARITY,
+  CodingMode,
+  DEFAULT_CONTEXT_BEFORE,
+  DEFAULT_CONTEXT_AFTER,
   DEFAULT_OUTPUT_TYPE,
   DEFAULT_SCALE,
+  DEFAULT_SEGMENTATION,
   DEFAULT_WINDOW_SECONDS,
   Granularity,
+  OutputType,
+  RatingScale,
   RawTranscript,
+  SegmentationStrategy,
   SpeakingTurn,
   TranscriptFile,
 } from "@/lib/types";
 import { CODING_SCHEMES } from "@/lib/coding-schemes";
 import { alignUtteranceToWords, getTurnWords } from "@/lib/align-utterances";
 import { parseTranscript } from "@/lib/parse-transcript";
-import { generateCsv } from "@/lib/generate-csv";
-import { DEFAULT_MODEL_ID, getModel } from "@/lib/models";
+import { segment } from "@/lib/segment";
+import { generateCsv, dimsFromUnits } from "@/lib/generate-csv";
+import { DEFAULT_MODEL_ID, getModel, type ProviderId } from "@/lib/models";
 import { buildColorMap } from "@/lib/category-colors";
 import {
   AUTOSAVE_KEY,
@@ -122,18 +127,20 @@ export interface CodingSession {
   setSelectedModel: (id: string) => void;
   apiKey: string;
   setApiKey: (k: string) => void;
+  openaiKey: string;
+  setOpenaiKey: (k: string) => void;
+  googleKey: string;
+  setGoogleKey: (k: string) => void;
   showKey: boolean;
   setShowKey: (b: boolean) => void;
+  // Derived from the selected model: its provider and the matching key.
+  activeProvider: ProviderId;
+  activeProviderKey: string;
+  setActiveProviderKey: (k: string) => void;
   elevenLabsKey: string;
   setElevenLabsKey: (k: string) => void;
   showElevenKey: boolean;
   setShowElevenKey: (b: boolean) => void;
-  devSignedIn: boolean;
-  devPassword: string;
-  devAuthError: string;
-  setDevPassword: (s: string) => void;
-  handleDevSignIn: () => Promise<void>;
-  handleDevSignOut: () => void;
 
   // Scheme + prompt
   schemeId: string | null;
@@ -141,16 +148,26 @@ export interface CodingSession {
   categories: CategoryDefinition[];
   categoriesDirty: boolean;
   granularity: Granularity;
+  segmentation: SegmentationStrategy;
+  outputType: OutputType;
+  scale: RatingScale;
+  windowSeconds: number;
   systemPrompt: string;
   promptDirty: boolean;
-  contextWindow: number;
+  contextBefore: number;
+  contextAfter: number;
   setSchemeId: (id: string) => void;
   setGranularity: (g: Granularity) => void;
+  setSegmentation: (s: SegmentationStrategy) => void;
+  setOutputType: (o: OutputType) => void;
+  setScale: (s: RatingScale) => void;
+  setWindowSeconds: (n: number) => void;
   setCategories: (c: CategoryDefinition[]) => void;
   resetCategories: () => void;
   setSystemPrompt: (v: string) => void;
   resetPrompt: () => void;
-  setContextWindow: (n: number) => void;
+  setContextBefore: (n: number) => void;
+  setContextAfter: (n: number) => void;
 
   // Run
   apiLogs: ApiLog[];
@@ -187,25 +204,35 @@ export function useCodingSession(): CodingSession {
   const [dragOver, setDragOver] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [apiKey, setApiKeyState] = useState("");
+  const [openaiKey, setOpenaiKeyState] = useState("");
+  const [googleKey, setGoogleKeyState] = useState("");
   const [showKey, setShowKey] = useState(false);
   const [elevenLabsKey, setElevenLabsKeyState] = useState("");
   const [showElevenKey, setShowElevenKey] = useState(false);
   const audioAbortersRef = useRef<Map<string, AbortController>>(new Map());
   const filesRef = useRef<TranscriptFile[]>([]);
-  const [devSignedIn, setDevSignedIn] = useState(false);
-  const [devPassword, setDevPasswordState] = useState("");
-  const [devAuthError, setDevAuthError] = useState("");
   const [apiLogs, setApiLogs] = useState<ApiLog[]>([]);
   const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL_ID);
   const [schemeId, setSchemeIdState] = useState<string | null>(null);
-  const [granularity, setGranularityState] = useState<Granularity>(
-    DEFAULT_GRANULARITY,
+  const [segmentation, setSegmentationState] = useState<SegmentationStrategy>(
+    DEFAULT_SEGMENTATION,
   );
+  const [outputType, setOutputTypeState] = useState<OutputType>(
+    DEFAULT_OUTPUT_TYPE,
+  );
+  const [scale, setScaleState] = useState<RatingScale>(DEFAULT_SCALE);
+  const [windowSeconds, setWindowSecondsState] = useState<number>(
+    DEFAULT_WINDOW_SECONDS,
+  );
+  // granularity (turn | utterance) is the categorical-era view of segmentation.
+  const granularity: Granularity =
+    segmentation === "utterance" ? "utterance" : "turn";
   const [categories, setCategoriesState] = useState<CategoryDefinition[]>([]);
   const [categoriesDirty, setCategoriesDirty] = useState(false);
   const [systemPrompt, setSystemPromptState] = useState("");
   const [promptDirty, setPromptDirty] = useState(false);
-  const [contextWindow, setContextWindow] = useState(DEFAULT_CONTEXT_WINDOW);
+  const [contextBefore, setContextBefore] = useState(DEFAULT_CONTEXT_BEFORE);
+  const [contextAfter, setContextAfter] = useState(DEFAULT_CONTEXT_AFTER);
   const [openResults, setOpenResults] = useState<Record<string, boolean>>({});
   const [runStartedAt, setRunStartedAt] = useState<number | null>(null);
   const [hydrated, setHydrated] = useState(false);
@@ -216,9 +243,12 @@ export function useCodingSession(): CodingSession {
   useEffect(() => {
     const storedKey = localStorage.getItem("anthropic_api_key");
     if (storedKey) setApiKeyState(storedKey);
+    const storedOpenai = localStorage.getItem("openai_api_key");
+    if (storedOpenai) setOpenaiKeyState(storedOpenai);
+    const storedGoogle = localStorage.getItem("google_api_key");
+    if (storedGoogle) setGoogleKeyState(storedGoogle);
     const storedEleven = localStorage.getItem("elevenlabs_api_key");
     if (storedEleven) setElevenLabsKeyState(storedEleven);
-    if (localStorage.getItem("dev_signed_in") === "true") setDevSignedIn(true);
 
     try {
       const raw = localStorage.getItem(AUTOSAVE_KEY);
@@ -240,14 +270,27 @@ export function useCodingSession(): CodingSession {
                 topic: f.topic ?? "",
               })),
           );
-          if (parsed.selectedModel) setSelectedModel(parsed.selectedModel);
+          if (parsed.selectedModel) {
+            // Guard against stale/removed model IDs in old saved sessions —
+            // fall back to the default rather than restoring a dead ID.
+            const restored = getModel(parsed.selectedModel);
+            setSelectedModel(
+              restored && !restored.comingSoon
+                ? parsed.selectedModel
+                : DEFAULT_MODEL_ID,
+            );
+          }
           setSchemeIdState(parsed.schemeId);
-          setGranularityState(parsed.granularity);
+          setSegmentationState(parsed.segmentation);
+          setOutputTypeState(parsed.outputType);
+          setScaleState(parsed.scale);
+          setWindowSecondsState(parsed.windowSeconds);
           setCategoriesState(parsed.categories);
           setCategoriesDirty(parsed.categoriesDirty);
           setSystemPromptState(parsed.systemPrompt);
           setPromptDirty(parsed.promptDirty);
-          setContextWindow(parsed.contextWindow);
+          setContextBefore(parsed.contextBefore);
+          setContextAfter(parsed.contextAfter);
         }
       }
     } catch {
@@ -291,12 +334,22 @@ export function useCodingSession(): CodingSession {
     return getModel(selectedModel)?.name ?? "";
   }, [selectedModel]);
 
+  // The selected model's provider and the API key that goes with it.
+  const activeProvider: ProviderId =
+    getModel(selectedModel)?.provider ?? "anthropic";
+  const activeProviderKey =
+    activeProvider === "openai"
+      ? openaiKey
+      : activeProvider === "google"
+      ? googleKey
+      : apiKey;
+
   const schemeName =
     activeScheme?.label ?? (schemeId === "custom" ? "Custom" : "");
 
   const stepDone: [boolean, boolean, boolean, boolean] = [
     hasFiles,
-    selectedModel !== "" && (apiKey !== "" || devSignedIn),
+    selectedModel !== "" && activeProviderKey !== "",
     schemeId !== null,
     anySelected &&
       selectedFiles.length > 0 &&
@@ -334,15 +387,16 @@ export function useCodingSession(): CodingSession {
       selectedModel,
       schemeId,
       granularity,
-      segmentation: granularity,
-      outputType: DEFAULT_OUTPUT_TYPE,
-      scale: DEFAULT_SCALE,
-      windowSeconds: DEFAULT_WINDOW_SECONDS,
+      segmentation,
+      outputType,
+      scale,
+      windowSeconds,
       categories,
       categoriesDirty,
       systemPrompt,
       promptDirty,
-      contextWindow,
+      contextBefore,
+      contextAfter,
     };
   }, [
     hydrated,
@@ -350,11 +404,16 @@ export function useCodingSession(): CodingSession {
     selectedModel,
     schemeId,
     granularity,
+    segmentation,
+    outputType,
+    scale,
+    windowSeconds,
     categories,
     categoriesDirty,
     systemPrompt,
     promptDirty,
-    contextWindow,
+    contextBefore,
+    contextAfter,
     isAnyCoding,
   ]);
 
@@ -380,42 +439,32 @@ export function useCodingSession(): CodingSession {
     else localStorage.removeItem("anthropic_api_key");
   }, []);
 
+  const setOpenaiKey = useCallback((val: string) => {
+    setOpenaiKeyState(val);
+    if (val) localStorage.setItem("openai_api_key", val);
+    else localStorage.removeItem("openai_api_key");
+  }, []);
+
+  const setGoogleKey = useCallback((val: string) => {
+    setGoogleKeyState(val);
+    if (val) localStorage.setItem("google_api_key", val);
+    else localStorage.removeItem("google_api_key");
+  }, []);
+
+  // Writes whichever provider key matches the currently-selected model.
+  const setActiveProviderKey = useCallback(
+    (val: string) => {
+      if (activeProvider === "openai") setOpenaiKey(val);
+      else if (activeProvider === "google") setGoogleKey(val);
+      else setApiKey(val);
+    },
+    [activeProvider, setOpenaiKey, setGoogleKey, setApiKey],
+  );
+
   const setElevenLabsKey = useCallback((val: string) => {
     setElevenLabsKeyState(val);
     if (val) localStorage.setItem("elevenlabs_api_key", val);
     else localStorage.removeItem("elevenlabs_api_key");
-  }, []);
-
-  const setDevPassword = useCallback((s: string) => {
-    setDevPasswordState(s);
-    setDevAuthError("");
-  }, []);
-
-  const handleDevSignIn = useCallback(async () => {
-    setDevAuthError("");
-    try {
-      const res = await fetch("/api/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: devPassword }),
-      });
-      if (res.ok) {
-        localStorage.setItem("dev_signed_in", "true");
-        setDevSignedIn(true);
-        setDevPasswordState("");
-      } else {
-        setDevAuthError("Wrong password");
-      }
-    } catch {
-      setDevAuthError("Auth request failed");
-    }
-  }, [devPassword]);
-
-  const handleDevSignOut = useCallback(() => {
-    localStorage.removeItem("dev_signed_in");
-    setDevSignedIn(false);
-    setDevPasswordState("");
-    setDevAuthError("");
   }, []);
 
   const processFiles = useCallback(async (fileList: FileList) => {
@@ -516,7 +565,7 @@ export function useCodingSession(): CodingSession {
         formData.append("tag_audio_events", "false");
 
         const headers: Record<string, string> = {};
-        if (!devSignedIn && elevenLabsKey) {
+        if (elevenLabsKey) {
           headers["x-elevenlabs-key"] = elevenLabsKey;
         }
 
@@ -579,7 +628,7 @@ export function useCodingSession(): CodingSession {
         audioAbortersRef.current.delete(id);
       }
     },
-    [elevenLabsKey, devSignedIn],
+    [elevenLabsKey],
   );
 
   const transcribeAllPending = useCallback(async () => {
@@ -630,44 +679,72 @@ export function useCodingSession(): CodingSession {
       setCategoriesState(scheme.categories);
       setCategoriesDirty(false);
       setSystemPromptState(
-        scheme.defaultPrompt({
-          segmentation: granularity,
-          outputType: DEFAULT_OUTPUT_TYPE,
-          scale: DEFAULT_SCALE,
-        }),
+        scheme.defaultPrompt({ segmentation, outputType, scale }),
       );
       setPromptDirty(false);
     },
-    [granularity],
+    [segmentation, outputType, scale],
   );
 
-  const setGranularity = useCallback(
-    (next: Granularity) => {
-      if (next === granularity) return;
-      const scheme =
-        CODING_SCHEMES.find((sc) => sc.id === schemeId) ?? null;
-
+  // Changing segmentation or output type changes the task wording, so the
+  // default prompt is regenerated — guarded by a confirm when the user has
+  // hand-edited the prompt. Scale/anchor and window changes do NOT touch the
+  // prompt (anchors are appended at request time), so they skip this.
+  const regenerateDefaultPrompt = useCallback(
+    (nextSeg: SegmentationStrategy, nextOut: OutputType): boolean => {
       if (promptDirty && typeof window !== "undefined") {
         const ok = window.confirm(
-          "Switching granularity will reset your prompt edits to the new default. Continue?",
+          "Changing this will reset your prompt edits to the new default. Continue?",
         );
-        if (!ok) return;
+        if (!ok) return false;
       }
-
-      setGranularityState(next);
+      const scheme = CODING_SCHEMES.find((sc) => sc.id === schemeId);
       if (scheme) {
         setSystemPromptState(
           scheme.defaultPrompt({
-            segmentation: next,
-            outputType: DEFAULT_OUTPUT_TYPE,
-            scale: DEFAULT_SCALE,
+            segmentation: nextSeg,
+            outputType: nextOut,
+            scale,
           }),
         );
         setPromptDirty(false);
       }
+      return true;
     },
-    [granularity, schemeId, promptDirty],
+    [promptDirty, schemeId, scale],
   );
+
+  const setSegmentation = useCallback(
+    (next: SegmentationStrategy) => {
+      if (next === segmentation) return;
+      if (!regenerateDefaultPrompt(next, outputType)) return;
+      setSegmentationState(next);
+    },
+    [segmentation, outputType, regenerateDefaultPrompt],
+  );
+
+  const setOutputType = useCallback(
+    (next: OutputType) => {
+      if (next === outputType) return;
+      if (!regenerateDefaultPrompt(segmentation, next)) return;
+      setOutputTypeState(next);
+    },
+    [segmentation, outputType, regenerateDefaultPrompt],
+  );
+
+  // Back-compat alias for the turn/utterance toggle.
+  const setGranularity = useCallback(
+    (next: Granularity) => setSegmentation(next),
+    [setSegmentation],
+  );
+
+  const setScale = useCallback((next: RatingScale) => {
+    setScaleState(next);
+  }, []);
+
+  const setWindowSeconds = useCallback((n: number) => {
+    setWindowSecondsState(n);
+  }, []);
 
   const setSystemPrompt = useCallback((v: string) => {
     setSystemPromptState(v);
@@ -678,14 +755,10 @@ export function useCodingSession(): CodingSession {
     const scheme = CODING_SCHEMES.find((sc) => sc.id === schemeId);
     if (!scheme) return;
     setSystemPromptState(
-      scheme.defaultPrompt({
-        segmentation: granularity,
-        outputType: DEFAULT_OUTPUT_TYPE,
-        scale: DEFAULT_SCALE,
-      }),
+      scheme.defaultPrompt({ segmentation, outputType, scale }),
     );
     setPromptDirty(false);
-  }, [schemeId, granularity]);
+  }, [schemeId, segmentation, outputType, scale]);
 
   const setCategories = useCallback(
     (next: CategoryDefinition[]) => {
@@ -730,6 +803,13 @@ export function useCodingSession(): CodingSession {
         file.turns.length > 0
           ? file.turns
           : parseTranscript(file.rawTranscript.words);
+      const mode: CodingMode = {
+        segmentation,
+        outputType,
+        scale,
+        windowSeconds,
+      };
+      const segs = segment(file.rawTranscript.words, mode);
 
       setFiles((prev) =>
         prev.map((f) =>
@@ -740,7 +820,7 @@ export function useCodingSession(): CodingSession {
                 status: "coding" as const,
                 codedUnits: [],
                 error: undefined,
-                progress: { completed: 0, total: turns.length },
+                progress: { completed: 0, total: segs.length },
               }
             : f,
         ),
@@ -751,20 +831,17 @@ export function useCodingSession(): CodingSession {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            segments: segs,
+            mode,
             turns,
-            mode: {
-              segmentation: granularity,
-              outputType: DEFAULT_OUTPUT_TYPE,
-              scale: DEFAULT_SCALE,
-              windowSeconds: DEFAULT_WINDOW_SECONDS,
-            },
             model: selectedModel,
             granularity,
             categories,
             systemPrompt,
-            contextWindow,
+            contextBefore,
+            contextAfter,
             topic: file.topic ?? "",
-            ...(devSignedIn ? {} : { apiKey }),
+            apiKey: activeProviderKey,
           }),
         });
 
@@ -866,11 +943,15 @@ export function useCodingSession(): CodingSession {
     hasFiles,
     selectedModel,
     granularity,
+    segmentation,
+    outputType,
+    scale,
+    windowSeconds,
     categories,
     systemPrompt,
-    contextWindow,
-    devSignedIn,
-    apiKey,
+    contextBefore,
+    contextAfter,
+    activeProviderKey,
   ]);
 
   const doneFiles = useMemo(
@@ -882,29 +963,28 @@ export function useCodingSession(): CodingSession {
   );
 
   const handleExportAll = useCallback(() => {
-    const fileHeader = "File";
-    const topicHeader = "Topic";
-    const colHeaders = COLUMN_DEFINITIONS.map((c) => c.csvHeader);
-    const header = [fileHeader, topicHeader, ...colHeaders].join(",");
-
     const escapeField = (v: string) =>
       v.includes(",") || v.includes('"') || v.includes("\n")
         ? `"${v.replace(/"/g, '""')}"`
         : v;
 
+    const dims = dimsFromUnits(doneFiles.flatMap((f) => f.codedUnits));
+
+    let header: string | null = null;
     const rows: string[] = [];
     for (const f of doneFiles) {
       const sorted = sortUnits(f.codedUnits);
-      const csv = generateCsv(sorted);
-      const csvLines = csv.split("\n").slice(1);
+      const csv = generateCsv(sorted, undefined, dims);
+      const lines = csv.split("\n");
+      if (header === null) header = `File,Topic,${lines[0]}`;
       const escapedName = escapeField(f.fileName);
       const escapedTopic = escapeField(f.topic ?? "");
-      for (const line of csvLines) {
+      for (const line of lines.slice(1)) {
         rows.push(`${escapedName},${escapedTopic},${line}`);
       }
     }
 
-    const blob = new Blob([[header, ...rows].join("\n")], {
+    const blob = new Blob([[header ?? "", ...rows].join("\n")], {
       type: "text/csv;charset=utf-8;",
     });
     const url = URL.createObjectURL(blob);
@@ -934,34 +1014,45 @@ export function useCodingSession(): CodingSession {
     setSelectedModel,
     apiKey,
     setApiKey,
+    openaiKey,
+    setOpenaiKey,
+    googleKey,
+    setGoogleKey,
     showKey,
     setShowKey,
+    activeProvider,
+    activeProviderKey,
+    setActiveProviderKey,
     elevenLabsKey,
     setElevenLabsKey,
     showElevenKey,
     setShowElevenKey,
-    devSignedIn,
-    devPassword,
-    devAuthError,
-    setDevPassword,
-    handleDevSignIn,
-    handleDevSignOut,
 
     schemeId,
     activeScheme,
     categories,
     categoriesDirty,
     granularity,
+    segmentation,
+    outputType,
+    scale,
+    windowSeconds,
     systemPrompt,
     promptDirty,
-    contextWindow,
+    contextBefore,
+    contextAfter,
     setSchemeId,
     setGranularity,
+    setSegmentation,
+    setOutputType,
+    setScale,
+    setWindowSeconds,
     setCategories,
     resetCategories,
     setSystemPrompt,
     resetPrompt,
-    setContextWindow,
+    setContextBefore,
+    setContextAfter,
 
     apiLogs,
     isAnyCoding,

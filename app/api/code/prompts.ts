@@ -1,4 +1,9 @@
-import { CategoryDefinition, CodingMode, PreSegment } from "@/lib/types";
+import {
+  CategoryDefinition,
+  CodingMode,
+  PreSegment,
+  DEFAULT_SCALE,
+} from "@/lib/types";
 
 export function buildSystemPrompt(
   userPrompt: string,
@@ -11,25 +16,39 @@ export function buildSystemPrompt(
     .join("\n");
 
   if (mode.outputType === "continuous") {
-    // Reserved extension point — the continuous-ratings slice appends a
-    // "rate each behavior on the <scale>" block instead of a category list.
-    throw new Error("continuous output type is not yet implemented");
+    const scale = mode.scale ?? DEFAULT_SCALE;
+    const anchors =
+      scale.minLabel && scale.maxLabel
+        ? ` where ${scale.min} = "${scale.minLabel}" and ${scale.max} = "${scale.maxLabel}"`
+        : "";
+    return (
+      `${userPrompt.trim()}\n\n` +
+      `Rate each of the following behaviors independently from ${scale.min} to ${scale.max}${anchors}. ` +
+      `Every behavior must receive a rating, even if it is barely present.\n\n` +
+      `Behaviors to rate:\n${block}`
+    );
   }
 
   return `${userPrompt.trim()}\n\nCategories to choose from:\n${block}`;
 }
 
+function fmtTime(t: number): string {
+  const m = Math.floor(t / 60);
+  const s = Math.floor(t % 60);
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
 function renderSegment(seg: PreSegment): string {
   if (seg.kind === "time") {
-    // Reserved: the time slice renders speaker-labeled multi-speaker windows.
-    return `[Window ${seg.index}]\n${seg.text}`;
+    return `[Window ${seg.index}] (${fmtTime(seg.startTime)}–${fmtTime(seg.endTime)})\n${seg.text}`;
   }
   return `[Turn ${seg.turnNumber}] ${seg.speaker}: ${seg.text}`;
 }
 
 export function buildUserMessage(
-  contextSegs: PreSegment[],
+  beforeSegs: PreSegment[],
   target: PreSegment,
+  afterSegs: PreSegment[],
   topic?: string,
 ): string {
   let message = "";
@@ -38,9 +57,9 @@ export function buildUserMessage(
     message += `CONVERSATION TOPIC: ${topic.trim()}\n\n`;
   }
 
-  if (contextSegs.length > 0) {
+  if (beforeSegs.length > 0) {
     message += "PRIOR CONTEXT:\n";
-    for (const seg of contextSegs) {
+    for (const seg of beforeSegs) {
       message += `${renderSegment(seg)}\n`;
     }
     message += "\n";
@@ -48,6 +67,13 @@ export function buildUserMessage(
 
   const targetHeader = target.kind === "time" ? "WINDOW" : "TURN";
   message += `TARGET ${targetHeader} TO CODE:\n${renderSegment(target)}`;
+
+  if (afterSegs.length > 0) {
+    message += "\n\nFOLLOWING CONTEXT:\n";
+    for (const seg of afterSegs) {
+      message += `${renderSegment(seg)}\n`;
+    }
+  }
 
   return message;
 }

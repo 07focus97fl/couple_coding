@@ -36,12 +36,49 @@ function getCellValue(unit: CodedUnit, key: ColumnKey): string {
   }
 }
 
-export function generateCsv(units: CodedUnit[], visibleColumns?: ColumnKey[]): string {
-  const cols = visibleColumns
+// Columns that only make sense for categorical output; dropped in continuous mode.
+const CATEGORICAL_ONLY: ColumnKey[] = [
+  "category",
+  "subcategory",
+  "alternativesConsidered",
+];
+
+/**
+ * The dimension names carried by the units' ratings (continuous mode), in their
+ * stored order (which matches the scheme's category order). Returns undefined
+ * when no unit carries ratings — i.e. categorical output.
+ */
+export function dimsFromUnits(units: CodedUnit[]): string[] | undefined {
+  const u = units.find((x) => x.ratings && Object.keys(x.ratings).length > 0);
+  return u ? Object.keys(u.ratings!) : undefined;
+}
+
+export function generateCsv(
+  units: CodedUnit[],
+  visibleColumns?: ColumnKey[],
+  dimensionNames?: string[],
+): string {
+  const isContinuous = !!(dimensionNames && dimensionNames.length > 0);
+
+  let cols = visibleColumns
     ? COLUMN_DEFINITIONS.filter((c) => visibleColumns.includes(c.key))
     : COLUMN_DEFINITIONS;
+  if (isContinuous) {
+    cols = cols.filter((c) => !CATEGORICAL_ONLY.includes(c.key));
+  }
 
-  const header = cols.map((c) => c.csvHeader).join(",");
-  const rows = units.map((u) => cols.map((c) => getCellValue(u, c.key)).join(","));
+  const dimHeaders = isContinuous
+    ? dimensionNames!.map((d) => escapeCsvField(`rating_${d}`))
+    : [];
+  const header = [...cols.map((c) => c.csvHeader), ...dimHeaders].join(",");
+  const rows = units.map((u) => {
+    const base = cols.map((c) => getCellValue(u, c.key));
+    const ratingCells = isContinuous
+      ? dimensionNames!.map((d) =>
+          u.ratings?.[d] !== undefined ? String(u.ratings[d]) : "",
+        )
+      : [];
+    return [...base, ...ratingCells].join(",");
+  });
   return [header, ...rows].join("\n");
 }

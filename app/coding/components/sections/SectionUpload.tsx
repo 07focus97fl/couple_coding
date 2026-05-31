@@ -173,26 +173,26 @@ function rowState(f: TranscriptFile): RowState {
 function rowStatusLabel(state: RowState, f: TranscriptFile): string {
   switch (state) {
     case "transcribe-pending":
-      return "READY";
+      return "To transcribe";
     case "transcribe-running":
-      return "TRANSCRIBING";
+      return "Transcribing…";
     case "transcribe-error":
-      return f.transcribeError || "FAILED";
+      return f.transcribeError || "Transcribe failed";
     case "coding":
-      return "CODING";
+      return "Coding…";
     case "done":
-      return "DONE";
+      return "Coded";
     case "error":
-      return f.error || "ERROR";
+      return f.error || "Error";
     case "ready":
-      return "READY";
+      return "Ready";
     case "off":
-      return "OFF";
+      return "Ready";
   }
 }
 
 const STATE_TO_DOT_CLASS: Record<RowState, string> = {
-  "transcribe-pending": "statusDot_ready",
+  "transcribe-pending": "statusDot_off",
   "transcribe-running": "statusDot_coding",
   "transcribe-error": "statusDot_error",
   ready: "statusDot_ready",
@@ -222,7 +222,6 @@ export function SectionUpload() {
     setElevenLabsKey,
     showElevenKey,
     setShowElevenKey,
-    devSignedIn,
   } = useSession();
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -356,7 +355,7 @@ export function SectionUpload() {
                             transcribeAudio(f.id);
                           }}
                           disabled={
-                            (!elevenLabsKey && !devSignedIn) || isAnyTranscribing
+                            !elevenLabsKey || isAnyTranscribing
                           }
                           className={s.transcribeRowBtn}
                         >
@@ -404,12 +403,10 @@ export function SectionUpload() {
               <span className={s.keyLabel}>ELEVENLABS API KEY</span>
               <span
                 className={`${s.keyStatus} ${
-                  devSignedIn || elevenLabsKey ? s.keyStatus_ok : ""
+                  elevenLabsKey ? s.keyStatus_ok : ""
                 }`}
               >
-                {devSignedIn
-                  ? "Dev signed-in · using server key"
-                  : elevenLabsKey
+                {elevenLabsKey
                   ? "Stored locally · only sent to ElevenLabs during transcription"
                   : "Paste your key — stored in this browser only"}
               </span>
@@ -418,21 +415,17 @@ export function SectionUpload() {
               <input
                 type={showElevenKey ? "text" : "password"}
                 className={s.keyInput}
-                value={devSignedIn ? "" : elevenLabsKey}
+                value={elevenLabsKey}
                 onChange={(e) => setElevenLabsKey(e.target.value)}
-                placeholder={
-                  devSignedIn ? "Signed in — server key in use" : "sk_…"
-                }
+                placeholder="sk_…"
                 spellCheck={false}
                 autoComplete="off"
-                disabled={devSignedIn}
               />
               <button
                 type="button"
                 onClick={() => setShowElevenKey(!showElevenKey)}
                 className={s.keyToggle}
                 aria-label={showElevenKey ? "Hide key" : "Show key"}
-                disabled={devSignedIn}
               >
                 <EyeIcon open={showElevenKey} />
               </button>
@@ -446,7 +439,7 @@ export function SectionUpload() {
               type="button"
               className={s.transcribeBtn}
               disabled={
-                (!elevenLabsKey && !devSignedIn) || isAnyTranscribing
+                !elevenLabsKey || isAnyTranscribing
               }
               onClick={() => transcribeAllPending()}
             >

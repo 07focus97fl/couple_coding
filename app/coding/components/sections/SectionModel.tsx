@@ -91,15 +91,29 @@ export function SectionModel() {
   const {
     selectedModel,
     setSelectedModel,
+    activeProvider,
     apiKey,
     setApiKey,
-    showKey,
-    setShowKey,
-    devSignedIn,
+    openaiKey,
+    setOpenaiKey,
+    googleKey,
+    setGoogleKey,
     stepDone,
   } = useSession();
   const [filter, setFilter] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [shown, setShown] = useState(false);
+
+  // Only the key for the selected model's provider is shown — that's the one
+  // the run uses. Keys for other providers stay saved in this browser and
+  // reappear if you switch back to a model from that provider.
+  const providerKeys = [
+    { id: "anthropic" as const, name: "Anthropic", value: apiKey, setValue: setApiKey, placeholder: "sk-ant-…" },
+    { id: "openai" as const, name: "OpenAI", value: openaiKey, setValue: setOpenaiKey, placeholder: "sk-…" },
+    { id: "google" as const, name: "Google", value: googleKey, setValue: setGoogleKey, placeholder: "AIza…" },
+  ];
+  const activeKey =
+    providerKeys.find((k) => k.id === activeProvider) ?? providerKeys[0];
 
   const current = getModel(selectedModel) ?? null;
 
@@ -119,12 +133,6 @@ export function SectionModel() {
   const meta = current
     ? current.name
     : "No model";
-
-  const keyStatus = devSignedIn
-    ? "Dev signed-in · using server key"
-    : apiKey
-    ? "Stored locally · only sent to Anthropic during runs"
-    : "Paste your key — stored in this browser only";
 
   return (
     <SectionShell
@@ -150,35 +158,43 @@ export function SectionModel() {
           )}
         </button>
 
-        <div className={s.keyBlock}>
-          <div className={s.keyLabelRow}>
-            <span className={s.keyLabel}>ANTHROPIC API KEY</span>
-            <span
-              className={`${s.keyStatus} ${devSignedIn || apiKey ? s.keyStatus_ok : ""}`}
-            >
-              {keyStatus}
-            </span>
-          </div>
-          <div className={s.keyRow}>
-            <input
-              type={showKey ? "text" : "password"}
-              className={s.keyInput}
-              value={devSignedIn ? "" : apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder={devSignedIn ? "Signed in — server key in use" : "sk-ant-…"}
-              spellCheck={false}
-              autoComplete="off"
-              disabled={devSignedIn}
-            />
-            <button
-              type="button"
-              onClick={() => setShowKey(!showKey)}
-              className={s.keyToggle}
-              aria-label={showKey ? "Hide key" : "Show key"}
-              disabled={devSignedIn}
-            >
-              <EyeIcon open={showKey} />
-            </button>
+        <div className={s.keyStack}>
+          <div className={s.keyBlock}>
+            <div className={s.keyLabelRow}>
+              <span className={s.keyLabel}>
+                {activeKey.name.toUpperCase()} API KEY
+              </span>
+              <span
+                className={`${s.keyStatus} ${
+                  activeKey.value ? s.keyStatus_ok : s.keyStatus_warn
+                }`}
+              >
+                {activeKey.value ? "Saved in this browser" : "Required to run"}
+              </span>
+            </div>
+            <div className={s.keyRow}>
+              <input
+                type={shown ? "text" : "password"}
+                className={s.keyInput}
+                value={activeKey.value}
+                onChange={(e) => activeKey.setValue(e.target.value)}
+                placeholder={activeKey.placeholder}
+                spellCheck={false}
+                autoComplete="off"
+              />
+              <button
+                type="button"
+                onClick={() => setShown((v) => !v)}
+                className={s.keyToggle}
+                aria-label={shown ? "Hide key" : "Show key"}
+              >
+                <EyeIcon open={shown} />
+              </button>
+            </div>
+            <p className={s.keyHint}>
+              Stored only in this browser and sent directly to {activeKey.name}{" "}
+              when you run — never saved on our servers.
+            </p>
           </div>
         </div>
 

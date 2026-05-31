@@ -58,6 +58,23 @@
   color: #5e8761;
 }
 
+.keyStatus_warn {
+  color: var(--accent);
+}
+
+.keyHint {
+  margin: 0.1rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.keyStack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
 .keyRow {
   display: flex;
   align-items: center;

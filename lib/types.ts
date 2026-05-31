@@ -203,13 +203,18 @@ export interface ApiLog {
   parsedUnits: ApiLogParsedUnit[];
   attempt: number;
   timestamp: string;
-  /** Configured max number of prior turns to feed the model as context. */
-  contextWindow: number;
-  /** Turn numbers actually sent as prior context (fewer than contextWindow near the start of a transcript). */
-  contextTurnNumbers: number[];
+  /** Configured number of turns before the target fed to the model as context. */
+  contextBefore: number;
+  /** Configured number of turns after the target fed to the model as context. */
+  contextAfter: number;
+  /** Turn numbers actually sent as prior context (fewer than contextBefore near the start of a transcript). */
+  contextBeforeTurnNumbers: number[];
+  /** Turn numbers actually sent as following context (fewer than contextAfter near the end of a transcript). */
+  contextAfterTurnNumbers: number[];
 }
 
-export const DEFAULT_CONTEXT_WINDOW = 5;
+export const DEFAULT_CONTEXT_BEFORE = 5;
+export const DEFAULT_CONTEXT_AFTER = 5;
 export const DEFAULT_GRANULARITY: Granularity = "turn";
 export const DEFAULT_SEGMENTATION: SegmentationStrategy = "turn";
 export const DEFAULT_OUTPUT_TYPE: OutputType = "categorical";

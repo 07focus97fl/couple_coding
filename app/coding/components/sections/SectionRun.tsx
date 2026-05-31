@@ -63,6 +63,8 @@ export function SectionRun() {
     completedTurns,
     allCodedUnits,
     categoryColorMap,
+    outputType,
+    scale,
     runStats,
     apiLogs,
     runCoding,
@@ -202,6 +204,9 @@ export function SectionRun() {
               unit={unit}
               index={baseIdx + i}
               color={categoryColorMap[unit.category ?? ""] ?? FALLBACK_COLOR}
+              outputType={outputType}
+              scale={scale}
+              colorMap={categoryColorMap}
             />
           ))}
         </div>

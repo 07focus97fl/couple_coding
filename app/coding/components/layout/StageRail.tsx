@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useSession } from "../../hooks/CodingSessionContext";
 import { scrollToSection } from "../../hooks/useScrollSpy";
 import s from "./StageRail.module.css";
@@ -27,19 +26,9 @@ function CheckSvg() {
 }
 
 export function StageRail() {
-  const {
-    activeSectionId,
-    stepDone,
-    apiKey,
-    devSignedIn,
-    devPassword,
-    devAuthError,
-    setDevPassword,
-    handleDevSignIn,
-  } = useSession();
+  const { activeSectionId, stepDone, activeProviderKey } = useSession();
 
-  const [devOpen, setDevOpen] = useState(false);
-  const keyLinked = apiKey !== "" || devSignedIn;
+  const keyLinked = activeProviderKey !== "";
 
   return (
     <aside className={s.rail}>
@@ -75,40 +64,8 @@ export function StageRail() {
           <span
             className={`${s.keyDot} ${keyLinked ? s.keyDotOk : s.keyDotNone}`}
           />
-          {devSignedIn ? "Dev mode" : keyLinked ? "Key linked" : "No key"}
+          {keyLinked ? "Key linked" : "No key"}
         </div>
-
-        {devSignedIn ? null : devOpen ? (
-          <div className={s.devForm}>
-            <input
-              type="password"
-              className={s.devInput}
-              value={devPassword}
-              onChange={(e) => setDevPassword(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleDevSignIn();
-              }}
-              placeholder="Dev password…"
-              autoComplete="off"
-            />
-            <button
-              type="button"
-              className={s.devSubmit}
-              onClick={handleDevSignIn}
-            >
-              Sign in
-            </button>
-            {devAuthError && <p className={s.devError}>{devAuthError}</p>}
-          </div>
-        ) : (
-          <button
-            type="button"
-            className={s.devLink}
-            onClick={() => setDevOpen(true)}
-          >
-            Developer sign-in
-          </button>
-        )}
       </div>
     </aside>
   );
