@@ -115,45 +115,6 @@
   background: #fff;
 }
 
-.topicRow {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  padding: 0.1rem 0.8rem 0.55rem calc(26px + 0.8rem + 0.7rem);
-}
-
-.topicLabel {
-  font-family: var(--mono);
-  font-size: 0.62rem;
-  font-weight: 500;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--muted);
-  flex-shrink: 0;
-}
-
-.topicInput {
-  flex: 1;
-  min-width: 0;
-  padding: 0.32rem 0.55rem;
-  border: 1px solid rgba(26, 26, 30, 0.08);
-  border-radius: 6px;
-  background: #fff;
-  font-family: var(--sans);
-  font-size: 0.78rem;
-  color: var(--ink);
-  outline: none;
-  transition: border-color 0.15s;
-}
-
-.topicInput::placeholder {
-  color: rgba(26, 26, 30, 0.32);
-}
-
-.topicInput:focus {
-  border-color: var(--accent);
-}
-
 .tdCheck {
   display: flex;
   align-items: center;

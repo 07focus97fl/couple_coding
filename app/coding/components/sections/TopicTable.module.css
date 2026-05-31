@@ -1,0 +1,198 @@
+.block {
+  margin-top: 1.35rem;
+  padding-top: 1.35rem;
+  border-top: 1px solid rgba(26, 26, 30, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.headTitle {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.reqTag {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: #c45d3e14;
+  padding: 0.2rem 0.42rem;
+  border-radius: 5px;
+  white-space: nowrap;
+}
+
+.count {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.countDone {
+  color: #5e8761;
+}
+
+.hint {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 0;
+  max-width: 56ch;
+}
+
+.empty {
+  font-size: 0.82rem;
+  color: var(--muted);
+  padding: 0.85rem 1rem;
+  background: #fbf8f3;
+  border: 1px dashed rgba(26, 26, 30, 0.14);
+  border-radius: 10px;
+}
+
+.table {
+  border: 1px solid rgba(26, 26, 30, 0.06);
+  border-radius: 11px;
+  overflow: hidden;
+  background: #fbf8f3;
+}
+
+.tableHead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
+  column-gap: 1rem;
+  padding: 0.5rem 0.85rem;
+  background: #f0ece6;
+  border-bottom: 1px solid rgba(26, 26, 30, 0.05);
+}
+
+.tableHead > div {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.tr {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
+  column-gap: 1rem;
+  padding: 0.5rem 0.85rem;
+  align-items: center;
+  border-bottom: 1px solid rgba(26, 26, 30, 0.04);
+}
+
+.tr:last-child {
+  border-bottom: none;
+}
+
+.tdFile {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.fileIcon {
+  color: var(--accent);
+  flex-shrink: 0;
+  display: inline-flex;
+}
+
+.fileName {
+  font-size: 0.83rem;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tdTopic {
+  min-width: 0;
+}
+
+.inputWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.clearBtn {
+  position: absolute;
+  right: 0.4rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(26, 26, 30, 0.08);
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.clearBtn:hover {
+  background: rgba(26, 26, 30, 0.16);
+  color: var(--ink);
+}
+
+.input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.4rem 1.85rem 0.4rem 0.6rem;
+  border: 1px solid rgba(26, 26, 30, 0.1);
+  border-radius: 7px;
+  background: #fff;
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.input::placeholder {
+  color: rgba(26, 26, 30, 0.3);
+}
+
+.input:focus {
+  border-color: var(--accent);
+}
+
+/* Empty + required → gentle accent prompt (not a hard error) */
+.inputEmpty {
+  border-color: #c45d3e66;
+  background: #c45d3e08;
+}
+
+.inputEmpty:focus {
+  border-color: var(--accent);
+  background: #fff;
+}
+
+@media (max-width: 720px) {
+  .tableHead,
+  .tr {
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.5fr);
+    column-gap: 0.6rem;
+  }
+}

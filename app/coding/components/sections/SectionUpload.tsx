@@ -211,7 +211,6 @@ export function SectionUpload() {
     processFiles,
     removeFile,
     toggleFile,
-    setFileTopic,
     transcribeAudio,
     transcribeAllPending,
     downloadRawTranscript,
@@ -314,7 +313,6 @@ export function SectionUpload() {
               const dotClass = s[STATE_TO_DOT_CLASS[state]] ?? "";
               const statusLabel = rowStatusLabel(state, f);
 
-              const topicEnabled = f.rawTranscript !== null;
               return (
                 <div key={f.id} className={s.fileGroup}>
                   <div className={s.tr}>
@@ -394,20 +392,6 @@ export function SectionUpload() {
                       </button>
                     </div>
                   </div>
-                  {topicEnabled && (
-                    <div className={s.topicRow}>
-                      <span className={s.topicLabel}>Topic</span>
-                      <input
-                        type="text"
-                        className={s.topicInput}
-                        value={f.topic ?? ""}
-                        onChange={(e) => setFileTopic(f.id, e.target.value)}
-                        placeholder="e.g., division of household chores"
-                        spellCheck={false}
-                        autoComplete="off"
-                      />
-                    </div>
-                  )}
                 </div>
               );
             })}

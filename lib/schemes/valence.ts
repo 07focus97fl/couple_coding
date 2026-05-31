@@ -18,5 +18,5 @@ export const VALENCE: CodingScheme = {
         "The speaker expresses criticism, contempt, defensiveness, hostility, dismissiveness, or emotional withdrawal.",
     },
   ],
-  defaultPrompt: (g) => buildDefaultPrompt(g),
+  defaultPrompt: (opts) => buildDefaultPrompt(opts),
 };

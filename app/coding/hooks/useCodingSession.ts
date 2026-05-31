@@ -9,6 +9,9 @@ import {
   COLUMN_DEFINITIONS,
   DEFAULT_CONTEXT_WINDOW,
   DEFAULT_GRANULARITY,
+  DEFAULT_OUTPUT_TYPE,
+  DEFAULT_SCALE,
+  DEFAULT_WINDOW_SECONDS,
   Granularity,
   RawTranscript,
   SpeakingTurn,
@@ -86,7 +89,12 @@ function alignIncomingUnit(
 
 export function sortUnits(units: CodedUnit[]): CodedUnit[] {
   return [...units].sort((a, b) => {
-    if (a.turnNumber !== b.turnNumber) return a.turnNumber - b.turnNumber;
+    // Time windows have no turnNumber — order those by start time.
+    if (a.turnNumber === undefined || b.turnNumber === undefined) {
+      if (a.startTime !== b.startTime) return a.startTime - b.startTime;
+    } else if (a.turnNumber !== b.turnNumber) {
+      return a.turnNumber - b.turnNumber;
+    }
     const au = a.utteranceIndex ?? 0;
     const bu = b.utteranceIndex ?? 0;
     return au - bu;
@@ -315,7 +323,7 @@ export function useCodingSession(): CodingSession {
     if (!hydrated) return null;
     if (isAnyCoding) return null;
     return {
-      version: 3,
+      version: 4,
       files: files.map((f) => ({
         id: f.id,
         fileName: f.fileName,
@@ -326,6 +334,10 @@ export function useCodingSession(): CodingSession {
       selectedModel,
       schemeId,
       granularity,
+      segmentation: granularity,
+      outputType: DEFAULT_OUTPUT_TYPE,
+      scale: DEFAULT_SCALE,
+      windowSeconds: DEFAULT_WINDOW_SECONDS,
       categories,
       categoriesDirty,
       systemPrompt,
@@ -617,7 +629,13 @@ export function useCodingSession(): CodingSession {
       if (!scheme) return;
       setCategoriesState(scheme.categories);
       setCategoriesDirty(false);
-      setSystemPromptState(scheme.defaultPrompt(granularity));
+      setSystemPromptState(
+        scheme.defaultPrompt({
+          segmentation: granularity,
+          outputType: DEFAULT_OUTPUT_TYPE,
+          scale: DEFAULT_SCALE,
+        }),
+      );
       setPromptDirty(false);
     },
     [granularity],
@@ -638,7 +656,13 @@ export function useCodingSession(): CodingSession {
 
       setGranularityState(next);
       if (scheme) {
-        setSystemPromptState(scheme.defaultPrompt(next));
+        setSystemPromptState(
+          scheme.defaultPrompt({
+            segmentation: next,
+            outputType: DEFAULT_OUTPUT_TYPE,
+            scale: DEFAULT_SCALE,
+          }),
+        );
         setPromptDirty(false);
       }
     },
@@ -653,7 +677,13 @@ export function useCodingSession(): CodingSession {
   const resetPrompt = useCallback(() => {
     const scheme = CODING_SCHEMES.find((sc) => sc.id === schemeId);
     if (!scheme) return;
-    setSystemPromptState(scheme.defaultPrompt(granularity));
+    setSystemPromptState(
+      scheme.defaultPrompt({
+        segmentation: granularity,
+        outputType: DEFAULT_OUTPUT_TYPE,
+        scale: DEFAULT_SCALE,
+      }),
+    );
     setPromptDirty(false);
   }, [schemeId, granularity]);
 
@@ -722,6 +752,12 @@ export function useCodingSession(): CodingSession {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             turns,
+            mode: {
+              segmentation: granularity,
+              outputType: DEFAULT_OUTPUT_TYPE,
+              scale: DEFAULT_SCALE,
+              windowSeconds: DEFAULT_WINDOW_SECONDS,
+            },
             model: selectedModel,
             granularity,
             categories,

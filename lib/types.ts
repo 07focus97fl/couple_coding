@@ -25,26 +25,93 @@ export interface SpeakingTurn {
 
 export type Granularity = "turn" | "utterance";
 
+/**
+ * How a transcript is divided into codeable units (axis A).
+ * - "turn": one unit per speaking turn (deterministic, by speaker change)
+ * - "utterance": the model sub-segments a turn into coherent behavioral acts
+ * - "time": fixed-duration windows that may span multiple speakers
+ */
+export type SegmentationStrategy = "turn" | "utterance" | "time";
+
+/** What the model emits per unit (axis B). */
+export type OutputType = "categorical" | "continuous";
+
+export interface RatingScale {
+  min: number;
+  max: number;
+  step?: number;
+  minLabel?: string;
+  maxLabel?: string;
+}
+
+/** The full descriptor of a coding run, threaded end-to-end. */
+export interface CodingMode {
+  segmentation: SegmentationStrategy;
+  outputType: OutputType;
+  /** Present when outputType === "continuous". */
+  scale?: RatingScale;
+  /** Present when segmentation === "time". */
+  windowSeconds?: number;
+}
+
+/** Inputs a scheme's prompt generator needs. */
+export interface PromptOptions {
+  segmentation: SegmentationStrategy;
+  outputType: OutputType;
+  scale?: RatingScale;
+}
+
 export interface CodingUnit {
   unitId: string;
-  turnNumber: number;
+  /** Set for turn/utterance units; absent for time windows. */
+  turnNumber?: number;
   utteranceIndex?: number;
-  speaker: string;
+  /** Single speaker for turn/utterance units; absent for multi-speaker time windows. */
+  speaker?: string;
+  /** Speakers present in a time window. */
+  speakers?: string[];
   text: string;
   startTime: number;
   endTime: number;
   wordCount: number;
   approximateTiming?: boolean;
+  /** Which segmentation produced this unit. */
+  kind?: "turn" | "utterance" | "time";
 }
 
 export interface CodedUnit extends CodingUnit {
-  category: string;
+  /** Present for categorical output. */
+  category?: string;
   rationale: string;
   subcategory?: string | null;
   alternativesConsidered?: string[];
+  /** Present for continuous output: dimension name -> numeric rating. */
+  ratings?: Record<string, number>;
+  /** True when the model response could not be parsed. */
+  error?: boolean;
 }
 
 export type CodedTurn = CodedUnit;
+
+/**
+ * A pre-segmented chunk of transcript handed to the coding API. Produced by a
+ * segmenter (turns via parseTranscript, windows via segmentByTime) so the API
+ * loop stays agnostic to how units were cut.
+ */
+export interface PreSegment {
+  /** 1-based ordinal within the file; drives ordering and context windows. */
+  index: number;
+  kind: "turn" | "time";
+  text: string;
+  startTime: number;
+  endTime: number;
+  wordCount: number;
+  /** Set when kind === "turn". */
+  turnNumber?: number;
+  speaker?: string;
+  /** Set when kind === "time". */
+  speakers?: string[];
+}
 
 export type ColumnKey =
   | "unitId"
@@ -92,7 +159,7 @@ export interface CodingScheme {
   label: string;
   description: string;
   categories: CategoryDefinition[];
-  defaultPrompt: (granularity: Granularity) => string;
+  defaultPrompt: (opts: PromptOptions) => string;
   comingSoon?: boolean;
   badge?: string;
 }
@@ -115,11 +182,12 @@ export interface TranscriptFile {
 
 export interface ApiLogParsedUnit {
   unitId: string;
-  category: string;
+  category?: string;
   rationale: string;
   text?: string;
   subcategory?: string | null;
   alternativesConsidered?: string[];
+  ratings?: Record<string, number>;
 }
 
 export interface ApiLog {
@@ -135,10 +203,24 @@ export interface ApiLog {
   parsedUnits: ApiLogParsedUnit[];
   attempt: number;
   timestamp: string;
+  /** Configured max number of prior turns to feed the model as context. */
+  contextWindow: number;
+  /** Turn numbers actually sent as prior context (fewer than contextWindow near the start of a transcript). */
+  contextTurnNumbers: number[];
 }
 
 export const DEFAULT_CONTEXT_WINDOW = 5;
 export const DEFAULT_GRANULARITY: Granularity = "turn";
+export const DEFAULT_SEGMENTATION: SegmentationStrategy = "turn";
+export const DEFAULT_OUTPUT_TYPE: OutputType = "categorical";
+export const DEFAULT_WINDOW_SECONDS = 30;
+export const DEFAULT_SCALE: RatingScale = {
+  min: 1,
+  max: 7,
+  step: 1,
+  minLabel: "not present",
+  maxLabel: "strongly present",
+};
 
 export const DEFAULT_EXPORT_CONFIG: ExportConfig = {
   visibleColumns: COLUMN_DEFINITIONS.map((c) => c.key),

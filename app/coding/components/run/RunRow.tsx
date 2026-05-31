@@ -16,11 +16,11 @@ interface RunRowProps {
 }
 
 function RunRowImpl({ unit, index, color }: RunRowProps) {
-  const sk = speakerKey(unit.speaker);
+  const sk = speakerKey(unit.speaker ?? "");
   const c = color || FALLBACK_COLOR;
   const chipText = unit.subcategory
-    ? `${codeFor(unit.category)}/${unit.subcategory}`
-    : codeFor(unit.category);
+    ? `${codeFor(unit.category ?? "")}/${unit.subcategory}`
+    : codeFor(unit.category ?? "");
   const chipTitle = unit.subcategory
     ? `${unit.category} (${unit.subcategory})`
     : unit.category;

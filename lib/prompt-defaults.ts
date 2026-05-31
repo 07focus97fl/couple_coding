@@ -1,4 +1,4 @@
-import { Granularity } from "./types";
+import { PromptOptions } from "./types";
 
 const ROLE =
   "You are an expert behavioral coder for couple conversation research.";
@@ -27,12 +27,24 @@ const UTTERANCE_OUTPUT =
   "You MUST use the code_exchange tool to provide an array of utterances. For each utterance, return its verbatim `text`, its `category`, and a brief `rationale` (1-2 sentences). Return at least one utterance even if the entire turn is a single behavioral act.";
 
 export function buildDefaultPrompt(
-  granularity: Granularity,
+  opts: PromptOptions,
   schemeRules?: string,
 ): string {
-  const task = granularity === "turn" ? TURN_TASK : UTTERANCE_TASK;
-  const context = granularity === "turn" ? TURN_CONTEXT : UTTERANCE_CONTEXT;
-  const output = granularity === "turn" ? TURN_OUTPUT : UTTERANCE_OUTPUT;
+  if (opts.outputType === "continuous") {
+    // Reserved extension point — the continuous-ratings slice authors the
+    // "rate each behavior on the scale" task/output strings here.
+    throw new Error("continuous output type is not yet implemented");
+  }
+  if (opts.segmentation === "time") {
+    // Reserved extension point — the time-segmentation slice authors the
+    // window task/context strings here.
+    throw new Error("time segmentation is not yet implemented");
+  }
+
+  const isTurn = opts.segmentation === "turn";
+  const task = isTurn ? TURN_TASK : UTTERANCE_TASK;
+  const context = isTurn ? TURN_CONTEXT : UTTERANCE_CONTEXT;
+  const output = isTurn ? TURN_OUTPUT : UTTERANCE_OUTPUT;
 
   const parts = [ROLE, task, context];
   if (schemeRules && schemeRules.trim().length > 0) {

@@ -74,6 +74,8 @@ export default function LogsPage() {
       {logs.map((log, i) => {
         const isOpen = expanded[i] ?? false;
         const units: ApiLogParsedUnit[] = log.parsedUnits ?? [];
+        const ctxNumbers = log.contextTurnNumbers ?? [];
+        const ctxCount = ctxNumbers.length;
         const primaryCategory =
           units.length === 1 ? units[0].category : `${units.length} utterances`;
         return (
@@ -88,7 +90,7 @@ export default function LogsPage() {
                 </span>
                 <span style={badge}>{primaryCategory}</span>
                 <span style={{ fontSize: "0.75rem", color: "#8a8680" }}>
-                  {(log.unitIds ?? []).join(", ")} &middot; attempt {log.attempt + 1} &middot; {log.model}
+                  {(log.unitIds ?? []).join(", ")} &middot; {ctxCount}-turn context &middot; attempt {log.attempt + 1} &middot; {log.model}
                 </span>
                 <span style={{ fontSize: "0.85rem" }}>{isOpen ? "\u25B2" : "\u25BC"}</span>
               </span>
@@ -96,6 +98,32 @@ export default function LogsPage() {
 
             {isOpen && (
               <div style={{ padding: "0 1rem 1rem" }}>
+                <div style={contextPanel}>
+                  <span style={{ fontWeight: 600 }}>Context sent to model:</span>{" "}
+                  {ctxCount > 0 ? (
+                    <>
+                      {ctxCount} prior turn{ctxCount !== 1 ? "s" : ""} (Turn
+                      {ctxCount !== 1 ? "s" : ""} {ctxNumbers.join(", ")})
+                    </>
+                  ) : (
+                    <>none — this turn was coded in isolation</>
+                  )}
+                  <span style={{ color: "#8a8680" }}>
+                    {" "}
+                    &middot; window setting: {log.contextWindow ?? "?"}
+                  </span>
+                  <div
+                    style={{
+                      color: "#8a8680",
+                      fontSize: "0.72rem",
+                      marginTop: "0.3rem",
+                    }}
+                  >
+                    Full text is under <strong>User message</strong> below, in
+                    the PRIOR CONTEXT block.
+                  </div>
+                </div>
+
                 <div style={{ marginTop: "0.5rem" }}>
                   <PromptViewer
                     systemPrompt={log.systemPrompt}
@@ -203,6 +231,18 @@ const cardHeader: React.CSSProperties = {
   fontSize: "0.88rem",
   color: "#1a1a1e",
   textAlign: "left",
+};
+
+const contextPanel: React.CSSProperties = {
+  background: "#fbf8f3",
+  border: "1px solid #ece8e1",
+  borderLeft: "3px solid #c45d3e",
+  borderRadius: 8,
+  padding: "0.6rem 0.75rem",
+  fontSize: "0.8rem",
+  color: "#1a1a1e",
+  lineHeight: 1.5,
+  marginBottom: "0.25rem",
 };
 
 const badge: React.CSSProperties = {

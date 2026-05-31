@@ -6,15 +6,22 @@ import {
   ApiLog,
   ApiLogParsedUnit,
   Granularity,
+  CodingMode,
+  PreSegment,
 } from "@/lib/types";
 import { buildSystemPrompt, buildUserMessage } from "./prompts";
+import { buildCodingTool, computeMaxTokens, TOOL_NAME } from "@/lib/coding-tool";
 
 const CONCURRENCY = 5;
 
 interface CodeRequest {
-  turns: SpeakingTurn[];
+  // Preferred inputs
+  segments?: PreSegment[];
+  mode?: CodingMode;
+  // Legacy inputs (still accepted so the client/server need not deploy in lockstep)
+  turns?: SpeakingTurn[];
+  granularity?: Granularity;
   model: string;
-  granularity: Granularity;
   categories: CategoryDefinition[];
   systemPrompt: string;
   contextWindow?: number;
@@ -41,17 +48,61 @@ interface UtteranceModeInput {
   utterances: UtteranceInputEntry[];
 }
 
+/** Adapt legacy SpeakingTurn[] input into the common PreSegment shape. */
+function turnsToSegments(turns: SpeakingTurn[]): PreSegment[] {
+  return turns.map((t) => ({
+    index: t.turnNumber,
+    kind: "turn" as const,
+    text: t.text,
+    startTime: t.startTime,
+    endTime: t.endTime,
+    wordCount: t.wordCount,
+    turnNumber: t.turnNumber,
+    speaker: t.speaker,
+  }));
+}
+
+function makeUnitId(seg: PreSegment, utteranceIndex?: number): string {
+  const base = seg.kind === "time" ? `W${seg.index}` : `T${seg.turnNumber}`;
+  return utteranceIndex !== undefined ? `${base}.U${utteranceIndex}` : base;
+}
+
+/** Shared CodingUnit fields for a whole-unit (turn or time window) coding. */
+function wholeUnitBase(seg: PreSegment) {
+  return {
+    turnNumber: seg.kind === "time" ? undefined : seg.turnNumber,
+    speaker: seg.kind === "time" ? undefined : seg.speaker,
+    speakers: seg.kind === "time" ? seg.speakers : undefined,
+    text: seg.text,
+    startTime: seg.startTime,
+    endTime: seg.endTime,
+    wordCount: seg.wordCount,
+    kind: seg.kind === "time" ? ("time" as const) : ("turn" as const),
+  };
+}
+
 export async function POST(request: Request) {
   const {
+    segments: reqSegments,
+    mode: reqMode,
     turns,
-    model,
     granularity,
+    model,
     categories,
     systemPrompt: rawPrompt,
     contextWindow = 5,
     apiKey: clientKey,
     topic,
   } = (await request.json()) as CodeRequest;
+
+  const mode: CodingMode = reqMode ?? {
+    segmentation: granularity === "utterance" ? "utterance" : "turn",
+    outputType: "categorical",
+  };
+  const segments: PreSegment[] =
+    reqSegments && reqSegments.length > 0
+      ? reqSegments
+      : turnsToSegments(turns ?? []);
 
   const apiKey = clientKey || process.env.ANTHROPIC_API_KEY;
   if (!apiKey || apiKey === "sk-your-key-here") {
@@ -61,7 +112,7 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!turns || !Array.isArray(turns) || turns.length === 0) {
+  if (!segments || !Array.isArray(segments) || segments.length === 0) {
     return new Response(
       JSON.stringify({ error: "No turns provided" }),
       { status: 400, headers: { "Content-Type": "application/json" } }
@@ -82,96 +133,58 @@ export async function POST(request: Request) {
     );
   }
 
-  const activeGranularity: Granularity = granularity === "utterance" ? "utterance" : "turn";
+  const activeGranularity: Granularity =
+    mode.segmentation === "utterance" ? "utterance" : "turn";
+  const isUtterance = mode.segmentation === "utterance";
   const validCategoryNames = new Set(
     categories.filter((c) => c.name.trim() !== "").map((c) => c.name)
   );
-  const categoryEnum = Array.from(validCategoryNames);
 
   const client = new Anthropic({ apiKey });
-  const systemPrompt = buildSystemPrompt(rawPrompt, categories);
-
-  const tool: Anthropic.Tool =
-    activeGranularity === "turn"
-      ? {
-          name: "code_exchange",
-          description: "Categorize a speaking turn and provide a rationale.",
-          input_schema: {
-            type: "object" as const,
-            properties: {
-              category: { type: "string", enum: categoryEnum },
-              rationale: { type: "string" },
-              subcategory: {
-                type: ["string", "null"],
-                description:
-                  "Optional. When the scheme defines subcategories for a code (e.g., HQ/MR/DR/HJ for ID), specify which one applies. Null otherwise.",
-              },
-              alternatives_considered: {
-                type: "array",
-                items: { type: "string" },
-                description:
-                  "Optional. Codes that were close but not chosen.",
-              },
-            },
-            required: ["category", "rationale"],
-          },
-        }
-      : {
-          name: "code_exchange",
-          description:
-            "Segment a speaking turn into one or more coded utterances. Each utterance must quote a verbatim contiguous substring of the target turn.",
-          input_schema: {
-            type: "object" as const,
-            properties: {
-              utterances: {
-                type: "array",
-                minItems: 1,
-                items: {
-                  type: "object",
-                  properties: {
-                    text: {
-                      type: "string",
-                      description: "Verbatim contiguous substring of the target turn.",
-                    },
-                    category: { type: "string", enum: categoryEnum },
-                    rationale: { type: "string" },
-                    subcategory: {
-                      type: ["string", "null"],
-                      description:
-                        "Optional. When the scheme defines subcategories for a code (e.g., HQ/MR/DR/HJ for ID), specify which one applies. Null otherwise.",
-                    },
-                    alternatives_considered: {
-                      type: "array",
-                      items: { type: "string" },
-                      description:
-                        "Optional. Codes that were close but not chosen.",
-                    },
-                  },
-                  required: ["text", "category", "rationale"],
-                },
-              },
-            },
-            required: ["utterances"],
-          },
-        };
-
-  const maxTokens = activeGranularity === "turn" ? 300 : 2000;
+  const systemPrompt = buildSystemPrompt(rawPrompt, categories, mode);
+  const tool = buildCodingTool(mode, categories);
+  const maxTokens = computeMaxTokens(mode, validCategoryNames.size);
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
       try {
         let completed = 0;
-        const total = turns.length;
+        const total = segments.length;
 
-        async function processTurn(
-          turn: SpeakingTurn
+        async function processUnit(
+          seg: PreSegment,
+          currentIndex: number
         ): Promise<{ codedUnits: CodedUnit[]; log: ApiLog }> {
-          const contextStart = Math.max(0, turn.turnNumber - 1 - contextWindow);
-          const contextEnd = turn.turnNumber - 1;
-          const contextTurns = turns.slice(contextStart, contextEnd);
+          const contextSegs = segments.slice(
+            Math.max(0, currentIndex - contextWindow),
+            currentIndex
+          );
+          const contextSegNumbers = contextSegs.map((s) => s.turnNumber ?? s.index);
 
-          const userMessage = buildUserMessage(contextTurns, turn, topic);
+          const userMessage = buildUserMessage(contextSegs, seg, topic);
+
+          const buildLog = (
+            unitIds: string[],
+            rawResponse: object,
+            parsedUnits: ApiLogParsedUnit[],
+            attempt: number
+          ): ApiLog => ({
+            turnNumber: seg.turnNumber ?? seg.index,
+            speaker: seg.speaker ?? (seg.speakers ?? []).join(", "),
+            granularity: activeGranularity,
+            unitIds,
+            contextWindow,
+            contextTurnNumbers: contextSegNumbers,
+            model,
+            systemPrompt,
+            userMessage,
+            toolDefinition: tool,
+            rawResponse,
+            parsedUnits,
+            attempt,
+            timestamp: new Date().toISOString(),
+          });
 
           const MAX_RETRIES = 2;
           let lastResponse: Anthropic.Message | null = null;
@@ -186,7 +199,7 @@ export async function POST(request: Request) {
               system: systemPrompt,
               messages: [{ role: "user", content: userMessage }],
               tools: [tool],
-              tool_choice: { type: "tool", name: "code_exchange" },
+              tool_choice: { type: "tool", name: TOOL_NAME },
             });
             lastResponse = message;
 
@@ -195,7 +208,7 @@ export async function POST(request: Request) {
             );
             const input = toolBlock?.input;
 
-            if (activeGranularity === "turn") {
+            if (!isUtterance) {
               const parsed = input as TurnModeInput | undefined;
               if (
                 parsed &&
@@ -213,13 +226,8 @@ export async function POST(request: Request) {
                     )
                   : [];
                 const unit: CodedUnit = {
-                  unitId: `T${turn.turnNumber}`,
-                  turnNumber: turn.turnNumber,
-                  speaker: turn.speaker,
-                  text: turn.text,
-                  startTime: turn.startTime,
-                  endTime: turn.endTime,
-                  wordCount: turn.wordCount,
+                  unitId: makeUnitId(seg),
+                  ...wholeUnitBase(seg),
                   category: parsed.category,
                   rationale: parsed.rationale,
                   subcategory,
@@ -236,20 +244,7 @@ export async function POST(request: Request) {
                 ];
                 return {
                   codedUnits: [unit],
-                  log: {
-                    turnNumber: turn.turnNumber,
-                    speaker: turn.speaker,
-                    granularity: activeGranularity,
-                    unitIds: [unit.unitId],
-                    model,
-                    systemPrompt,
-                    userMessage,
-                    toolDefinition: tool,
-                    rawResponse: message,
-                    parsedUnits: lastParsedUnits,
-                    attempt,
-                    timestamp: new Date().toISOString(),
-                  },
+                  log: buildLog([unit.unitId], message, lastParsedUnits, attempt),
                 };
               }
             } else {
@@ -270,7 +265,7 @@ export async function POST(request: Request) {
               ) {
                 const units: CodedUnit[] = list.map((u, i) => {
                   const utteranceIndex = i + 1;
-                  const unitId = `T${turn.turnNumber}.U${utteranceIndex}`;
+                  const unitId = makeUnitId(seg, utteranceIndex);
                   const subcategory =
                     typeof u.subcategory === "string" && u.subcategory.trim().length > 0
                       ? u.subcategory
@@ -282,17 +277,18 @@ export async function POST(request: Request) {
                     : [];
                   return {
                     unitId,
-                    turnNumber: turn.turnNumber,
+                    turnNumber: seg.turnNumber,
                     utteranceIndex,
-                    speaker: turn.speaker,
+                    speaker: seg.speaker,
                     text: u.text,
-                    startTime: turn.startTime,
-                    endTime: turn.endTime,
+                    startTime: seg.startTime,
+                    endTime: seg.endTime,
                     wordCount: u.text.trim().split(/\s+/).length,
                     category: u.category,
                     rationale: u.rationale,
                     subcategory,
                     alternativesConsidered,
+                    kind: "utterance" as const,
                   };
                 });
                 lastParsedUnits = units.map((u) => ({
@@ -305,52 +301,22 @@ export async function POST(request: Request) {
                 }));
                 return {
                   codedUnits: units,
-                  log: {
-                    turnNumber: turn.turnNumber,
-                    speaker: turn.speaker,
-                    granularity: activeGranularity,
-                    unitIds: units.map((u) => u.unitId),
-                    model,
-                    systemPrompt,
-                    userMessage,
-                    toolDefinition: tool,
-                    rawResponse: message,
-                    parsedUnits: lastParsedUnits,
-                    attempt,
-                    timestamp: new Date().toISOString(),
-                  },
+                  log: buildLog(units.map((u) => u.unitId), message, lastParsedUnits, attempt),
                 };
               }
             }
           }
 
           const errorUnit: CodedUnit = {
-            unitId: `T${turn.turnNumber}`,
-            turnNumber: turn.turnNumber,
-            speaker: turn.speaker,
-            text: turn.text,
-            startTime: turn.startTime,
-            endTime: turn.endTime,
-            wordCount: turn.wordCount,
+            unitId: makeUnitId(seg),
+            ...wholeUnitBase(seg),
             category: "error",
+            error: true,
             rationale: "Failed to parse model response",
           };
           return {
             codedUnits: [errorUnit],
-            log: {
-              turnNumber: turn.turnNumber,
-              speaker: turn.speaker,
-              granularity: activeGranularity,
-              unitIds: [errorUnit.unitId],
-              model,
-              systemPrompt,
-              userMessage,
-              toolDefinition: tool,
-              rawResponse: lastResponse ?? {},
-              parsedUnits: lastParsedUnits,
-              attempt: lastAttempt,
-              timestamp: new Date().toISOString(),
-            },
+            log: buildLog([errorUnit.unitId], lastResponse ?? {}, lastParsedUnits, lastAttempt),
           };
         }
 
@@ -359,7 +325,10 @@ export async function POST(request: Request) {
         async function runNext(): Promise<void> {
           while (index < total) {
             const currentIndex = index++;
-            const { codedUnits, log } = await processTurn(turns[currentIndex]);
+            const { codedUnits, log } = await processUnit(
+              segments[currentIndex],
+              currentIndex
+            );
 
             for (const unit of codedUnits) {
               controller.enqueue(

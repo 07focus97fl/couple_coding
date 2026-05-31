@@ -12,17 +12,17 @@ function getCellValue(unit: CodedUnit, key: ColumnKey): string {
     case "unitId":
       return escapeCsvField(unit.unitId);
     case "turnNumber":
-      return String(unit.turnNumber);
+      return unit.turnNumber !== undefined ? String(unit.turnNumber) : "";
     case "utteranceIndex":
       return unit.utteranceIndex !== undefined ? String(unit.utteranceIndex) : "";
     case "speaker":
-      return escapeCsvField(unit.speaker);
+      return escapeCsvField(unit.speaker ?? (unit.speakers ?? []).join("; "));
     case "text":
       return escapeCsvField(unit.text);
     case "wordCount":
       return String(unit.wordCount);
     case "category":
-      return escapeCsvField(unit.category);
+      return escapeCsvField(unit.category ?? "");
     case "subcategory":
       return escapeCsvField(unit.subcategory ?? "");
     case "alternativesConsidered":

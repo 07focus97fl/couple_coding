@@ -7,5 +7,5 @@ export const RCISS: CodingScheme = {
   description: "Rapid Couples Interaction Scoring System",
   categories: [],
   comingSoon: true,
-  defaultPrompt: (g) => buildDefaultPrompt(g),
+  defaultPrompt: (opts) => buildDefaultPrompt(opts),
 };

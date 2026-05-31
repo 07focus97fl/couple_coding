@@ -9,5 +9,5 @@ export const CUSTOM: CodingScheme = {
     { name: "", description: "" },
     { name: "", description: "" },
   ],
-  defaultPrompt: (g) => buildDefaultPrompt(g),
+  defaultPrompt: (opts) => buildDefaultPrompt(opts),
 };

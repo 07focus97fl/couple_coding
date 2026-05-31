@@ -7,5 +7,5 @@ export const CIRS: CodingScheme = {
   description: "Couples Interaction Rating System",
   categories: [],
   comingSoon: true,
-  defaultPrompt: (g) => buildDefaultPrompt(g),
+  defaultPrompt: (opts) => buildDefaultPrompt(opts),
 };

@@ -1,4 +1,5 @@
 import { CodingScheme } from "../types";
+import { buildDefaultPrompt } from "../prompt-defaults";
 
 const VCTS_TURN_PROMPT = `You are an expert coder of couple conflict communication. You assign ONE code to each complete speaker turn using the 6-category scheme below.
 
@@ -186,6 +187,10 @@ export const VTCS: CodingScheme = {
         "Rejection. Attacks who the partner IS — character-focused (e.g., \"You're so immature\", \"You're pathetic\"). Includes insulting/demeaning statements, dismissive buzzwords like \"duh\" or \"whatever\", and the 'Mom rule' — speaker rejects or dismisses a person (unless the speaker ultimately agrees with them, in which case code IN). Off-topic but mean: assign the relevant content code and note R in alternatives_considered. Distinguish from B: Rejection targets character; Blame targets behavior.",
     },
   ],
-  defaultPrompt: (g) =>
-    g === "utterance" ? VCTS_UTTERANCE_PROMPT : VCTS_TURN_PROMPT,
+  defaultPrompt: (opts) =>
+    opts.outputType === "continuous" || opts.segmentation === "time"
+      ? buildDefaultPrompt(opts)
+      : opts.segmentation === "utterance"
+        ? VCTS_UTTERANCE_PROMPT
+        : VCTS_TURN_PROMPT,
 };

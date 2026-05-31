@@ -7,5 +7,5 @@ export const SPAFF: CodingScheme = {
   description: "Specific Affect Coding System (Gottman)",
   categories: [],
   comingSoon: true,
-  defaultPrompt: (g) => buildDefaultPrompt(g),
+  defaultPrompt: (opts) => buildDefaultPrompt(opts),
 };

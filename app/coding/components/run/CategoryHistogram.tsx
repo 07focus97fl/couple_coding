@@ -11,6 +11,7 @@ export function CategoryHistogram() {
   const counts = useMemo(() => {
     const map = new Map<string, number>();
     for (const u of allCodedUnits) {
+      if (u.category === undefined) continue;
       map.set(u.category, (map.get(u.category) ?? 0) + 1);
     }
     return map;

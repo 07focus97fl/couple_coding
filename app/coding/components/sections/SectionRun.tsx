@@ -201,7 +201,7 @@ export function SectionRun() {
               key={unit.unitId}
               unit={unit}
               index={baseIdx + i}
-              color={categoryColorMap[unit.category] ?? FALLBACK_COLOR}
+              color={categoryColorMap[unit.category ?? ""] ?? FALLBACK_COLOR}
             />
           ))}
         </div>
