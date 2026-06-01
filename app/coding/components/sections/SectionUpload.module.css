@@ -45,10 +45,35 @@
   color: var(--ink);
 }
 
+.dropText {
+  flex: 1;
+  min-width: 0;
+}
+
 .dropSub {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1.5rem;
   font-size: 0.8rem;
   color: var(--muted);
   margin-top: 0.15rem;
+}
+
+.formatLink {
+  margin-left: auto;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #2563eb;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.formatLink:hover {
+  color: #1d4ed8;
 }
 
 .error {

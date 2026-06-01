@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useSession } from "../../hooks/CodingSessionContext";
 import { SectionShell } from "../layout/SectionShell";
+import { FormatInfoDialog } from "./FormatInfoDialog";
 import { TranscriptFile } from "@/lib/types";
 import s from "./SectionUpload.module.css";
 
@@ -216,7 +217,6 @@ export function SectionUpload() {
     downloadRawTranscript,
     isAnyTranscribing,
     pendingAudioCount,
-    totalTurns,
     hasFiles,
     elevenLabsKey,
     setElevenLabsKey,
@@ -225,11 +225,11 @@ export function SectionUpload() {
   } = useSession();
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const [formatInfoOpen, setFormatInfoOpen] = useState(false);
 
-  const selectedFiles = files.filter((f) => f.selected);
   const hasAudioRow = files.some((f) => f.audioSource);
   const summary = hasFiles
-    ? `${selectedFiles.length} · ${totalTurns} turns`
+    ? `${files.length} file${files.length === 1 ? "" : "s"}`
     : "0 files";
 
   const onDrop = (e: React.DragEvent) => {
@@ -244,7 +244,7 @@ export function SectionUpload() {
       number="01"
       label="Upload"
       title="Start with your recordings."
-      description="Drop in word-level transcripts or raw audio. Audio rows can be transcribed with ElevenLabs (with speaker diarization), then coded alongside any transcripts you uploaded directly."
+      description="Drop in word-level transcripts or raw audio. Audio rows can be transcribed with ElevenLabs Scribe v1 (speaker diarization), then coded alongside any transcripts you uploaded directly."
       cardTitle="Upload"
       cardMeta={summary}
       state={hasFiles ? "done" : "idle"}
@@ -276,12 +276,22 @@ export function SectionUpload() {
           <div className={s.dropIcon}>
             <UploadIcon />
           </div>
-          <div>
+          <div className={s.dropText}>
             <div className={s.dropTitle}>
               Drop transcripts or audio
             </div>
             <div className={s.dropSub}>
-              JSON · MP3 · MP4 · WAV
+              <span>JSON · MP3 · MP4 · WAV</span>
+              <button
+                type="button"
+                className={s.formatLink}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setFormatInfoOpen(true);
+                }}
+              >
+                Click to learn more about accepted formats
+              </button>
             </div>
           </div>
         </div>
@@ -452,6 +462,7 @@ export function SectionUpload() {
           </div>
         )}
       </div>
+      <FormatInfoDialog open={formatInfoOpen} onOpenChange={setFormatInfoOpen} />
     </SectionShell>
   );
 }
