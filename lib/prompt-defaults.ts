@@ -53,6 +53,20 @@ const TIME_TASK =
 const TIME_CONTEXT =
   "You will be given some prior windows for context, followed by the target window to code. Focus on the target window only — use the context windows to understand conversational dynamics, but only code the target window.";
 
+// ── Per-speaker time-window wording (categorical + continuous). The model
+// still sees the whole window but codes each speaking partner separately. ──
+const PER_SPEAKER_TIME_TASK =
+  "Your task is to code a fixed-duration time window from a couple's conversation, assigning a SEPARATE category to EACH speaker who speaks in the window. The window contains speech from one or both partners, labeled by speaker. Consider the whole window for context, but produce one categorization per speaking speaker — do not merge the partners into a single code.";
+
+const CONTINUOUS_PER_SPEAKER_TIME_TASK =
+  "Your task is to rate a fixed-duration time window from a couple's conversation, rating EACH speaker who speaks in the window separately on every behavioral dimension provided. The window contains speech from one or both partners, labeled by speaker. Consider the whole window for context, but produce one full set of ratings per speaking speaker — do not merge the partners.";
+
+const PER_SPEAKER_TIME_OUTPUT =
+  "You MUST use the code_exchange tool to return a `speakers` array. Return ONE entry for each speaker who actually speaks in the target window — each entry has that speaker's id, its `category`, and a brief `rationale` (1-2 sentences). Do NOT return entries for speakers who are silent in the window; those are recorded automatically by the system.";
+
+const CONTINUOUS_PER_SPEAKER_TIME_OUTPUT =
+  "You MUST use the code_exchange tool to return a `speakers` array. Return ONE entry for each speaker who actually speaks in the target window — each entry has that speaker's id, a numeric rating for every dimension, and a brief `rationale` (1-2 sentences). Do NOT return entries for silent speakers; those are recorded automatically by the system.";
+
 export function buildDefaultPrompt(
   opts: PromptOptions,
   schemeRules?: string,
@@ -64,9 +78,19 @@ export function buildDefaultPrompt(
   let output: string;
 
   if (opts.segmentation === "time") {
-    task = isContinuous ? CONTINUOUS_TIME_TASK : TIME_TASK;
-    context = TIME_CONTEXT;
-    output = isContinuous ? CONTINUOUS_TURN_OUTPUT : TURN_OUTPUT;
+    if (opts.perSpeaker) {
+      task = isContinuous
+        ? CONTINUOUS_PER_SPEAKER_TIME_TASK
+        : PER_SPEAKER_TIME_TASK;
+      context = TIME_CONTEXT;
+      output = isContinuous
+        ? CONTINUOUS_PER_SPEAKER_TIME_OUTPUT
+        : PER_SPEAKER_TIME_OUTPUT;
+    } else {
+      task = isContinuous ? CONTINUOUS_TIME_TASK : TIME_TASK;
+      context = TIME_CONTEXT;
+      output = isContinuous ? CONTINUOUS_TURN_OUTPUT : TURN_OUTPUT;
+    }
   } else if (opts.segmentation === "utterance") {
     task = isContinuous ? CONTINUOUS_UTTERANCE_TASK : UTTERANCE_TASK;
     context = UTTERANCE_CONTEXT;

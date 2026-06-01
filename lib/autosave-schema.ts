@@ -11,10 +11,11 @@ import {
   DEFAULT_SCALE,
   DEFAULT_WINDOW_SECONDS,
 } from "./types";
+import { DEFAULT_REASONING_LEVEL, ReasoningLevel } from "./models";
 
 // NOTE: the storage key string is intentionally kept as "ccc_session_v3" even
-// though the schema is now v4. Renaming it would orphan existing saved sessions;
-// instead we migrate v3 payloads in place via deserialize() (see below).
+// though the schema is now v5. Renaming it would orphan existing saved sessions;
+// instead we migrate v3/v4 payloads in place via deserialize() (see below).
 export const AUTOSAVE_KEY = "ccc_session_v3";
 export const AUTOSAVE_MAX_BYTES = 3_000_000;
 
@@ -27,15 +28,17 @@ export interface PersistedFile {
 }
 
 export interface PersistedSession {
-  version: 4;
+  version: 5;
   files: PersistedFile[];
   selectedModel: string;
+  reasoningLevel: ReasoningLevel;
   schemeId: string | null;
   granularity: Granularity;
   segmentation: SegmentationStrategy;
   outputType: OutputType;
   scale: RatingScale;
   windowSeconds: number;
+  perSpeaker: boolean;
   categories: CategoryDefinition[];
   categoriesDirty: boolean;
   systemPrompt: string;
@@ -58,22 +61,24 @@ export function deserialize(raw: string): PersistedSession | null {
     if (!p.files || !Array.isArray(p.files)) return null;
     if (typeof p.systemPrompt !== "string") return null;
     if (!p.categories || !Array.isArray(p.categories)) return null;
-    if (p.version !== 3 && p.version !== 4) return null;
+    if (p.version !== 3 && p.version !== 4 && p.version !== 5) return null;
 
-    // Migrate v3 -> v4: map the single granularity axis onto the new
-    // segmentation axis and default the rest. v4 payloads pass through.
+    // Migrate v3 -> v4 (granularity -> segmentation axis) and v4 -> v5
+    // (perSpeaker, default on). v5 payloads pass through.
     const granularity: Granularity =
       p.granularity === "utterance" ? "utterance" : "turn";
     return {
-      version: 4,
+      version: 5,
       files: p.files,
       selectedModel: p.selectedModel ?? "",
+      reasoningLevel: p.reasoningLevel ?? DEFAULT_REASONING_LEVEL,
       schemeId: p.schemeId ?? null,
       granularity,
       segmentation: p.segmentation ?? granularity,
       outputType: p.outputType ?? DEFAULT_OUTPUT_TYPE,
       scale: p.scale ?? DEFAULT_SCALE,
       windowSeconds: p.windowSeconds ?? DEFAULT_WINDOW_SECONDS,
+      perSpeaker: p.perSpeaker ?? true,
       categories: p.categories,
       categoriesDirty: p.categoriesDirty ?? false,
       systemPrompt: p.systemPrompt,

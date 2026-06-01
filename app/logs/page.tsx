@@ -3,6 +3,8 @@
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { ApiLog, ApiLogParsedUnit } from "@/lib/types";
 import { PromptViewer } from "@/app/coding/components/PromptViewer";
+import { getModel } from "@/lib/models";
+import { normalizeUsage, costFromUsage, formatCost } from "@/lib/usage";
 
 const LOGS_KEY = "api_logs";
 const storageListeners = new Set<() => void>();
@@ -36,6 +38,28 @@ export default function LogsPage() {
       return [];
     }
   }, [raw]);
+
+  const sortedLogs = useMemo<ApiLog[]>(() => {
+    // Logs stream back out of order (the server codes several segments at once),
+    // so present them grouped by the file they came from (in the order files
+    // were coded), then ordered by turn/window number within each file.
+    const fileOrder = new Map<string, number>();
+    for (const log of logs) {
+      const key = log.fileName ?? "";
+      if (!fileOrder.has(key)) fileOrder.set(key, fileOrder.size);
+    }
+    return logs
+      .map((log, i) => ({ log, i }))
+      .sort((a, b) => {
+        const fa = fileOrder.get(a.log.fileName ?? "") ?? 0;
+        const fb = fileOrder.get(b.log.fileName ?? "") ?? 0;
+        if (fa !== fb) return fa - fb;
+        if (a.log.turnNumber !== b.log.turnNumber)
+          return a.log.turnNumber - b.log.turnNumber;
+        return a.i - b.i; // stable tiebreak: preserve arrival order on ties
+      })
+      .map((x) => x.log);
+  }, [logs]);
 
   const [expanded, setExpanded] = useState<Record<number, boolean>>({});
 
@@ -71,7 +95,7 @@ export default function LogsPage() {
         </button>
       </div>
 
-      {logs.map((log, i) => {
+      {sortedLogs.map((log, i) => {
         const isOpen = expanded[i] ?? false;
         const units: ApiLogParsedUnit[] = log.parsedUnits ?? [];
         // Pre-split logs only had a single prior-context field; read it as a fallback.
@@ -86,6 +110,11 @@ export default function LogsPage() {
         const afterCount = afterNumbers.length;
         const primaryCategory =
           units.length === 1 ? units[0].category : `${units.length} utterances`;
+        const logModel = getModel(log.model);
+        const usage =
+          log.usage ?? normalizeUsage(logModel?.provider ?? "anthropic", log.rawResponse);
+        const cost = log.costUsd ?? costFromUsage(usage, logModel?.pricing ?? null);
+        const attempts = log.attempts ?? 1;
         return (
           <div key={i} style={card}>
             <button onClick={() => toggle(i)} style={cardHeader}>
@@ -98,7 +127,7 @@ export default function LogsPage() {
                 </span>
                 <span style={badge}>{primaryCategory}</span>
                 <span style={{ fontSize: "0.75rem", color: "#8a8680" }}>
-                  {(log.unitIds ?? []).join(", ")} &middot; {beforeCount} before / {afterCount} after &middot; attempt {log.attempt + 1} &middot; {log.model}
+                  {(log.unitIds ?? []).join(", ")} &middot; {beforeCount} before / {afterCount} after &middot; {attempts} call{attempts !== 1 ? "s" : ""} &middot; {log.model} &middot; {formatCost(cost)}
                 </span>
                 <span style={{ fontSize: "0.85rem" }}>{isOpen ? "\u25B2" : "\u25BC"}</span>
               </span>
@@ -143,6 +172,20 @@ export default function LogsPage() {
                     Full text is under <strong>User message</strong> below, in
                     the PRIOR CONTEXT and FOLLOWING CONTEXT blocks.
                   </div>
+                </div>
+
+                <div style={usageRow}>
+                  <span style={{ fontWeight: 600 }}>Usage:</span>{" "}
+                  {usage.inputTokens.toLocaleString()} in &middot;{" "}
+                  {usage.outputTokens.toLocaleString()} out
+                  {usage.cacheReadTokens > 0
+                    ? ` · ${usage.cacheReadTokens.toLocaleString()} cache read`
+                    : ""}
+                  {usage.cacheWriteTokens > 0
+                    ? ` · ${usage.cacheWriteTokens.toLocaleString()} cache write`
+                    : ""}{" "}
+                  &middot; {attempts} call{attempts !== 1 ? "s" : ""} &middot;{" "}
+                  {formatCost(cost)}
                 </div>
 
                 <div style={{ marginTop: "0.5rem" }}>
@@ -264,6 +307,17 @@ const contextPanel: React.CSSProperties = {
   color: "#1a1a1e",
   lineHeight: 1.5,
   marginBottom: "0.25rem",
+};
+
+const usageRow: React.CSSProperties = {
+  background: "#fbf8f3",
+  border: "1px solid #ece8e1",
+  borderRadius: 8,
+  padding: "0.5rem 0.75rem",
+  marginTop: "0.5rem",
+  fontSize: "0.78rem",
+  color: "#1a1a1e",
+  fontFamily: "var(--mono, monospace)",
 };
 
 const badge: React.CSSProperties = {

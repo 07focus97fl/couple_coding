@@ -1,3 +1,5 @@
+import type { NormalizedUsage } from "@/lib/usage";
+
 export interface TranscriptWord {
   text: string;
   start: number;
@@ -52,6 +54,12 @@ export interface CodingMode {
   scale?: RatingScale;
   /** Present when segmentation === "time". */
   windowSeconds?: number;
+  /**
+   * Code each speaker in a window separately (one code/rating per speaker who
+   * spoke, plus an N/A row for silent speakers). Only meaningful when
+   * segmentation === "time". Defaults on.
+   */
+  perSpeaker?: boolean;
 }
 
 /** Inputs a scheme's prompt generator needs. */
@@ -59,6 +67,8 @@ export interface PromptOptions {
   segmentation: SegmentationStrategy;
   outputType: OutputType;
   scale?: RatingScale;
+  /** Only meaningful when segmentation === "time". */
+  perSpeaker?: boolean;
 }
 
 export interface CodingUnit {
@@ -77,6 +87,12 @@ export interface CodingUnit {
   approximateTiming?: boolean;
   /** Which segmentation produced this unit. */
   kind?: "turn" | "utterance" | "time";
+  /**
+   * True for a synthesized row where a roster speaker did not speak in this
+   * time window (per-speaker time coding). Such rows carry no category/ratings,
+   * so they are excluded from category counts and rating means.
+   */
+  notApplicable?: boolean;
 }
 
 export interface CodedUnit extends CodingUnit {
@@ -182,6 +198,8 @@ export interface TranscriptFile {
 
 export interface ApiLogParsedUnit {
   unitId: string;
+  /** Set for per-speaker time entries. */
+  speaker?: string;
   category?: string;
   rationale: string;
   text?: string;
@@ -195,6 +213,8 @@ export interface ApiLog {
   speaker: string;
   granularity: Granularity;
   unitIds: string[];
+  /** Source transcript file, stamped client-side so the /logs view can group + order by file. */
+  fileName?: string;
   model: string;
   systemPrompt: string;
   userMessage: string;
@@ -211,6 +231,12 @@ export interface ApiLog {
   contextBeforeTurnNumbers: number[];
   /** Turn numbers actually sent as following context (fewer than contextAfter near the end of a transcript). */
   contextAfterTurnNumbers: number[];
+  /** Provider-neutral token usage, summed across all attempts (incl. retries). */
+  usage?: NormalizedUsage;
+  /** Cost in USD from `usage` × model pricing; null when the model has no pricing. */
+  costUsd?: number | null;
+  /** Number of provider calls made for this segment (1 + retries). */
+  attempts?: number;
 }
 
 export const DEFAULT_CONTEXT_BEFORE = 5;

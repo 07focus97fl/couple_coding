@@ -1,15 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useSession } from "../../hooks/CodingSessionContext";
 import { SectionShell } from "../layout/SectionShell";
 import {
-  formatLatency,
+  defaultModelForProvider,
+  formatPrice,
   getModel,
-  MODELS,
+  modelsByProvider,
   ModelDef,
   PROVIDERS,
   ProviderDef,
+  ProviderId,
+  REASONING_LEVELS,
 } from "@/lib/models";
 import s from "./SectionModel.module.css";
 
@@ -87,10 +90,46 @@ function EyeIcon({ open }: { open: boolean }) {
   );
 }
 
+function ChevronIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+
 export function SectionModel() {
   const {
     selectedModel,
     setSelectedModel,
+    reasoningLevel,
+    setReasoningLevel,
     activeProvider,
     apiKey,
     setApiKey,
@@ -100,8 +139,7 @@ export function SectionModel() {
     setGoogleKey,
     stepDone,
   } = useSession();
-  const [filter, setFilter] = useState("");
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [openProvider, setOpenProvider] = useState<ProviderId | null>(null);
   const [shown, setShown] = useState(false);
 
   // Only the key for the selected model's provider is shown — that's the one
@@ -117,22 +155,7 @@ export function SectionModel() {
 
   const current = getModel(selectedModel) ?? null;
 
-  const filtered = useMemo(() => {
-    const q = filter.trim().toLowerCase();
-    if (!q) return MODELS;
-    return MODELS.filter((m) =>
-      `${m.name} ${m.desc} ${m.provider}`.toLowerCase().includes(q),
-    );
-  }, [filter]);
-
-  const byProvider = PROVIDERS.map((p) => ({
-    provider: p,
-    models: filtered.filter((m) => m.provider === p.id),
-  })).filter((g) => g.models.length > 0);
-
-  const meta = current
-    ? current.name
-    : "No model";
+  const meta = current ? current.name : "No model";
 
   return (
     <SectionShell
@@ -140,24 +163,58 @@ export function SectionModel() {
       number="02"
       label="Model"
       title="Pick the model doing the coding."
-      description="Different models trade off accuracy, latency, and cost. Claude Sonnet 4.6 is a strong default — it's fast and nuanced enough for most conflict schemes. Use Opus for ambiguous, low-frequency categories; Haiku for simple binary coding at scale."
+      description="Different models trade off accuracy, latency, and cost. You choose which one does the coding — pick from Anthropic, OpenAI, or Google below, then add that provider's API key."
       cardTitle="Model"
       cardMeta={meta}
       state={stepDone[1] ? "done" : "idle"}
     >
       <div className={s.wrap}>
-        <button
-          type="button"
-          onClick={() => setPickerOpen((v) => !v)}
-          className={s.selectedModel}
-        >
+        <div className={s.selectedCard}>
+          <div className={s.selectedLabel}>SELECTED</div>
           {current ? (
-            <ModelLine model={current} variant="selected" />
+            <ModelLine model={current} />
           ) : (
-            <div className={s.noModel}>Click to select a model</div>
+            <div className={s.noModel}>Pick a model below</div>
           )}
-        </button>
+          {current?.reasoning && (
+            <div className={s.reasoningRow}>
+              <span className={s.reasoningLabel}>Reasoning</span>
+              <div className={s.reasoningSegs}>
+                {REASONING_LEVELS.map((level) => (
+                  <button
+                    key={level}
+                    type="button"
+                    onClick={() => setReasoningLevel(level)}
+                    className={`${s.reasoningSeg} ${reasoningLevel === level ? s.reasoningSegActive : ""}`}
+                  >
+                    {level}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
+        <div className={s.dropdownStack}>
+          {PROVIDERS.map((provider) => (
+            <ProviderDropdown
+              key={provider.id}
+              provider={provider}
+              isActive={current?.provider === provider.id}
+              activeModelId={selectedModel}
+              open={openProvider === provider.id}
+              onToggle={() =>
+                setOpenProvider((v) => (v === provider.id ? null : provider.id))
+              }
+              onSelect={(id) => {
+                setSelectedModel(id);
+                setOpenProvider(null);
+              }}
+            />
+          ))}
+        </div>
+
+        {current && (
         <div className={s.keyStack}>
           <div className={s.keyBlock}>
             <div className={s.keyLabelRow}>
@@ -197,89 +254,87 @@ export function SectionModel() {
             </p>
           </div>
         </div>
-
-        {pickerOpen && (
-          <div className={s.picker}>
-            <div className={s.filterRow}>
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className={s.filterIcon}
-              >
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-              <input
-                type="text"
-                placeholder="Filter models…"
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                className={s.filterInput}
-                autoFocus
-              />
-            </div>
-
-            <div className={s.groups}>
-              {byProvider.map(({ provider, models }) => (
-                <div key={provider.id} className={s.group}>
-                  <div className={s.groupHead}>
-                    <span
-                      className={s.providerIcon}
-                      style={{
-                        background: `${provider.accent}18`,
-                        color: provider.accent,
-                      }}
-                    >
-                      <ProviderIcon id={provider.id} />
-                    </span>
-                    <span className={s.providerName}>{provider.name}</span>
-                    {provider.comingSoon && (
-                      <span className={s.comingSoonChip}>COMING SOON</span>
-                    )}
-                  </div>
-                  <div className={s.modelList}>
-                    {models.map((m) => (
-                      <button
-                        key={m.id}
-                        type="button"
-                        disabled={m.comingSoon}
-                        onClick={() => {
-                          if (m.comingSoon) return;
-                          setSelectedModel(m.id);
-                          setPickerOpen(false);
-                        }}
-                        className={`${s.modelRow} ${selectedModel === m.id ? s.modelRowSelected : ""} ${m.comingSoon ? s.modelRowDisabled : ""}`}
-                      >
-                        <ModelLine model={m} variant="picker" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-              {byProvider.length === 0 && (
-                <div className={s.noMatch}>No models match &quot;{filter}&quot;</div>
-              )}
-            </div>
-          </div>
         )}
       </div>
     </SectionShell>
   );
 }
 
-function ModelLine({
-  model,
-  variant,
+function ProviderDropdown({
+  provider,
+  isActive,
+  activeModelId,
+  open,
+  onToggle,
+  onSelect,
 }: {
-  model: ModelDef;
-  variant: "selected" | "picker";
+  provider: ProviderDef;
+  isActive: boolean;
+  activeModelId: string;
+  open: boolean;
+  onToggle: () => void;
+  onSelect: (id: string) => void;
 }) {
+  const models = modelsByProvider(provider.id);
+  // The trigger shows the active model when this provider owns it; otherwise it
+  // previews this provider's default pick so the dropdown reads as a real choice.
+  const shownModel = isActive
+    ? getModel(activeModelId)
+    : defaultModelForProvider(provider.id);
+
+  return (
+    <div className={s.dropdown}>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className={`${s.dropdownTrigger} ${isActive ? s.dropdownActive : ""}`}
+      >
+        <span
+          className={s.providerIcon}
+          style={{ background: `${provider.accent}18`, color: provider.accent }}
+        >
+          <ProviderIcon id={provider.id} />
+        </span>
+        <div className={s.dropdownLabel}>
+          <span className={s.providerName}>{provider.name}</span>
+          <span className={s.dropdownModelName}>
+            {shownModel ? shownModel.name : "No models yet"}
+          </span>
+        </div>
+        {isActive && (
+          <span className={s.activeCheck} style={{ color: provider.accent }}>
+            <CheckIcon />
+          </span>
+        )}
+        <span className={`${s.chevron} ${open ? s.chevronOpen : ""}`}>
+          <ChevronIcon />
+        </span>
+      </button>
+
+      {open && (
+        <div className={s.dropdownPanel}>
+          {models.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              disabled={m.comingSoon}
+              onClick={() => {
+                if (m.comingSoon) return;
+                onSelect(m.id);
+              }}
+              className={`${s.modelRow} ${activeModelId === m.id ? s.modelRowSelected : ""} ${m.comingSoon ? s.modelRowDisabled : ""}`}
+            >
+              <ModelLine model={m} />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ModelLine({ model }: { model: ModelDef }) {
   const provider = PROVIDERS.find((p) => p.id === model.provider);
   return (
     <div className={s.modelLine}>
@@ -293,25 +348,23 @@ function ModelLine({
         {provider && <ProviderIcon id={provider.id} />}
       </span>
       <div className={s.modelMain}>
-        <div className={s.modelTitleRow}>
-          <span className={s.modelName}>{model.name}</span>
-          {model.badge && (
-            <span className={`${s.badge} ${s[`badge_${model.badge}`]}`}>
-              {model.badge}
-            </span>
-          )}
-        </div>
-        {variant === "picker" ? (
-          <div className={s.modelDesc}>{model.desc}</div>
-        ) : (
-          <div className={s.modelDescSmall}>{model.desc}</div>
-        )}
+        <span className={s.modelName}>{model.name}</span>
       </div>
       <div className={s.modelPricing}>
         {model.pricing ? (
           <>
-            <div className={s.price}>${model.pricing.inputPer1M} / M tok</div>
-            <div className={s.latency}>{formatLatency(model.latency)}</div>
+            <div className={s.priceRow}>
+              <span className={s.priceLabel}>In</span>
+              <span className={s.priceValue}>
+                {formatPrice(model.pricing.inputPer1M)} / M
+              </span>
+            </div>
+            <div className={s.priceRow}>
+              <span className={s.priceLabel}>Out</span>
+              <span className={s.priceValue}>
+                {formatPrice(model.pricing.outputPer1M)} / M
+              </span>
+            </div>
           </>
         ) : (
           <div className={s.priceTbd}>Coming soon</div>

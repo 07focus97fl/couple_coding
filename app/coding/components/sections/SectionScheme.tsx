@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useSession } from "../../hooks/CodingSessionContext";
 import { SectionShell } from "../layout/SectionShell";
 import { CODING_SCHEMES } from "@/lib/coding-schemes";
@@ -129,7 +129,12 @@ function CategoryRow({
       {open && (
         <div className={s.rowBody}>
           <label className={s.codeField}>
-            <span className={s.codeFieldLabel}>Code</span>
+            <span className={s.codeFieldLabel}>
+              Code
+              <span className={s.codeFieldHint}>
+                (i.e., what the AI will output)
+              </span>
+            </span>
             <input
               className={s.codeInput}
               value={cat.name}
@@ -153,6 +158,78 @@ function CategoryRow({
   );
 }
 
+// Plain-language explanations surfaced via the (i) on each coding-type pill.
+const SEGMENT_INFO: Record<string, string> = {
+  turn: "One speaker turn — everything a person says before the other replies. The whole turn is coded as a single unit.",
+  utterance:
+    "Longer turns are split into individual utterances (complete thoughts), and each utterance is coded on its own.",
+  time: "The conversation is divided into fixed-length time windows; each window — which may span both speakers — is coded as one unit.",
+};
+
+const OUTPUT_INFO: Record<string, string> = {
+  categorical: "The model labels each unit with one of the categories you defined.",
+  continuous:
+    "The model scores each unit on a numeric rating scale instead of picking a single label.",
+};
+
+const PER_SPEAKER_INFO: Record<string, string> = {
+  on: "Each speaker in a window gets their own code (the model still sees the whole window for context). A speaker who doesn't talk in a window is marked N/A.",
+  off: "The whole window is coded as one unit combining both speakers.",
+};
+
+/** Small (i) marker that reveals an explanatory tooltip on hover/focus. */
+function InfoDot({ tip }: { tip: string }) {
+  return (
+    <span
+      className={s.infoDot}
+      tabIndex={0}
+      role="note"
+      aria-label={tip}
+      onClick={(e) => e.stopPropagation()}
+    >
+      i
+      <span className={s.infoTip} role="tooltip">
+        {tip}
+      </span>
+    </span>
+  );
+}
+
+/**
+ * One numbered step in the Section 3 flow — a number badge + a vertical
+ * connector spine on the left, title/subtitle, then its body. `last` drops the
+ * connector tail so the spine ends at the final step.
+ */
+function StepBlock({
+  n,
+  title,
+  subtitle,
+  last,
+  children,
+}: {
+  n: number;
+  title: string;
+  subtitle?: string;
+  last?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <section className={s.step}>
+      <div className={s.stepAside}>
+        <span className={s.stepNum}>{n}</span>
+        {!last && <span className={s.stepSpine} aria-hidden />}
+      </div>
+      <div className={s.stepMain}>
+        <header className={s.stepHead}>
+          <h4 className={s.stepTitle}>{title}</h4>
+          {subtitle && <p className={s.stepSub}>{subtitle}</p>}
+        </header>
+        <div className={s.stepBody}>{children}</div>
+      </div>
+    </section>
+  );
+}
+
 export function SectionScheme() {
   const {
     schemeId,
@@ -167,11 +244,15 @@ export function SectionScheme() {
     categoryColorMap,
     stepDone,
     segmentation,
+    setSegmentation,
     outputType,
+    setOutputType,
     scale,
     setScale,
     windowSeconds,
     setWindowSeconds,
+    perSpeaker,
+    setPerSpeaker,
   } = useSession();
 
   const schemesNav = CODING_SCHEMES.filter((sc) => sc.id !== "custom");
@@ -233,223 +314,297 @@ export function SectionScheme() {
 
         <div className={s.pane}>
           {activeScheme || schemeId === "custom" ? (
-            <>
-              <div className={s.paneHead}>
-                <div>
-                  <h3 className={s.paneTitle}>
-                    {activeScheme?.description ??
-                      (schemeId === "custom" ? "Custom scheme" : "")}
-                  </h3>
+            <div className={s.steps}>
+              <StepBlock
+                n={1}
+                title="Categories"
+                subtitle={
+                  activeScheme?.description ??
+                  (schemeId === "custom"
+                    ? "Define your own codes from scratch."
+                    : undefined)
+                }
+              >
+                <div className={s.paneHead}>
                   <div className={s.paneSub}>
                     {categories.length} categor
                     {categories.length === 1 ? "y" : "ies"}
                     <span className={s.paneSubDim}> · click to expand</span>
                   </div>
+                  <button
+                    type="button"
+                    onClick={handleAdd}
+                    className={s.addBtn}
+                  >
+                    + Add
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleAdd}
-                  className={s.addBtn}
-                >
-                  + Add
-                </button>
-              </div>
 
-              {categories.length > 0 ? (
-                <div className={s.catList}>
-                  {categories.map((cat, i) => (
-                    <CategoryRow
-                      key={i}
-                      cat={cat}
-                      color={
-                        categoryColorMap[cat.name] ?? FALLBACK_COLOR
-                      }
-                      onUpdate={(next) => {
-                        const updated = categories.map((c, idx) =>
-                          idx === i ? next : c,
-                        );
-                        setCategories(updated);
-                      }}
-                      onRemove={() => {
-                        setCategories(
-                          categories.filter((_, idx) => idx !== i),
-                        );
-                      }}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className={s.emptyCats}>
-                  No categories yet — use <strong>+ Add</strong> to define
-                  the codes the model can choose.
-                </div>
-              )}
-
-              <PromptEditor />
-
-              {outputType === "continuous" && (
-                <div className={s.scaleBlock}>
-                  <div className={s.scaleHead}>Rating scale</div>
-                  <div className={s.scaleGrid}>
-                    <label className={s.scaleField}>
-                      <span>Min</span>
-                      <input
-                        type="number"
-                        value={scale.min}
-                        onChange={(e) =>
-                          setScale({ ...scale, min: Number(e.target.value) })
+                {categories.length > 0 ? (
+                  <div className={s.catList}>
+                    {categories.map((cat, i) => (
+                      <CategoryRow
+                        key={i}
+                        cat={cat}
+                        color={
+                          categoryColorMap[cat.name] ?? FALLBACK_COLOR
                         }
+                        onUpdate={(next) => {
+                          const updated = categories.map((c, idx) =>
+                            idx === i ? next : c,
+                          );
+                          setCategories(updated);
+                        }}
+                        onRemove={() => {
+                          setCategories(
+                            categories.filter((_, idx) => idx !== i),
+                          );
+                        }}
                       />
-                    </label>
-                    <label className={s.scaleField}>
-                      <span>Max</span>
-                      <input
-                        type="number"
-                        value={scale.max}
-                        onChange={(e) =>
-                          setScale({ ...scale, max: Number(e.target.value) })
-                        }
-                      />
-                    </label>
-                    <label className={s.scaleField}>
-                      <span>Low anchor</span>
-                      <input
-                        type="text"
-                        value={scale.minLabel ?? ""}
-                        placeholder="e.g. not present"
-                        onChange={(e) =>
-                          setScale({ ...scale, minLabel: e.target.value })
-                        }
-                      />
-                    </label>
-                    <label className={s.scaleField}>
-                      <span>High anchor</span>
-                      <input
-                        type="text"
-                        value={scale.maxLabel ?? ""}
-                        placeholder="e.g. strongly present"
-                        onChange={(e) =>
-                          setScale({ ...scale, maxLabel: e.target.value })
-                        }
-                      />
-                    </label>
+                    ))}
                   </div>
-                  <p className={s.scaleHint}>
-                    Each behavior above is rated independently on this scale. The
-                    range and anchors are added to the prompt automatically.
-                  </p>
-                </div>
-              )}
+                ) : (
+                  <div className={s.emptyCats}>
+                    No categories yet — use <strong>+ Add</strong> to define
+                    the codes the model can choose.
+                  </div>
+                )}
+              </StepBlock>
 
-              {segmentation === "time" && (
-                <div className={s.sliderBlock}>
-                  <div className={s.sliderRow}>
-                    <label className={s.sliderLabel}>Window size</label>
-                    <input
-                      type="number"
-                      min={5}
-                      max={600}
-                      step={5}
-                      value={windowSeconds}
-                      onChange={(e) =>
-                        setWindowSeconds(Number(e.target.value))
-                      }
-                      className={s.windowInput}
-                    />
-                    <div className={s.sliderVal}>seconds</div>
+              <StepBlock
+                n={2}
+                title="Prompt & coding type"
+                subtitle="Choose how the transcript is split and what the model returns, then review the prompt it will run."
+              >
+                <div className={s.typeRow}>
+                  <div className={s.typeGroup}>
+                    <span className={s.typeLabel}>Segment by</span>
+                    <div className={s.toggle}>
+                      {(["turn", "utterance", "time"] as const).map((seg) => (
+                        <button
+                          key={seg}
+                          type="button"
+                          className={`${s.toggleBtn} ${segmentation === seg ? s.toggleBtnActive : ""}`}
+                          onClick={() => setSegmentation(seg)}
+                        >
+                          {seg}
+                          <InfoDot tip={SEGMENT_INFO[seg]} />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className={s.typeGroup}>
+                    <span className={s.typeLabel}>Output</span>
+                    <div className={s.toggle}>
+                      <button
+                        type="button"
+                        className={`${s.toggleBtn} ${outputType === "categorical" ? s.toggleBtnActive : ""}`}
+                        onClick={() => setOutputType("categorical")}
+                      >
+                        category
+                        <InfoDot tip={OUTPUT_INFO.categorical} />
+                      </button>
+                      <button
+                        type="button"
+                        className={`${s.toggleBtn} ${outputType === "continuous" ? s.toggleBtnActive : ""}`}
+                        onClick={() => setOutputType("continuous")}
+                      >
+                        rating
+                        <InfoDot tip={OUTPUT_INFO.continuous} />
+                      </button>
+                    </div>
+                  </div>
+                  {segmentation === "time" && (
+                    <div className={s.typeGroup}>
+                      <span className={s.typeLabel}>Per speaker</span>
+                      <div className={s.toggle}>
+                        <button
+                          type="button"
+                          className={`${s.toggleBtn} ${perSpeaker ? s.toggleBtnActive : ""}`}
+                          onClick={() => setPerSpeaker(true)}
+                        >
+                          per speaker
+                          <InfoDot tip={PER_SPEAKER_INFO.on} />
+                        </button>
+                        <button
+                          type="button"
+                          className={`${s.toggleBtn} ${!perSpeaker ? s.toggleBtnActive : ""}`}
+                          onClick={() => setPerSpeaker(false)}
+                        >
+                          combined
+                          <InfoDot tip={PER_SPEAKER_INFO.off} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <PromptEditor />
+
+                {outputType === "continuous" && (
+                  <div className={s.scaleBlock}>
+                    <div className={s.scaleHead}>Rating scale</div>
+                    <div className={s.scaleGrid}>
+                      <label className={s.scaleField}>
+                        <span>Min</span>
+                        <input
+                          type="number"
+                          value={scale.min}
+                          onChange={(e) =>
+                            setScale({ ...scale, min: Number(e.target.value) })
+                          }
+                        />
+                      </label>
+                      <label className={s.scaleField}>
+                        <span>Max</span>
+                        <input
+                          type="number"
+                          value={scale.max}
+                          onChange={(e) =>
+                            setScale({ ...scale, max: Number(e.target.value) })
+                          }
+                        />
+                      </label>
+                      <label className={s.scaleField}>
+                        <span>Low anchor</span>
+                        <input
+                          type="text"
+                          value={scale.minLabel ?? ""}
+                          placeholder="e.g. not present"
+                          onChange={(e) =>
+                            setScale({ ...scale, minLabel: e.target.value })
+                          }
+                        />
+                      </label>
+                      <label className={s.scaleField}>
+                        <span>High anchor</span>
+                        <input
+                          type="text"
+                          value={scale.maxLabel ?? ""}
+                          placeholder="e.g. strongly present"
+                          onChange={(e) =>
+                            setScale({ ...scale, maxLabel: e.target.value })
+                          }
+                        />
+                      </label>
+                    </div>
+                    <p className={s.scaleHint}>
+                      Each behavior above is rated independently on this scale.
+                      The range and anchors are added to the prompt
+                      automatically.
+                    </p>
+                  </div>
+                )}
+
+                {segmentation === "time" && (
+                  <div className={s.sliderBlock}>
+                    <div className={s.sliderRow}>
+                      <label className={s.sliderLabel}>Window size</label>
+                      <input
+                        type="number"
+                        min={5}
+                        max={600}
+                        step={5}
+                        value={windowSeconds}
+                        onChange={(e) =>
+                          setWindowSeconds(Number(e.target.value))
+                        }
+                        className={s.windowInput}
+                      />
+                      <div className={s.sliderVal}>seconds</div>
+                    </div>
+                    <p className={s.sliderHint}>
+                      The conversation is split into fixed{" "}
+                      <strong>{windowSeconds}-second</strong> windows; each
+                      window — which may include both speakers — is coded as one
+                      unit.
+                    </p>
+                  </div>
+                )}
+              </StepBlock>
+
+              <StepBlock
+                n={3}
+                title="Context"
+                subtitle="How much of the surrounding conversation the model sees when coding each unit."
+                last
+              >
+                <div className={s.ctxBlock}>
+                  <div className={s.ctxRow}>
+                    <label className={s.ctxField}>
+                      <span className={s.ctxFieldLabel}>{ctxUnit}s before</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={20}
+                        value={contextBefore}
+                        onChange={(e) =>
+                          setContextBefore(
+                            Math.max(0, Math.min(20, Math.floor(+e.target.value) || 0)),
+                          )
+                        }
+                        className={s.ctxInput}
+                      />
+                    </label>
+                    <span className={s.ctxPlus} aria-hidden>
+                      +
+                    </span>
+                    <label className={s.ctxField}>
+                      <span className={s.ctxFieldLabel}>{ctxUnit}s after</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={20}
+                        value={contextAfter}
+                        onChange={(e) =>
+                          setContextAfter(
+                            Math.max(0, Math.min(20, Math.floor(+e.target.value) || 0)),
+                          )
+                        }
+                        className={s.ctxInput}
+                      />
+                    </label>
                   </div>
                   <p className={s.sliderHint}>
-                    The conversation is split into fixed{" "}
-                    <strong>{windowSeconds}-second</strong> windows; each window
-                    — which may include both speakers — is coded as one unit.
+                    {contextBefore === 0 && contextAfter === 0 ? (
+                      <>
+                        Each {ctxUnit} is coded on its own — the model sees{" "}
+                        <strong>no surrounding {ctxUnit}s</strong>.
+                      </>
+                    ) : (
+                      <>
+                        The model also sees{" "}
+                        <strong>
+                          {contextBefore} {ctxUnit}
+                          {contextBefore !== 1 ? "s" : ""} before
+                        </strong>{" "}
+                        and{" "}
+                        <strong>
+                          {contextAfter} {ctxUnit}
+                          {contextAfter !== 1 ? "s" : ""} after
+                        </strong>{" "}
+                        each one it codes, so it can read escalation and repair
+                        and tell whether a turn was answered, ignored, or
+                        escalated.
+                      </>
+                    )}
                   </p>
                 </div>
-              )}
 
-              <div className={s.sliderBlock}>
-                <div className={s.sliderRow}>
-                  <label className={s.sliderLabel}>Context before target</label>
-                  <input
-                    type="range"
-                    min={0}
-                    max={20}
-                    value={contextBefore}
-                    onChange={(e) => setContextBefore(+e.target.value)}
-                    className={s.slider}
-                  />
-                  <div className={s.sliderVal}>
-                    {contextBefore} {ctxUnit}{contextBefore !== 1 ? "s" : ""}
-                  </div>
-                </div>
-                <p className={s.sliderHint}>
-                  {contextBefore === 0 ? (
-                    <>
-                      No <strong>earlier</strong> {ctxUnit}s are shown before the
-                      one being coded.
-                    </>
-                  ) : (
-                    <>
-                      The model also sees the{" "}
-                      <strong>
-                        {contextBefore} {ctxUnit}
-                        {contextBefore !== 1 ? "s" : ""} before
-                      </strong>{" "}
-                      each one it codes, so it can read escalation, repair, and
-                      who&apos;s responding to whom.
-                    </>
-                  )}
-                </p>
-              </div>
-
-              <div className={s.sliderBlock}>
-                <div className={s.sliderRow}>
-                  <label className={s.sliderLabel}>Context after target</label>
-                  <input
-                    type="range"
-                    min={0}
-                    max={20}
-                    value={contextAfter}
-                    onChange={(e) => setContextAfter(+e.target.value)}
-                    className={s.slider}
-                  />
-                  <div className={s.sliderVal}>
-                    {contextAfter} {ctxUnit}{contextAfter !== 1 ? "s" : ""}
-                  </div>
-                </div>
-                <p className={s.sliderHint}>
-                  {contextAfter === 0 ? (
-                    <>
-                      No <strong>later</strong> {ctxUnit}s are shown — each one is
-                      coded without seeing how the conversation continues.
-                    </>
-                  ) : (
-                    <>
-                      The model also sees the{" "}
-                      <strong>
-                        {contextAfter} {ctxUnit}
-                        {contextAfter !== 1 ? "s" : ""} after
-                      </strong>{" "}
-                      each one it codes, so it can tell whether a turn was
-                      answered, ignored, or escalated.
-                    </>
-                  )}
-                </p>
-              </div>
-            </>
+                {activeScheme?.id === "vtcs" && <TopicTable />}
+              </StepBlock>
+            </div>
           ) : (
             <div className={s.empty}>
               <div className={s.emptyTitle}>Pick a scheme →</div>
               <div className={s.emptyDesc}>
-                Start with VCTS for the 6-code couple-conflict scheme,
-                Valence for quick positive/negative classification, or
-                Custom to build from scratch.
+                Start with VCTS for the 6-code couple-conflict scheme, or
+                Custom to build your own categories from scratch.
               </div>
             </div>
           )}
         </div>
       </div>
-
-      {activeScheme?.id === "vtcs" && <TopicTable />}
     </SectionShell>
   );
 }

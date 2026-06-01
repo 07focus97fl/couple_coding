@@ -5,7 +5,7 @@ export const VALENCE: CodingScheme = {
   id: "valence",
   label: "Valence",
   description: "Positive vs. negative affect coding",
-  badge: "Example",
+  comingSoon: true,
   categories: [
     {
       name: "positive",

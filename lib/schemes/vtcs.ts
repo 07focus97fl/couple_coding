@@ -159,7 +159,7 @@ export const VTCS: CodingScheme = {
     {
       name: "IN",
       description:
-        "Integrative (the default). Specific or concrete recounting of events, behaviors, or feelings; agreement, compromise, accepting responsibility; disagreeing with or disputing the partner's framing (this ALWAYS shifts toward IN); rejecting advice from close others but ultimately agreeing with the partner; prescriptions or blame distributed equally between both partners. When in doubt, when ambiguous, or when no other code clearly fits, default to IN.",
+        "Integrative. Specific or concrete recounting of events, behaviors, or feelings; agreement, compromise, accepting responsibility; disagreeing with or disputing the partner's framing (this ALWAYS shifts toward IN); rejecting advice from close others but ultimately agreeing with the partner; prescriptions or blame distributed equally between both partners. When in doubt, when ambiguous, or when no other code clearly fits, default to IN.",
     },
     {
       name: "NC",

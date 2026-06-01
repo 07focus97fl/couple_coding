@@ -26,7 +26,12 @@ import { alignUtteranceToWords, getTurnWords } from "@/lib/align-utterances";
 import { parseTranscript } from "@/lib/parse-transcript";
 import { segment } from "@/lib/segment";
 import { generateCsv, dimsFromUnits } from "@/lib/generate-csv";
-import { DEFAULT_MODEL_ID, getModel, type ProviderId } from "@/lib/models";
+import {
+  DEFAULT_REASONING_LEVEL,
+  getModel,
+  type ProviderId,
+  type ReasoningLevel,
+} from "@/lib/models";
 import { buildColorMap } from "@/lib/category-colors";
 import {
   AUTOSAVE_KEY,
@@ -44,6 +49,13 @@ export const SECTION_IDS = [
   "s-run",
 ] as const;
 export type SectionId = (typeof SECTION_IDS)[number];
+
+// VTCS is the flagship scheme; a fresh session boots with it selected and its
+// categories/prompt populated. The autosave hydration effect overrides these
+// for returning users, so this only affects first-time / cleared sessions.
+const DEFAULT_SCHEME_ID = "vtcs";
+const DEFAULT_SCHEME =
+  CODING_SCHEMES.find((sc) => sc.id === DEFAULT_SCHEME_ID) ?? null;
 
 const ELEVENLABS_MODEL_ID = "scribe_v1";
 
@@ -125,6 +137,8 @@ export interface CodingSession {
   // Auth / model
   selectedModel: string;
   setSelectedModel: (id: string) => void;
+  reasoningLevel: ReasoningLevel;
+  setReasoningLevel: (l: ReasoningLevel) => void;
   apiKey: string;
   setApiKey: (k: string) => void;
   openaiKey: string;
@@ -152,6 +166,7 @@ export interface CodingSession {
   outputType: OutputType;
   scale: RatingScale;
   windowSeconds: number;
+  perSpeaker: boolean;
   systemPrompt: string;
   promptDirty: boolean;
   contextBefore: number;
@@ -162,6 +177,7 @@ export interface CodingSession {
   setOutputType: (o: OutputType) => void;
   setScale: (s: RatingScale) => void;
   setWindowSeconds: (n: number) => void;
+  setPerSpeaker: (b: boolean) => void;
   setCategories: (c: CategoryDefinition[]) => void;
   resetCategories: () => void;
   setSystemPrompt: (v: string) => void;
@@ -212,8 +228,15 @@ export function useCodingSession(): CodingSession {
   const audioAbortersRef = useRef<Map<string, AbortController>>(new Map());
   const filesRef = useRef<TranscriptFile[]>([]);
   const [apiLogs, setApiLogs] = useState<ApiLog[]>([]);
-  const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL_ID);
-  const [schemeId, setSchemeIdState] = useState<string | null>(null);
+  // Empty until the user explicitly picks a model — nothing is preselected, so the
+  // API-key field only appears once a provider is chosen.
+  const [selectedModel, setSelectedModel] = useState("");
+  const [reasoningLevel, setReasoningLevel] = useState<ReasoningLevel>(
+    DEFAULT_REASONING_LEVEL,
+  );
+  const [schemeId, setSchemeIdState] = useState<string | null>(
+    DEFAULT_SCHEME_ID,
+  );
   const [segmentation, setSegmentationState] = useState<SegmentationStrategy>(
     DEFAULT_SEGMENTATION,
   );
@@ -224,12 +247,25 @@ export function useCodingSession(): CodingSession {
   const [windowSeconds, setWindowSecondsState] = useState<number>(
     DEFAULT_WINDOW_SECONDS,
   );
+  // Per-speaker time coding is on by default; only affects time segmentation.
+  const [perSpeaker, setPerSpeakerState] = useState<boolean>(true);
   // granularity (turn | utterance) is the categorical-era view of segmentation.
   const granularity: Granularity =
     segmentation === "utterance" ? "utterance" : "turn";
-  const [categories, setCategoriesState] = useState<CategoryDefinition[]>([]);
+  const [categories, setCategoriesState] = useState<CategoryDefinition[]>(
+    () => DEFAULT_SCHEME?.categories ?? [],
+  );
   const [categoriesDirty, setCategoriesDirty] = useState(false);
-  const [systemPrompt, setSystemPromptState] = useState("");
+  const [systemPrompt, setSystemPromptState] = useState(() =>
+    DEFAULT_SCHEME
+      ? DEFAULT_SCHEME.defaultPrompt({
+          segmentation: DEFAULT_SEGMENTATION,
+          outputType: DEFAULT_OUTPUT_TYPE,
+          scale: DEFAULT_SCALE,
+          perSpeaker: true,
+        })
+      : "",
+  );
   const [promptDirty, setPromptDirty] = useState(false);
   const [contextBefore, setContextBefore] = useState(DEFAULT_CONTEXT_BEFORE);
   const [contextAfter, setContextAfter] = useState(DEFAULT_CONTEXT_AFTER);
@@ -272,19 +308,19 @@ export function useCodingSession(): CodingSession {
           );
           if (parsed.selectedModel) {
             // Guard against stale/removed model IDs in old saved sessions —
-            // fall back to the default rather than restoring a dead ID.
+            // clear the selection rather than restoring a dead ID.
             const restored = getModel(parsed.selectedModel);
             setSelectedModel(
-              restored && !restored.comingSoon
-                ? parsed.selectedModel
-                : DEFAULT_MODEL_ID,
+              restored && !restored.comingSoon ? parsed.selectedModel : "",
             );
           }
+          setReasoningLevel(parsed.reasoningLevel ?? DEFAULT_REASONING_LEVEL);
           setSchemeIdState(parsed.schemeId);
           setSegmentationState(parsed.segmentation);
           setOutputTypeState(parsed.outputType);
           setScaleState(parsed.scale);
           setWindowSecondsState(parsed.windowSeconds);
+          setPerSpeakerState(parsed.perSpeaker);
           setCategoriesState(parsed.categories);
           setCategoriesDirty(parsed.categoriesDirty);
           setSystemPromptState(parsed.systemPrompt);
@@ -376,7 +412,7 @@ export function useCodingSession(): CodingSession {
     if (!hydrated) return null;
     if (isAnyCoding) return null;
     return {
-      version: 4,
+      version: 5,
       files: files.map((f) => ({
         id: f.id,
         fileName: f.fileName,
@@ -385,12 +421,14 @@ export function useCodingSession(): CodingSession {
         topic: f.topic ?? "",
       })),
       selectedModel,
+      reasoningLevel,
       schemeId,
       granularity,
       segmentation,
       outputType,
       scale,
       windowSeconds,
+      perSpeaker,
       categories,
       categoriesDirty,
       systemPrompt,
@@ -402,12 +440,14 @@ export function useCodingSession(): CodingSession {
     hydrated,
     files,
     selectedModel,
+    reasoningLevel,
     schemeId,
     granularity,
     segmentation,
     outputType,
     scale,
     windowSeconds,
+    perSpeaker,
     categories,
     categoriesDirty,
     systemPrompt,
@@ -427,7 +467,6 @@ export function useCodingSession(): CodingSession {
     runStartedAt,
     totalTurns,
     completedTurns,
-    selectedModel,
     isAnyCoding,
   );
 
@@ -679,11 +718,11 @@ export function useCodingSession(): CodingSession {
       setCategoriesState(scheme.categories);
       setCategoriesDirty(false);
       setSystemPromptState(
-        scheme.defaultPrompt({ segmentation, outputType, scale }),
+        scheme.defaultPrompt({ segmentation, outputType, scale, perSpeaker }),
       );
       setPromptDirty(false);
     },
-    [segmentation, outputType, scale],
+    [segmentation, outputType, scale, perSpeaker],
   );
 
   // Changing segmentation or output type changes the task wording, so the
@@ -691,7 +730,11 @@ export function useCodingSession(): CodingSession {
   // hand-edited the prompt. Scale/anchor and window changes do NOT touch the
   // prompt (anchors are appended at request time), so they skip this.
   const regenerateDefaultPrompt = useCallback(
-    (nextSeg: SegmentationStrategy, nextOut: OutputType): boolean => {
+    (
+      nextSeg: SegmentationStrategy,
+      nextOut: OutputType,
+      nextPerSpeaker: boolean = perSpeaker,
+    ): boolean => {
       if (promptDirty && typeof window !== "undefined") {
         const ok = window.confirm(
           "Changing this will reset your prompt edits to the new default. Continue?",
@@ -705,13 +748,14 @@ export function useCodingSession(): CodingSession {
             segmentation: nextSeg,
             outputType: nextOut,
             scale,
+            perSpeaker: nextPerSpeaker,
           }),
         );
         setPromptDirty(false);
       }
       return true;
     },
-    [promptDirty, schemeId, scale],
+    [promptDirty, schemeId, scale, perSpeaker],
   );
 
   const setSegmentation = useCallback(
@@ -746,6 +790,19 @@ export function useCodingSession(): CodingSession {
     setWindowSecondsState(n);
   }, []);
 
+  const setPerSpeaker = useCallback(
+    (next: boolean) => {
+      if (next === perSpeaker) return;
+      // Only time mode uses this flag, so only then does the default prompt
+      // wording change — reuse the confirm-on-dirty regeneration path.
+      if (segmentation === "time") {
+        if (!regenerateDefaultPrompt(segmentation, outputType, next)) return;
+      }
+      setPerSpeakerState(next);
+    },
+    [perSpeaker, segmentation, outputType, regenerateDefaultPrompt],
+  );
+
   const setSystemPrompt = useCallback((v: string) => {
     setSystemPromptState(v);
     setPromptDirty(true);
@@ -755,10 +812,10 @@ export function useCodingSession(): CodingSession {
     const scheme = CODING_SCHEMES.find((sc) => sc.id === schemeId);
     if (!scheme) return;
     setSystemPromptState(
-      scheme.defaultPrompt({ segmentation, outputType, scale }),
+      scheme.defaultPrompt({ segmentation, outputType, scale, perSpeaker }),
     );
     setPromptDirty(false);
-  }, [schemeId, segmentation, outputType, scale]);
+  }, [schemeId, segmentation, outputType, scale, perSpeaker]);
 
   const setCategories = useCallback(
     (next: CategoryDefinition[]) => {
@@ -808,6 +865,7 @@ export function useCodingSession(): CodingSession {
         outputType,
         scale,
         windowSeconds,
+        perSpeaker,
       };
       const segs = segment(file.rawTranscript.words, mode);
 
@@ -835,6 +893,7 @@ export function useCodingSession(): CodingSession {
             mode,
             turns,
             model: selectedModel,
+            reasoningEffort: reasoningLevel,
             granularity,
             categories,
             systemPrompt,
@@ -900,6 +959,7 @@ export function useCodingSession(): CodingSession {
                 );
               } else if (eventType === "log") {
                 const log = JSON.parse(data) as ApiLog;
+                log.fileName = file.fileName;
                 setApiLogs((prev) => [...prev, log]);
               } else if (eventType === "error") {
                 const { message } = JSON.parse(data);
@@ -942,11 +1002,13 @@ export function useCodingSession(): CodingSession {
     files,
     hasFiles,
     selectedModel,
+    reasoningLevel,
     granularity,
     segmentation,
     outputType,
     scale,
     windowSeconds,
+    perSpeaker,
     categories,
     systemPrompt,
     contextBefore,
@@ -1012,6 +1074,8 @@ export function useCodingSession(): CodingSession {
 
     selectedModel,
     setSelectedModel,
+    reasoningLevel,
+    setReasoningLevel,
     apiKey,
     setApiKey,
     openaiKey,
@@ -1037,6 +1101,7 @@ export function useCodingSession(): CodingSession {
     outputType,
     scale,
     windowSeconds,
+    perSpeaker,
     systemPrompt,
     promptDirty,
     contextBefore,
@@ -1047,6 +1112,7 @@ export function useCodingSession(): CodingSession {
     setOutputType,
     setScale,
     setWindowSeconds,
+    setPerSpeaker,
     setCategories,
     resetCategories,
     setSystemPrompt,

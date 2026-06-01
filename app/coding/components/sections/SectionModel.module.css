@@ -5,19 +5,22 @@
   padding-top: 0.35rem;
 }
 
-.selectedModel {
+.selectedCard {
   width: 100%;
   padding: 0.85rem 1rem;
   background: #fbf8f3;
   border: 1.5px solid rgba(26, 26, 30, 0.08);
   border-radius: 12px;
-  cursor: pointer;
   text-align: left;
-  transition: all 0.18s;
 }
 
-.selectedModel:hover {
-  border-color: rgba(26, 26, 30, 0.2);
+.selectedLabel {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+  margin-bottom: 0.55rem;
 }
 
 .noModel {
@@ -25,6 +28,139 @@
   color: var(--muted);
   text-align: center;
   padding: 0.35rem 0;
+}
+
+/* Reasoning-effort selector (OpenAI GPT-5.x) */
+.reasoningRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid rgba(26, 26, 30, 0.07);
+}
+
+.reasoningLabel {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.reasoningSegs {
+  display: flex;
+  gap: 0.25rem;
+  background: #f0ece6;
+  padding: 0.2rem;
+  border-radius: 9px;
+}
+
+.reasoningSeg {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: var(--muted);
+  text-transform: capitalize;
+  padding: 0.28rem 0.6rem;
+  border-radius: 7px;
+  transition: all 0.14s;
+}
+
+.reasoningSeg:hover {
+  color: var(--ink);
+}
+
+.reasoningSegActive {
+  background: #fff;
+  color: var(--accent);
+  box-shadow: 0 1px 2px rgba(26, 26, 30, 0.1);
+}
+
+/* Provider dropdowns — one per company */
+.dropdownStack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dropdown {
+  position: relative;
+}
+
+.dropdownTrigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.6rem 0.85rem;
+  background: #fff;
+  border: 1.5px solid rgba(26, 26, 30, 0.12);
+  border-radius: 11px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.16s;
+}
+
+.dropdownTrigger:hover {
+  border-color: rgba(26, 26, 30, 0.24);
+}
+
+.dropdownActive {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px #c45d3e1f;
+  background: #fefcfa;
+}
+
+.dropdownLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.08rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.dropdownModelName {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activeCheck {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.chevron {
+  display: flex;
+  align-items: center;
+  color: var(--muted);
+  flex-shrink: 0;
+  transition: transform 0.18s;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.dropdownPanel {
+  margin-top: 0.35rem;
+  padding: 0.3rem;
+  border: 1.5px solid rgba(26, 26, 30, 0.08);
+  border-radius: 11px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
 }
 
 .keyBlock {
@@ -128,57 +264,6 @@
   border-color: rgba(26, 26, 30, 0.24);
 }
 
-.picker {
-  border: 1.5px solid rgba(26, 26, 30, 0.08);
-  border-radius: 12px;
-  background: #fff;
-  overflow: hidden;
-}
-
-.filterRow {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  padding: 0.7rem 0.9rem;
-  border-bottom: 1px solid rgba(26, 26, 30, 0.06);
-}
-
-.filterIcon {
-  color: var(--muted);
-  flex-shrink: 0;
-}
-
-.filterInput {
-  flex: 1;
-  border: none;
-  outline: none;
-  background: transparent;
-  font-family: var(--sans);
-  font-size: 0.88rem;
-  color: var(--ink);
-}
-
-.filterInput::placeholder {
-  color: var(--muted);
-}
-
-.groups {
-  padding: 0.3rem 0 0.5rem;
-  max-height: 420px;
-  overflow-y: auto;
-}
-
-.group {
-  padding: 0.5rem 0;
-}
-
-.groupHead {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.35rem 0.9rem 0.35rem;
-}
-
 .providerIcon {
   width: 22px;
   height: 22px;
@@ -190,23 +275,12 @@
 }
 
 .providerName {
-  font-family: var(--serif);
-  font-size: 0.98rem;
-  font-weight: 400;
-  letter-spacing: -0.005em;
-  color: var(--ink);
-}
-
-.comingSoonChip {
-  margin-left: auto;
   font-family: var(--mono);
-  font-size: 0.6rem;
+  font-size: 0.64rem;
   font-weight: 500;
-  letter-spacing: 0.08em;
-  background: #f0ece6;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   color: var(--muted);
-  padding: 0.15rem 0.5rem;
-  border-radius: 999px;
 }
 
 .modelList {
@@ -244,13 +318,6 @@
   background: transparent;
 }
 
-.noMatch {
-  padding: 1rem;
-  text-align: center;
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-
 /* Model line layout */
 .modelLine {
   display: grid;
@@ -273,57 +340,10 @@
   min-width: 0;
 }
 
-.modelTitleRow {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
 .modelName {
   font-weight: 600;
   font-size: 0.9rem;
   color: var(--ink);
-}
-
-.modelDesc {
-  font-size: 0.8rem;
-  color: var(--muted);
-  margin-top: 0.12rem;
-  line-height: 1.4;
-}
-
-.modelDescSmall {
-  font-size: 0.78rem;
-  color: var(--muted);
-  margin-top: 0.1rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.badge {
-  font-family: var(--mono);
-  font-size: 0.58rem;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  padding: 0.13rem 0.45rem;
-  border-radius: 999px;
-}
-
-.badge_FLAGSHIP {
-  background: #c45d3e14;
-  color: var(--accent);
-}
-
-.badge_RECOMMENDED {
-  background: #5e876118;
-  color: #3d6041;
-}
-
-.badge_FASTEST {
-  background: #7a8a9918;
-  color: #546472;
 }
 
 .modelPricing {
@@ -332,16 +352,26 @@
   font-family: var(--mono);
 }
 
-.price {
-  font-size: 0.78rem;
-  color: var(--ink);
-  font-weight: 500;
+.priceRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  font-size: 0.74rem;
+  line-height: 1.35;
 }
 
-.latency {
-  font-size: 0.7rem;
+.priceLabel {
   color: var(--muted);
-  margin-top: 0.15rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  min-width: 1.4rem;
+  text-align: right;
+}
+
+.priceValue {
+  color: var(--ink);
+  font-weight: 500;
 }
 
 .priceTbd {

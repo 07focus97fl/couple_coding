@@ -66,7 +66,17 @@ function RunRowImpl({
 
   // The code column is an error chip, a category chip, or per-dimension bars.
   let codeCol: ReactNode;
-  if (unit.error) {
+  if (unit.notApplicable) {
+    codeCol = (
+      <div
+        className={s.chip}
+        style={{ background: "#8a8a8a1f", color: "#8a8a8a" }}
+        title="Did not speak in this window"
+      >
+        N/A
+      </div>
+    );
+  } else if (unit.error) {
     codeCol = (
       <div
         className={s.chip}
@@ -130,7 +140,7 @@ function RunRowImpl({
       {identity}
       <div className={s.text}>
         <div className={`${s.utter} ${isTime ? s.utterMulti : ""}`}>
-          {unit.text}
+          {unit.text || (unit.notApplicable ? "(no speech)" : "")}
         </div>
         <div className={s.rationale}>{unit.rationale}</div>
       </div>

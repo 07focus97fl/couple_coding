@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { useSession } from "../../hooks/CodingSessionContext";
+import { useRunScope } from "../../hooks/useRunScope";
 import { sortUnits } from "../../hooks/useCodingSession";
 import { SectionShell } from "../layout/SectionShell";
 import { CategoryHistogram } from "../run/CategoryHistogram";
@@ -71,6 +72,8 @@ export function SectionRun() {
     doneFiles,
     files,
   } = useSession();
+
+  const scope = useRunScope();
 
   const canRun =
     !isAnyCoding &&
@@ -146,6 +149,38 @@ export function SectionRun() {
         <div className={s.hint}>{hint}</div>
       )}
 
+      {!isAnyCoding && scope.apiCalls > 0 && (
+        <div className={s.scopePanel}>
+          <div className={s.scopeFact}>
+            This run will make{" "}
+            <strong>{scope.apiCalls.toLocaleString()}</strong> API call
+            {scope.apiCalls !== 1 ? "s" : ""} — one per exchange — across{" "}
+            {scope.fileCount} file{scope.fileCount !== 1 ? "s" : ""}.
+          </div>
+          {!runStats.hasUsage && (
+            <div className={s.scopeGuide}>
+              Cost can&rsquo;t be predicted reliably up front — it depends on
+              transcript length, number of exchanges, context window, model, and
+              how much the model writes per turn. To gauge it: code one
+              transcript (or a small batch) first, read the exact{" "}
+              <strong>per-exchange cost</strong> in the run summary below, then
+              multiply by your total exchanges.
+            </div>
+          )}
+          {scope.fileCount > 1 && (
+            <details className={s.scopeFiles}>
+              <summary>Per file</summary>
+              {scope.perFile.map((f) => (
+                <div key={f.fileName}>
+                  {f.fileName}: {f.calls.toLocaleString()} call
+                  {f.calls !== 1 ? "s" : ""}
+                </div>
+              ))}
+            </details>
+          )}
+        </div>
+      )}
+
       <div className={s.statsStrip}>
         <div className={s.statsLeft}>
           <span
@@ -183,6 +218,28 @@ export function SectionRun() {
           </button>
         )}
       </div>
+
+      {!isAnyCoding && runStats.hasUsage && (
+        <div className={s.costSummary}>
+          <span className={s.costTotal}>{formatCost(runStats.costUsd)}</span>
+          <span className={s.statsDot}>·</span>
+          <span className={s.statsDim}>
+            {runStats.inputTokens.toLocaleString()} in ·{" "}
+            {runStats.outputTokens.toLocaleString()} out
+            {runStats.cacheReadTokens > 0
+              ? ` · ${runStats.cacheReadTokens.toLocaleString()} cached`
+              : ""}
+          </span>
+          <span className={s.statsDot}>·</span>
+          <span className={s.statsDim}>
+            ≈{" "}
+            {formatCost(
+              apiLogs.length > 0 ? runStats.costUsd / apiLogs.length : 0,
+            )}{" "}
+            per exchange (over {apiLogs.length})
+          </span>
+        </div>
+      )}
 
       <div className={s.progressBar}>
         <div className={s.progressFill} style={{ width: `${pct}%` }} />

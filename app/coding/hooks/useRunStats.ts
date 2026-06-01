@@ -3,6 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { ApiLog } from "@/lib/types";
 import { getModel } from "@/lib/models";
+import {
+  normalizeUsage,
+  costFromUsage,
+  type NormalizedUsage,
+} from "@/lib/usage";
 
 export interface RunStats {
   elapsedMs: number;
@@ -14,22 +19,25 @@ export interface RunStats {
   costUsd: number;
   inputTokens: number;
   outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
   hasUsage: boolean;
 }
 
-function extractUsage(
-  log: ApiLog,
-): { input: number; output: number } | null {
-  const raw = log.rawResponse as
-    | { usage?: { input_tokens?: number; output_tokens?: number } }
-    | undefined;
-  if (!raw || typeof raw !== "object") return null;
-  const usage = raw.usage;
-  if (!usage) return null;
-  return {
-    input: typeof usage.input_tokens === "number" ? usage.input_tokens : 0,
-    output: typeof usage.output_tokens === "number" ? usage.output_tokens : 0,
-  };
+/**
+ * Per-log usage + cost, provider-agnostic and retry-inclusive. New logs carry a
+ * pre-computed `usage`/`costUsd` (stamped server-side across all attempts). Older
+ * logs persisted before that change are normalized on the fly from the stored
+ * raw response, so historical OpenAI/Google logs get correct costs too.
+ */
+function resolveLog(log: ApiLog): { usage: NormalizedUsage; cost: number | null } {
+  const model = getModel(log.model);
+  const pricing = model?.pricing ?? null;
+  if (log.usage) {
+    return { usage: log.usage, cost: log.costUsd ?? costFromUsage(log.usage, pricing) };
+  }
+  const usage = normalizeUsage(model?.provider ?? "anthropic", log.rawResponse);
+  return { usage, cost: costFromUsage(usage, pricing) };
 }
 
 export function useRunStats(
@@ -37,7 +45,6 @@ export function useRunStats(
   runStartedAt: number | null,
   total: number,
   completed: number,
-  modelId: string,
   isRunning: boolean,
 ): RunStats {
   const [now, setNow] = useState<number>(() => Date.now());
@@ -73,23 +80,25 @@ export function useRunStats(
 
     let inputTokens = 0;
     let outputTokens = 0;
+    let cacheReadTokens = 0;
+    let cacheWriteTokens = 0;
+    let costUsd = 0;
     let hasUsage = false;
     for (const log of apiLogs) {
-      const u = extractUsage(log);
-      if (u) {
+      const { usage, cost } = resolveLog(log);
+      const totalTokens =
+        usage.inputTokens +
+        usage.outputTokens +
+        usage.cacheReadTokens +
+        usage.cacheWriteTokens;
+      if (totalTokens > 0) {
         hasUsage = true;
-        inputTokens += u.input;
-        outputTokens += u.output;
+        inputTokens += usage.inputTokens;
+        outputTokens += usage.outputTokens;
+        cacheReadTokens += usage.cacheReadTokens;
+        cacheWriteTokens += usage.cacheWriteTokens;
+        if (cost !== null) costUsd += cost;
       }
-    }
-
-    const model = getModel(modelId);
-    let costUsd = 0;
-    if (model?.pricing && hasUsage) {
-      costUsd =
-        (inputTokens * model.pricing.inputPer1M +
-          outputTokens * model.pricing.outputPer1M) /
-        1_000_000;
     }
 
     return {
@@ -102,9 +111,11 @@ export function useRunStats(
       costUsd,
       inputTokens,
       outputTokens,
+      cacheReadTokens,
+      cacheWriteTokens,
       hasUsage,
     };
-  }, [apiLogs, now, runStartedAt, total, completed, modelId]);
+  }, [apiLogs, now, runStartedAt, total, completed]);
 }
 
 export function formatElapsed(ms: number): string {
@@ -121,12 +132,7 @@ export function formatEta(ms: number | null): string {
   return `~${formatElapsed(ms)}`;
 }
 
-export function formatCost(usd: number): string {
-  if (usd <= 0) return "$0.000";
-  if (usd < 0.01) return `$${usd.toFixed(4)}`;
-  if (usd < 1) return `$${usd.toFixed(3)}`;
-  return `$${usd.toFixed(2)}`;
-}
+export { formatCost } from "@/lib/usage";
 
 export function formatRate(perMin: number): string {
   if (perMin <= 0) return "—";

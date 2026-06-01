@@ -7,8 +7,8 @@ import { CIRS } from "./cirs";
 import { CUSTOM } from "./custom";
 
 export const CODING_SCHEMES: CodingScheme[] = [
-  VALENCE,
   VTCS,
+  VALENCE,
   SPAFF,
   RCISS,
   CIRS,

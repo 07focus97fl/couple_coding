@@ -65,6 +65,7 @@ function continuousLeaf(dimNames: string[], scale: RatingScale): Leaf {
 export function buildCodingTool(
   mode: CodingMode,
   categories: CategoryDefinition[],
+  roster?: string[],
 ): Anthropic.Tool {
   const categoryEnum = Array.from(
     new Set(categories.filter((c) => c.name.trim() !== "").map((c) => c.name)),
@@ -74,6 +75,39 @@ export function buildCodingTool(
     mode.outputType === "continuous"
       ? continuousLeaf(categoryEnum, mode.scale ?? DEFAULT_SCALE)
       : categoricalLeaf(categoryEnum);
+
+  // Per-speaker time coding: one entry per speaker who spoke in the window,
+  // each carrying the same leaf payload (category or ratings), wrapped in a
+  // `speakers` array — mirroring how the utterance branch wraps the leaf.
+  if (mode.segmentation === "time" && mode.perSpeaker) {
+    const speakerProp: Record<string, unknown> =
+      roster && roster.length > 0
+        ? { type: "string", enum: roster, description: "Speaker id this entry codes." }
+        : { type: "string", description: "Speaker id this entry codes." };
+    return {
+      name: TOOL_NAME,
+      description:
+        "Code each speaker who speaks in the target time window. Return one entry per speaking speaker; consider the whole window for context, but code each speaker's own behavior.",
+      input_schema: {
+        type: "object" as const,
+        properties: {
+          speakers: {
+            type: "array",
+            minItems: 1,
+            items: {
+              type: "object",
+              properties: {
+                speaker: speakerProp,
+                ...leaf.properties,
+              },
+              required: ["speaker", ...leaf.required],
+            },
+          },
+        },
+        required: ["speakers"],
+      },
+    };
+  }
 
   const isMulti = mode.segmentation === "utterance";
   if (!isMulti) {
@@ -123,8 +157,16 @@ export function buildCodingTool(
  * Token budget per unit. Categorical: 300 whole-unit, 2000 for an utterances
  * array (matching prior behavior). Continuous scales with the dimension count.
  */
-export function computeMaxTokens(mode: CodingMode, dimCount: number): number {
+export function computeMaxTokens(
+  mode: CodingMode,
+  dimCount: number,
+  rosterSize = 2,
+): number {
   const base =
     mode.outputType === "continuous" ? Math.max(600, 40 * dimCount) : 300;
+  if (mode.segmentation === "time" && mode.perSpeaker) {
+    // One leaf per roster speaker, plus headroom for the array wrapper.
+    return base * Math.max(1, rosterSize) + 200;
+  }
   return mode.segmentation === "utterance" ? base + 1700 : base;
 }

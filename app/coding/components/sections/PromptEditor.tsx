@@ -28,15 +28,11 @@ export function PromptEditor() {
     setSystemPrompt,
     promptDirty,
     resetPrompt,
-    segmentation,
-    setSegmentation,
-    outputType,
-    setOutputType,
     activeScheme,
     schemeId,
   } = useSession();
 
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
 
   const wordCount = useMemo(() => {
     const trimmed = systemPrompt.trim();
@@ -67,51 +63,8 @@ export function PromptEditor() {
             <span className={s.editedTag}>edited</span>
           </>
         )}
-        <div className={s.headerRight}>
-          <div
-            className={s.granularity}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {(["turn", "utterance", "time"] as const).map((seg) => (
-              <button
-                key={seg}
-                type="button"
-                className={`${s.granBtn} ${segmentation === seg ? s.granBtnActive : ""}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSegmentation(seg);
-                }}
-              >
-                {seg}
-              </button>
-            ))}
-          </div>
-          <div
-            className={s.granularity}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              className={`${s.granBtn} ${outputType === "categorical" ? s.granBtnActive : ""}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                setOutputType("categorical");
-              }}
-            >
-              category
-            </button>
-            <button
-              type="button"
-              className={`${s.granBtn} ${outputType === "continuous" ? s.granBtnActive : ""}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                setOutputType("continuous");
-              }}
-            >
-              rating
-            </button>
-          </div>
-          {promptDirty && schemeReady && (
+        {promptDirty && schemeReady && (
+          <div className={s.headerRight}>
             <button
               type="button"
               className={s.resetBtn}
@@ -122,8 +75,8 @@ export function PromptEditor() {
             >
               Reset
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </button>
 
       {open && (

@@ -16,6 +16,13 @@ import { buildSystemPrompt, buildUserMessage } from "./prompts";
 import { buildCodingTool, computeMaxTokens } from "@/lib/coding-tool";
 import { runStructuredCall } from "@/lib/llm";
 import { getModel } from "@/lib/models";
+import {
+  normalizeUsage,
+  addUsage,
+  costFromUsage,
+  ZERO_USAGE,
+  type NormalizedUsage,
+} from "@/lib/usage";
 
 const CONCURRENCY = 5;
 
@@ -35,6 +42,8 @@ interface CodeRequest {
   contextWindow?: number;
   apiKey?: string;
   topic?: string;
+  /** Reasoning effort for models that support it (OpenAI GPT-5.x). */
+  reasoningEffort?: string;
 }
 
 interface TurnModeInput {
@@ -69,6 +78,20 @@ interface ContinuousUtteranceEntry {
 
 interface ContinuousUtteranceInput {
   utterances: ContinuousUtteranceEntry[];
+}
+
+/** One per-speaker entry within a time window (categorical or continuous). */
+interface PerSpeakerEntry {
+  speaker: string;
+  rationale: string;
+  category?: string;
+  subcategory?: string | null;
+  alternatives_considered?: string[];
+  ratings?: Record<string, unknown>;
+}
+
+interface PerSpeakerInput {
+  speakers: PerSpeakerEntry[];
 }
 
 /** Adapt legacy SpeakingTurn[] input into the common PreSegment shape. */
@@ -126,6 +149,86 @@ function parseRatings(
   return out;
 }
 
+/** Per-speaker time unit id, e.g. "W3.speaker_0". Distinct from the combined
+ *  whole-window id "W3", so an error fallback never collides. */
+function perSpeakerUnitId(seg: PreSegment, speaker: string): string {
+  return `W${seg.index}.${speaker}`;
+}
+
+/**
+ * Pull one speaker's own lines out of a speaker-labeled window. fmtSpeakerLines
+ * (lib/segment-time.ts) renders each line as `${speaker_id}: ...`, so we keep
+ * the lines carrying this speaker's prefix and strip it. Falls back to the full
+ * window text if nothing matches.
+ */
+function extractSpeakerText(seg: PreSegment, speaker: string): string {
+  const own = seg.text
+    .split("\n")
+    .filter((ln) => ln.startsWith(`${speaker}:`))
+    .map((ln) => ln.slice(speaker.length + 1).trim())
+    .filter((ln) => ln.length > 0)
+    .join(" ");
+  return own || seg.text;
+}
+
+/** Build a coded row for a speaker who spoke in the window. */
+function makePerSpeakerUnit(
+  seg: PreSegment,
+  e: PerSpeakerEntry,
+  isContinuous: boolean,
+  scale: RatingScale,
+  dimNames: string[],
+): CodedUnit {
+  const text = extractSpeakerText(seg, e.speaker);
+  const base = {
+    unitId: perSpeakerUnitId(seg, e.speaker),
+    speaker: e.speaker,
+    speakers: [e.speaker],
+    text,
+    startTime: seg.startTime,
+    endTime: seg.endTime,
+    wordCount: text.trim() ? text.trim().split(/\s+/).length : 0,
+    kind: "time" as const,
+  };
+  if (isContinuous) {
+    return {
+      ...base,
+      ratings: parseRatings(e.ratings, dimNames, scale)!,
+      rationale: e.rationale,
+    };
+  }
+  const subcategory =
+    typeof e.subcategory === "string" && e.subcategory.trim().length > 0
+      ? e.subcategory
+      : null;
+  const alternativesConsidered = Array.isArray(e.alternatives_considered)
+    ? e.alternatives_considered.filter((s): s is string => typeof s === "string")
+    : [];
+  return {
+    ...base,
+    category: e.category,
+    rationale: e.rationale,
+    subcategory,
+    alternativesConsidered,
+  };
+}
+
+/** Synthesize the N/A row for a roster speaker who was silent in the window. */
+function makeNaUnit(seg: PreSegment, speaker: string): CodedUnit {
+  return {
+    unitId: perSpeakerUnitId(seg, speaker),
+    speaker,
+    speakers: [speaker],
+    text: "",
+    startTime: seg.startTime,
+    endTime: seg.endTime,
+    wordCount: 0,
+    kind: "time" as const,
+    notApplicable: true,
+    rationale: "Did not speak in this window.",
+  };
+}
+
 export async function POST(request: Request) {
   const {
     segments: reqSegments,
@@ -140,6 +243,7 @@ export async function POST(request: Request) {
     contextWindow: legacyContextWindow,
     apiKey: clientKey,
     topic,
+    reasoningEffort: reqReasoningEffort,
   } = (await request.json()) as CodeRequest;
 
   const contextBefore =
@@ -166,6 +270,9 @@ export async function POST(request: Request) {
     );
   }
   const provider = modelDef.provider;
+  const pricing = modelDef.pricing;
+  // Only forward reasoning effort to models that actually expose it.
+  const reasoningEffort = modelDef.reasoning ? reqReasoningEffort : undefined;
 
   // The user brings their own provider key. It is sent per request and used
   // only for this call — never stored on the server.
@@ -210,9 +317,25 @@ export async function POST(request: Request) {
   const scale: RatingScale = mode.scale ?? DEFAULT_SCALE;
   const dimNames = Array.from(validCategoryNames);
 
+  // Per-speaker time coding: derive the global speaker roster (union across all
+  // time windows) so every window reports a result for each partner — N/A for
+  // any who were silent in that window.
+  const isPerSpeakerTime = mode.segmentation === "time" && !!mode.perSpeaker;
+  const roster: string[] = Array.from(
+    new Set(
+      segments
+        .filter((s) => s.kind === "time")
+        .flatMap((s) => s.speakers ?? []),
+    ),
+  );
+
   const systemPrompt = buildSystemPrompt(rawPrompt, categories, mode);
-  const tool = buildCodingTool(mode, categories);
-  const maxTokens = computeMaxTokens(mode, validCategoryNames.size);
+  const tool = buildCodingTool(mode, categories, roster);
+  const maxTokens = computeMaxTokens(
+    mode,
+    validCategoryNames.size,
+    roster.length || 2,
+  );
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
@@ -260,12 +383,19 @@ export async function POST(request: Request) {
             parsedUnits,
             attempt,
             timestamp: new Date().toISOString(),
+            usage: usageAcc,
+            costUsd: costFromUsage(usageAcc, pricing),
+            attempts: attemptsMade,
           });
 
           const MAX_RETRIES = 2;
           let lastResponse: object | null = null;
           let lastParsedUnits: ApiLogParsedUnit[] = [];
           let lastAttempt = 0;
+          // Accumulate usage across EVERY attempt (incl. failed retries, which are
+          // still billed) so the logged cost matches what the provider charges.
+          let usageAcc: NormalizedUsage = ZERO_USAGE;
+          let attemptsMade = 0;
 
           for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
             lastAttempt = attempt;
@@ -277,11 +407,71 @@ export async function POST(request: Request) {
               user: userMessage,
               tool,
               maxTokens,
+              reasoningEffort,
             });
             const rawObj = (raw ?? {}) as object;
             lastResponse = rawObj;
+            attemptsMade++;
+            usageAcc = addUsage(usageAcc, normalizeUsage(provider, rawObj));
 
-            if (isContinuous && !isUtterance) {
+            if (isPerSpeakerTime) {
+              const parsed = input as PerSpeakerInput | undefined;
+              const list = parsed?.speakers;
+              const windowSpeakers = new Set(seg.speakers ?? []);
+              const valid =
+                Array.isArray(list) &&
+                list.length > 0 &&
+                list.every(
+                  (e) =>
+                    e &&
+                    typeof e.speaker === "string" &&
+                    windowSpeakers.has(e.speaker) &&
+                    typeof e.rationale === "string" &&
+                    (isContinuous
+                      ? parseRatings(e.ratings, dimNames, scale) !== null
+                      : typeof e.category === "string" &&
+                        validCategoryNames.has(e.category)),
+                ) &&
+                // Every speaker who spoke in the window must be coded — else
+                // retry, rather than silently dropping a speaker's row.
+                [...windowSpeakers].every((sp) =>
+                  list!.some((e) => e?.speaker === sp),
+                );
+              if (valid) {
+                // One row per speaker who spoke (deduped), then synthesized N/A
+                // rows for roster speakers absent from this window.
+                const seen = new Set<string>();
+                const spoke: CodedUnit[] = [];
+                for (const e of list!) {
+                  if (seen.has(e.speaker)) continue;
+                  seen.add(e.speaker);
+                  spoke.push(
+                    makePerSpeakerUnit(seg, e, isContinuous, scale, dimNames),
+                  );
+                }
+                const naUnits: CodedUnit[] = roster
+                  .filter((sp) => !windowSpeakers.has(sp))
+                  .map((sp) => makeNaUnit(seg, sp));
+                const units = [...spoke, ...naUnits];
+                lastParsedUnits = spoke.map((u) => ({
+                  unitId: u.unitId,
+                  speaker: u.speaker,
+                  category: u.category,
+                  ratings: u.ratings,
+                  rationale: u.rationale,
+                  text: u.text,
+                }));
+                return {
+                  codedUnits: units,
+                  log: buildLog(
+                    units.map((u) => u.unitId),
+                    rawObj,
+                    lastParsedUnits,
+                    attempt,
+                  ),
+                };
+              }
+            } else if (isContinuous && !isUtterance) {
               const parsed = input as ContinuousWholeInput | undefined;
               const ratings =
                 parsed && typeof parsed.rationale === "string"

@@ -18,9 +18,12 @@ export async function runOpenAI(
   p: StructuredCallParams,
 ): Promise<StructuredCallResult> {
   const client = new OpenAI({ apiKey: p.apiKey });
-  const reasoning = isReasoningModel(p.model);
+  // A model reasons either because the caller passed an explicit effort (GPT-5.x)
+  // or because it's an o-series model that always reasons.
+  const effort = p.reasoningEffort;
+  const reasoning = !!effort || isReasoningModel(p.model);
 
-  const completion = await client.chat.completions.create({
+  const body: Record<string, unknown> = {
     model: p.model,
     // GPT-5.x/o-series spend tokens thinking before the function call, so give
     // generous headroom on top of the (small) structured-output budget. This is
@@ -43,8 +46,15 @@ export async function runOpenAI(
       },
     ],
     tool_choice: { type: "function", function: { name: p.tool.name } },
-    ...(reasoning ? { reasoning_effort: "medium" as const } : {}),
-  });
+  };
+  // Forward the chosen effort verbatim (incl. "none"); fall back to "medium" for
+  // o-series models that require it but carry no explicit selection.
+  if (effort) body.reasoning_effort = effort;
+  else if (isReasoningModel(p.model)) body.reasoning_effort = "medium";
+
+  const completion = (await client.chat.completions.create(
+    body as unknown as Parameters<typeof client.chat.completions.create>[0],
+  )) as OpenAI.Chat.Completions.ChatCompletion;
 
   const toolCall = completion.choices?.[0]?.message?.tool_calls?.[0] as
     | { function?: { arguments?: string } }
