@@ -40,6 +40,52 @@ function resolveLog(log: ApiLog): { usage: NormalizedUsage; cost: number | null 
   return { usage, cost: costFromUsage(usage, pricing) };
 }
 
+export interface UsageTotals {
+  costUsd: number;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  hasUsage: boolean;
+  /** Number of logged calls (one per coded exchange). */
+  callCount: number;
+}
+
+/** Sum normalized usage + cost across a set of logs (one log = one exchange). */
+export function sumLogUsage(logs: ApiLog[]): UsageTotals {
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let cacheReadTokens = 0;
+  let cacheWriteTokens = 0;
+  let costUsd = 0;
+  let hasUsage = false;
+  for (const log of logs) {
+    const { usage, cost } = resolveLog(log);
+    const totalTokens =
+      usage.inputTokens +
+      usage.outputTokens +
+      usage.cacheReadTokens +
+      usage.cacheWriteTokens;
+    if (totalTokens > 0) {
+      hasUsage = true;
+      inputTokens += usage.inputTokens;
+      outputTokens += usage.outputTokens;
+      cacheReadTokens += usage.cacheReadTokens;
+      cacheWriteTokens += usage.cacheWriteTokens;
+      if (cost !== null) costUsd += cost;
+    }
+  }
+  return {
+    costUsd,
+    inputTokens,
+    outputTokens,
+    cacheReadTokens,
+    cacheWriteTokens,
+    hasUsage,
+    callCount: logs.length,
+  };
+}
+
 export function useRunStats(
   apiLogs: ApiLog[],
   runStartedAt: number | null,
@@ -78,28 +124,14 @@ export function useRunStats(
         ? (remaining / ratePerMin) * 60_000
         : null;
 
-    let inputTokens = 0;
-    let outputTokens = 0;
-    let cacheReadTokens = 0;
-    let cacheWriteTokens = 0;
-    let costUsd = 0;
-    let hasUsage = false;
-    for (const log of apiLogs) {
-      const { usage, cost } = resolveLog(log);
-      const totalTokens =
-        usage.inputTokens +
-        usage.outputTokens +
-        usage.cacheReadTokens +
-        usage.cacheWriteTokens;
-      if (totalTokens > 0) {
-        hasUsage = true;
-        inputTokens += usage.inputTokens;
-        outputTokens += usage.outputTokens;
-        cacheReadTokens += usage.cacheReadTokens;
-        cacheWriteTokens += usage.cacheWriteTokens;
-        if (cost !== null) costUsd += cost;
-      }
-    }
+    const {
+      costUsd,
+      inputTokens,
+      outputTokens,
+      cacheReadTokens,
+      cacheWriteTokens,
+      hasUsage,
+    } = sumLogUsage(apiLogs);
 
     return {
       elapsedMs,

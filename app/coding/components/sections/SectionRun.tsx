@@ -1,14 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
 import { useSession } from "../../hooks/CodingSessionContext";
 import { useRunScope } from "../../hooks/useRunScope";
-import { sortUnits } from "../../hooks/useCodingSession";
 import { SectionShell } from "../layout/SectionShell";
-import { CategoryHistogram } from "../run/CategoryHistogram";
-import { RunRow } from "../run/RunRow";
-import { ExportButton } from "../ExportButton";
-import { FALLBACK_COLOR } from "@/lib/category-colors";
+import { ConversationCard } from "../run/ConversationCard";
 import {
   formatCost,
   formatElapsed,
@@ -19,14 +14,27 @@ import s from "./SectionRun.module.css";
 
 function PlayIcon() {
   return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      stroke="none"
-    >
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none">
       <polygon points="7 5 19 12 7 19" />
+    </svg>
+  );
+}
+
+function DownloadIcon() {
+  return (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
     </svg>
   );
 }
@@ -51,8 +59,6 @@ function LogsIcon() {
   );
 }
 
-const MAX_VISIBLE_ROWS = 200;
-
 export function SectionRun() {
   const {
     isAnyCoding,
@@ -63,23 +69,18 @@ export function SectionRun() {
     totalTurns,
     completedTurns,
     allCodedUnits,
-    categoryColorMap,
-    outputType,
-    scale,
     runStats,
     apiLogs,
     runCoding,
+    handleExportAll,
     doneFiles,
-    files,
+    selectedFiles,
   } = useSession();
 
   const scope = useRunScope();
 
   const canRun =
-    !isAnyCoding &&
-    anySelected &&
-    schemeId !== null &&
-    selectedModel !== "";
+    !isAnyCoding && anySelected && schemeId !== null && selectedModel !== "";
 
   const runState: "running" | "done" | "ready" | "blocked" = isAnyCoding
     ? "running"
@@ -90,29 +91,12 @@ export function SectionRun() {
     : "blocked";
 
   const btnLabel =
-    runState === "running"
-      ? "Running…"
-      : runState === "done"
-      ? "Re-run"
-      : "Run";
+    runState === "running" ? "Running…" : runState === "done" ? "Re-run" : "Run";
 
   const circleState =
-    runState === "done"
-      ? "done"
-      : runState === "running"
-      ? "active"
-      : "idle";
+    runState === "done" ? "done" : runState === "running" ? "active" : "idle";
 
   const pct = totalTurns > 0 ? (completedTurns / totalTurns) * 100 : 0;
-
-  const sortedUnits = useMemo(
-    () => sortUnits(allCodedUnits),
-    [allCodedUnits],
-  );
-
-  const visibleUnits = sortedUnits.slice(-MAX_VISIBLE_ROWS);
-  const truncated = sortedUnits.length - visibleUnits.length;
-  const baseIdx = sortedUnits.length - visibleUnits.length;
 
   const hint = !anySelected
     ? "Select at least one file in Section 01"
@@ -121,6 +105,11 @@ export function SectionRun() {
     : !selectedModel
     ? "Pick a model in Section 02"
     : null;
+
+  // Show the per-conversation cards once a run is underway or has produced output;
+  // before that, the scope panel above already previews what the run will do.
+  const hasActivity = isAnyCoding || allCodedUnits.length > 0;
+  const multiFile = selectedFiles.length > 1;
 
   return (
     <SectionShell
@@ -134,20 +123,31 @@ export function SectionRun() {
       state={circleState}
       circleKind="accent"
       headAction={
-        <button
-          type="button"
-          disabled={!canRun && !stepDone[3]}
-          onClick={runCoding}
-          className={`${s.runBtn} ${runState === "running" ? s.runBtnRunning : ""}`}
-        >
-          {runState !== "running" && <PlayIcon />}
-          <span>{btnLabel}</span>
-        </button>
+        <div className={s.headActions}>
+          {doneFiles.length > 0 && (
+            <button
+              type="button"
+              onClick={handleExportAll}
+              className={s.exportBtn}
+              title="Download a combined CSV of every coded conversation"
+            >
+              <DownloadIcon />
+              <span>Export CSV</span>
+            </button>
+          )}
+          <button
+            type="button"
+            disabled={!canRun && !stepDone[3]}
+            onClick={runCoding}
+            className={`${s.runBtn} ${runState === "running" ? s.runBtnRunning : ""}`}
+          >
+            {runState !== "running" && <PlayIcon />}
+            <span>{btnLabel}</span>
+          </button>
+        </div>
       }
     >
-      {hint && !isAnyCoding && (
-        <div className={s.hint}>{hint}</div>
-      )}
+      {hint && !isAnyCoding && <div className={s.hint}>{hint}</div>}
 
       {!isAnyCoding && scope.apiCalls > 0 && (
         <div className={s.scopePanel}>
@@ -185,7 +185,13 @@ export function SectionRun() {
         <div className={s.statsLeft}>
           <span
             className={s.stateDot}
-            data-state={runState === "running" ? "running" : runState === "done" ? "done" : "idle"}
+            data-state={
+              runState === "running"
+                ? "running"
+                : runState === "done"
+                ? "done"
+                : "idle"
+            }
           />
           <span className={s.statsText}>
             {totalTurns > 0 ? `${completedTurns}/${totalTurns}` : "—"}
@@ -195,13 +201,9 @@ export function SectionRun() {
             {formatElapsed(runStats.elapsedMs)} elapsed
           </span>
           <span className={s.statsDot}>·</span>
-          <span className={s.statsDim}>
-            {formatEta(runStats.etaMs)} left
-          </span>
+          <span className={s.statsDim}>{formatEta(runStats.etaMs)} left</span>
           <span className={s.statsDot}>·</span>
-          <span className={s.statsDim}>
-            {formatRate(runStats.ratePerMin)}
-          </span>
+          <span className={s.statsDim}>{formatRate(runStats.ratePerMin)}</span>
           <span className={s.statsDot}>·</span>
           <span className={s.statsDim}>
             {runStats.hasUsage ? formatCost(runStats.costUsd) : "—"}
@@ -222,6 +224,7 @@ export function SectionRun() {
       {!isAnyCoding && runStats.hasUsage && (
         <div className={s.costSummary}>
           <span className={s.costTotal}>{formatCost(runStats.costUsd)}</span>
+          {multiFile && <span className={s.costScope}>across all conversations</span>}
           <span className={s.statsDot}>·</span>
           <span className={s.statsDim}>
             {runStats.inputTokens.toLocaleString()} in ·{" "}
@@ -245,64 +248,15 @@ export function SectionRun() {
         <div className={s.progressFill} style={{ width: `${pct}%` }} />
       </div>
 
-      <CategoryHistogram />
-
-      {visibleUnits.length > 0 ? (
-        <div className={s.rows}>
-          {truncated > 0 && (
-            <div className={s.truncNote}>
-              Showing latest {visibleUnits.length} of {sortedUnits.length} coded
-              units — export for the full list.
-            </div>
-          )}
-          {visibleUnits.map((unit, i) => (
-            <RunRow
-              key={unit.unitId}
-              unit={unit}
-              index={baseIdx + i}
-              color={categoryColorMap[unit.category ?? ""] ?? FALLBACK_COLOR}
-              outputType={outputType}
-              scale={scale}
-              colorMap={categoryColorMap}
-            />
+      {hasActivity ? (
+        <div className={s.convList}>
+          {selectedFiles.map((f) => (
+            <ConversationCard key={f.id} file={f} defaultOpen={!multiFile} />
           ))}
         </div>
       ) : (
         <div className={s.emptyRows}>
-          {isAnyCoding
-            ? "Streaming results in…"
-            : "Coded rows will stream here as the run progresses."}
-        </div>
-      )}
-
-      {doneFiles.length > 0 && (
-        <div className={s.exportRow}>
-          {doneFiles.map((f) => {
-            const sorted = sortUnits(f.codedUnits);
-            return (
-              <div key={f.id} className={s.exportItem}>
-                <div className={s.exportName}>
-                  {f.fileName}
-                  <span className={s.exportCount}>
-                    {sorted.length} unit{sorted.length !== 1 ? "s" : ""}
-                  </span>
-                </div>
-                <ExportButton codedTurns={sorted} />
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {files.some((f) => f.status === "error") && (
-        <div className={s.errorStrip}>
-          {files
-            .filter((f) => f.status === "error")
-            .map((f) => (
-              <div key={f.id}>
-                <strong>{f.fileName}:</strong> {f.error}
-              </div>
-            ))}
+          Coded rows will stream here as the run progresses.
         </div>
       )}
     </SectionShell>

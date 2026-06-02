@@ -3,18 +3,20 @@
 import { useMemo } from "react";
 import { useSession } from "../../hooks/CodingSessionContext";
 import { codeFor, FALLBACK_COLOR } from "@/lib/category-colors";
+import type { CodedUnit } from "@/lib/types";
 import s from "./CategoryHistogram.module.css";
 
-export function CategoryHistogram() {
+export function CategoryHistogram({ units }: { units?: CodedUnit[] }) {
   const { categories, allCodedUnits, categoryColorMap, outputType, scale } =
     useSession();
+  const data = units ?? allCodedUnits;
   const isContinuous = outputType === "continuous";
 
   const { counts, sum, cnt } = useMemo(() => {
     const counts = new Map<string, number>();
     const sum = new Map<string, number>();
     const cnt = new Map<string, number>();
-    for (const u of allCodedUnits) {
+    for (const u of data) {
       if (u.category !== undefined) {
         counts.set(u.category, (counts.get(u.category) ?? 0) + 1);
       }
@@ -26,7 +28,7 @@ export function CategoryHistogram() {
       }
     }
     return { counts, sum, cnt };
-  }, [allCodedUnits]);
+  }, [data]);
 
   if (categories.length === 0) return null;
 
