@@ -7,7 +7,7 @@ The conversation topic will be provided in the user message — you must know th
 
 ## CRITICAL RULES (apply before everything else)
 
-1. ALL questions are coded ID — no exceptions. A question can never receive NC, IN, P, B, or R.
+1. Questions are coded ID only when they are hostile, challenging, or indirect (mind-reading framing). Neutral, logistical, or affiliative questions are coded IN. A question never receives NC, P, B, or R.
 2. Be conservative. When in doubt, code IN.
 3. One code per speaker turn.
 4. When a turn contains both IN-codable and non-IN-codable content, assign the non-IN code as primary and note IN in alternatives_considered.
@@ -17,13 +17,26 @@ The conversation topic will be provided in the user message — you must know th
 
 Work through these checks in sequence. Assign the first code that matches.
 
-1. Is it a question? → **ID** (always, no exceptions)
-2. Is it a comment about the conversation process itself, with no substantive content? → **NC**
+1. Is it a question? → Hostile, challenging, or indirect (mind-reading framing) questions are **ID**. Neutral, logistical, or affiliative questions are **IN**.
+   "Yeah? You could." → IN (welcoming, not hostile)
+   "Wait, can we talk about those questions now?" → IN (logistical, neutral)
+   "Does that make you feel anxious, though?" → IN (genuine inquiry, not hostile)
+   "Why is it always about what YOU do?" → ID (criticism framed as a question)
+2. Is it a comment about how this conversation is going right now, with no substantive content? → **NC**
+   Includes off-topic talk about the study setup itself (cameras, researchers, instructions, monitoring): "They said they can see us live." → NC. "It's possible. They still won't know until afterwards." → NC.
+   Includes responses that merely react to the partner's process commentary with no independent substantive content: [S1: "This feels really awkward." → NC] [S2: "No, I don't think so." → NC]
+   Does NOT include remarks about the conversation's history or recurring relational patterns — "We've had this discussion before" or "We never reach a solution to this" are **IN**.
 3. Does it mock, mimic, or use sarcasm toward the partner? → **ID**
 4. Does it attribute thoughts, feelings, or motives to the partner (without using "I think…" framing)? → **ID**
+   Includes quoting or imitating the partner's words, narrating the partner's speech acts, or predicting how the partner will react or feel — even when the recounting is specific and contextualized.
+   "Whenever I ask you, you're like, 'You do whatever you want.'" → ID
+   "She's gonna be like really pissed off at me when I get home." → ID
+   "She goes, 'Why are you in such a rush to get outta bed?'" → ID
+   "That's only if you're like, 'I'll be home in an hour.' And then four hours later..." → ID
 5. Does it deny responsibility for something the speaker could reasonably be held accountable for? → **ID**
 6. Does it attack who the partner IS — character, insults, dismissive buzzwords? → **R**
 7. Does it attribute fault to the partner's BEHAVIOR globally and one-sidedly? → **B**
+   Softening language does not soften the code — if the underlying attribution of fault is present, "sometimes" or "kind of" still leaves it B: "Okay. Then sometimes you do [make me feel anxious]." → B
 8. Does it prescribe a global, one-sided solution that was not requested? → **P**
 9. Everything else, or when ambiguous → **IN**
 
@@ -39,7 +52,7 @@ Decision tree: Not a question. Not process commentary. No mocking, mind reading,
 
 > Partner B: "Why is it always about what YOU do?"
 
-Decision tree: Step 1 — it's a question. → **ID** (subcategory: HQ)
+Decision tree: Step 1 — a question, and it is hostile: a criticism framed as a question. → **ID** (subcategory: HQ)
 
 > Partner A: "You never clean up after yourself. Ever."
 
@@ -83,7 +96,7 @@ The conversation topic will be provided in the user message — you must know th
 
 ## CRITICAL RULES (apply before everything else)
 
-1. ALL questions are coded ID — no exceptions. A question can never receive NC, IN, P, B, or R.
+1. Questions are coded ID only when they are hostile, challenging, or indirect (mind-reading framing). Neutral, logistical, or affiliative questions are coded IN. A question never receives NC, P, B, or R.
 2. Be conservative. When in doubt, code IN.
 3. One code per utterance.
 4. When an utterance contains both IN-codable and non-IN-codable content, assign the non-IN code as primary and note IN in alternatives_considered.
@@ -93,13 +106,26 @@ The conversation topic will be provided in the user message — you must know th
 
 Work through these checks in sequence. Assign the first code that matches.
 
-1. Is it a question? → **ID** (always, no exceptions)
-2. Is it a comment about the conversation process itself, with no substantive content? → **NC**
+1. Is it a question? → Hostile, challenging, or indirect (mind-reading framing) questions are **ID**. Neutral, logistical, or affiliative questions are **IN**.
+   "Yeah? You could." → IN (welcoming, not hostile)
+   "Wait, can we talk about those questions now?" → IN (logistical, neutral)
+   "Does that make you feel anxious, though?" → IN (genuine inquiry, not hostile)
+   "Why is it always about what YOU do?" → ID (criticism framed as a question)
+2. Is it a comment about how this conversation is going right now, with no substantive content? → **NC**
+   Includes off-topic talk about the study setup itself (cameras, researchers, instructions, monitoring): "They said they can see us live." → NC. "It's possible. They still won't know until afterwards." → NC.
+   Includes responses that merely react to the partner's process commentary with no independent substantive content: [S1: "This feels really awkward." → NC] [S2: "No, I don't think so." → NC]
+   Does NOT include remarks about the conversation's history or recurring relational patterns — "We've had this discussion before" or "We never reach a solution to this" are **IN**.
 3. Does it mock, mimic, or use sarcasm toward the partner? → **ID**
 4. Does it attribute thoughts, feelings, or motives to the partner (without using "I think…" framing)? → **ID**
+   Includes quoting or imitating the partner's words, narrating the partner's speech acts, or predicting how the partner will react or feel — even when the recounting is specific and contextualized.
+   "Whenever I ask you, you're like, 'You do whatever you want.'" → ID
+   "She's gonna be like really pissed off at me when I get home." → ID
+   "She goes, 'Why are you in such a rush to get outta bed?'" → ID
+   "That's only if you're like, 'I'll be home in an hour.' And then four hours later..." → ID
 5. Does it deny responsibility for something the speaker could reasonably be held accountable for? → **ID**
 6. Does it attack who the partner IS — character, insults, dismissive buzzwords? → **R**
 7. Does it attribute fault to the partner's BEHAVIOR globally and one-sidedly? → **B**
+   Softening language does not soften the code — if the underlying attribution of fault is present, "sometimes" or "kind of" still leaves it B: "Okay. Then sometimes you do [make me feel anxious]." → B
 8. Does it prescribe a global, one-sided solution that was not requested? → **P**
 9. Everything else, or when ambiguous → **IN**
 
@@ -115,7 +141,7 @@ Decision tree: Not a question. Not process commentary. No mocking, mind reading,
 
 > Partner B: "Why is it always about what YOU do?"
 
-Decision tree: Step 1 — it's a question. → **ID** (subcategory: HQ)
+Decision tree: Step 1 — a question, and it is hostile: a criticism framed as a question. → **ID** (subcategory: HQ)
 
 > Partner A: "You never clean up after yourself. Ever."
 
@@ -159,27 +185,27 @@ export const VTCS: CodingScheme = {
     {
       name: "IN",
       description:
-        "Integrative. Specific or concrete recounting of events, behaviors, or feelings; agreement, compromise, accepting responsibility; disagreeing with or disputing the partner's framing (this ALWAYS shifts toward IN); rejecting advice from close others but ultimately agreeing with the partner; prescriptions or blame distributed equally between both partners. When in doubt, when ambiguous, or when no other code clearly fits, default to IN.",
+        "Integrative. Specific or concrete recounting of events, behaviors, or feelings; agreement, compromise, accepting responsibility; disagreeing with or disputing the partner's framing (this always shifts toward IN); rejecting advice from close others but ultimately agreeing with the partner. When in doubt, when ambiguous, or when no other code clearly fits, default to IN.",
     },
     {
       name: "NC",
       description:
-        "Non-Constructive. Process-focused comments about how the conversation is going rather than the content of the conflict (e.g., \"We're not getting anywhere\", \"You're not listening to me\", \"This conversation isn't helping\"). Apply leniency early in the conversation. Can combine with a content code: when NC co-occurs with another code, report the content code as primary and note NC in alternatives_considered.",
+        "Non-Constructive. Process-focused comments about how the conversation is going rather than the content of the conflict (e.g., \"We're not getting anywhere\", \"This conversation isn't helping\"). Apply leniency early in the conversation. Can combine with a content code: when NC co-occurs with another code, report the content code as primary and note NC in alternatives_considered.",
     },
     {
       name: "ID",
       description:
-        "Indirect Distributive. Covers ALL questions (no exceptions) plus four subcategories — use the `subcategory` field to specify which when applicable. HQ (Hostile Questions): any question directed at the partner; the answer to a hostile question is also ID; sarcasm is always ID. MR (Mind Reading): speaker attributes thoughts, feelings, or motives to the partner without 'I think…' framing — if 'I think…' framing is used, code IN instead. DR (Denying Responsibility): speaker denies responsibility for something they could reasonably be held accountable for — future-focused; if responsibility is unreasonable or impossible, code IN. HJ (Hostile Joking): speaker mimics or mocks the partner; always ID unless the mimicry is clearly a compliment.",
+        "Indirect Distributive. Covers questions directed at the partner, plus four subcategories — use the `subcategory` field to specify which when applicable. HQ (Hostile Questions): any question directed at the partner that functions as a criticism or attack rather than a genuine request for information; the answer to a hostile question is also ID; sarcasm is always ID. MR (Mind Reading): speaker attributes thoughts, feelings, or motives to the partner without 'I think…' framing — if 'I think…' framing is used, code IN instead. DR (Denying Responsibility): speaker denies responsibility for something they could reasonably be held accountable for — future-focused; if responsibility is unreasonable or impossible, code IN. HJ (Hostile Joking): speaker mimics or mocks the partner; always ID unless the mimicry is clearly a compliment.",
     },
     {
       name: "P",
       description:
-        "Prescription. Proposes a global solution or tells the partner what to do (e.g., \"You need to stop doing that\", \"You should just communicate better\"). Only assign P when (1) the prescription is one-sided — if equally distributed between partners, code IN — and (2) it is NOT a response to a direct request for a solution; if the partner asked for a solution, code IN.",
+        "Prescription. Proposes a global solution or tells the partner what to do (e.g., \"You need to stop doing that\", \"You should just communicate better\"). Only assign P when it is NOT a response to a direct request for a solution; if the partner asked for a solution, code IN.",
     },
     {
       name: "B",
       description:
-        "Blame. Attributes fault to something the partner DID — behavior-focused, not character-focused (e.g., \"You're always late\", \"You never do your share of the housework\"). Assign B when the attribution is global in scope, targets the partner's BEHAVIOR (not character), and is one-sided (if equally distributed, code IN). Distinguish from R: Blame targets behavior; Rejection targets character.",
+        "Blame. Attributes fault to something the partner DID — behavior-focused, not character-focused (e.g., \"You're always late\", \"You never do your share of the housework\"). Assign B when the attribution is global in scope, targets the partner's BEHAVIOR (not character). Distinguish from R: Blame targets behavior; Rejection targets character.",
     },
     {
       name: "R",
