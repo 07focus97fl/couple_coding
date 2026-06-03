@@ -69,6 +69,20 @@ export function normalizeUsage(provider: ProviderId, raw: unknown): NormalizedUs
   if (!u || typeof u !== "object") return ZERO_USAGE;
 
   if (provider === "openai") {
+    // Responses API (reasoning models) reports input_tokens/output_tokens with
+    // input_tokens_details.cached_tokens; Chat Completions reports
+    // prompt_tokens/completion_tokens with prompt_tokens_details.cached_tokens.
+    // In both, the output total already includes reasoning tokens. Support both.
+    if (typeof u.input_tokens === "number") {
+      const details = u.input_tokens_details as Record<string, unknown> | undefined;
+      const cacheRead = num(details?.cached_tokens);
+      return {
+        inputTokens: Math.max(0, num(u.input_tokens) - cacheRead),
+        outputTokens: num(u.output_tokens),
+        cacheReadTokens: cacheRead,
+        cacheWriteTokens: 0,
+      };
+    }
     const details = u.prompt_tokens_details as Record<string, unknown> | undefined;
     const cacheRead = num(details?.cached_tokens);
     return {

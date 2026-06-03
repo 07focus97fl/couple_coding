@@ -47,11 +47,11 @@ export interface UsageTotals {
   cacheReadTokens: number;
   cacheWriteTokens: number;
   hasUsage: boolean;
-  /** Number of logged calls (one per coded exchange). */
+  /** Number of logged API calls (a single call may cover several exchanges when batching). */
   callCount: number;
 }
 
-/** Sum normalized usage + cost across a set of logs (one log = one exchange). */
+/** Sum normalized usage + cost across a set of logs (one log = one API call). */
 export function sumLogUsage(logs: ApiLog[]): UsageTotals {
   let inputTokens = 0;
   let outputTokens = 0;
@@ -113,7 +113,13 @@ export function useRunStats(
       const end = new Date(slice[slice.length - 1].timestamp).getTime();
       const spanMs = end - start;
       if (spanMs > 0) {
-        ratePerMin = (slice.length - 1) / (spanMs / 60_000);
+        const callsPerMin = (slice.length - 1) / (spanMs / 60_000);
+        // Logs count API calls; with batching a call covers several segments, so
+        // scale by the running average segments-per-call to express the rate in
+        // segments/min — the unit `remaining`/`completed` use. (Equals
+        // callsPerMin when batchSize is 1.)
+        const segPerCall = apiLogs.length > 0 ? completed / apiLogs.length : 1;
+        ratePerMin = callsPerMin * segPerCall;
       }
     } else if (elapsedMs > 0 && completed > 0) {
       ratePerMin = completed / (elapsedMs / 60_000);

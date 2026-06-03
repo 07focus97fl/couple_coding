@@ -75,6 +75,7 @@ export function SectionRun() {
     handleExportAll,
     doneFiles,
     selectedFiles,
+    batchSize,
   } = useSession();
 
   const scope = useRunScope();
@@ -154,8 +155,12 @@ export function SectionRun() {
           <div className={s.scopeFact}>
             This run will make{" "}
             <strong>{scope.apiCalls.toLocaleString()}</strong> API call
-            {scope.apiCalls !== 1 ? "s" : ""} — one per exchange — across{" "}
-            {scope.fileCount} file{scope.fileCount !== 1 ? "s" : ""}.
+            {scope.apiCalls !== 1 ? "s" : ""} —{" "}
+            {batchSize > 1
+              ? `up to ${batchSize} exchanges per call`
+              : "one per exchange"}{" "}
+            — across {scope.fileCount} file
+            {scope.fileCount !== 1 ? "s" : ""}.
           </div>
           {!runStats.hasUsage && (
             <div className={s.scopeGuide}>
@@ -237,9 +242,11 @@ export function SectionRun() {
           <span className={s.statsDim}>
             ≈{" "}
             {formatCost(
-              apiLogs.length > 0 ? runStats.costUsd / apiLogs.length : 0,
+              runStats.completed > 0
+                ? runStats.costUsd / runStats.completed
+                : 0,
             )}{" "}
-            per exchange (over {apiLogs.length})
+            per exchange (over {runStats.completed.toLocaleString()})
           </span>
         </div>
       )}

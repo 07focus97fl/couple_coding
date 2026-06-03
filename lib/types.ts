@@ -60,6 +60,14 @@ export interface CodingMode {
    * segmentation === "time". Defaults on.
    */
   perSpeaker?: boolean;
+  /**
+   * How many consecutive pre-segments to code in a single API call, to cut cost
+   * by amortizing the (cached) prompt and de-duplicating overlapping context.
+   * 1 = one unit per call (default, identical to the original behavior). Treated
+   * as an upper bound: an internal token ceiling and per-method cap auto-reduce
+   * it for large units (see lib/batching.ts `chunkSegments`).
+   */
+  batchSize?: number;
 }
 
 /** Inputs a scheme's prompt generator needs. */
@@ -245,6 +253,7 @@ export const DEFAULT_GRANULARITY: Granularity = "turn";
 export const DEFAULT_SEGMENTATION: SegmentationStrategy = "turn";
 export const DEFAULT_OUTPUT_TYPE: OutputType = "categorical";
 export const DEFAULT_WINDOW_SECONDS = 30;
+export const DEFAULT_BATCH_SIZE = 1;
 export const DEFAULT_SCALE: RatingScale = {
   min: 1,
   max: 7,

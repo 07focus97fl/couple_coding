@@ -253,6 +253,8 @@ export function SectionScheme() {
     setWindowSeconds,
     perSpeaker,
     setPerSpeaker,
+    batchSize,
+    setBatchSize,
   } = useSession();
 
   const schemesNav = CODING_SCHEMES.filter((sc) => sc.id !== "custom");
@@ -521,6 +523,44 @@ export function SectionScheme() {
                     </p>
                   </div>
                 )}
+
+                <div className={s.sliderBlock}>
+                  <div className={s.sliderRow}>
+                    <label className={s.sliderLabel}>Exchanges per call</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={10}
+                      step={1}
+                      value={batchSize}
+                      onChange={(e) => setBatchSize(Number(e.target.value))}
+                      className={s.windowInput}
+                    />
+                    <div className={s.sliderVal}>
+                      {batchSize === 1
+                        ? "one unit per call"
+                        : `${batchSize} units per call`}
+                    </div>
+                  </div>
+                  <p className={s.sliderHint}>
+                    {batchSize === 1 ? (
+                      <>
+                        Each unit is coded in its own API call. Raise this to
+                        code several consecutive units per call and{" "}
+                        <strong>cut cost</strong> — the prompt and shared context
+                        aren&apos;t re-sent for every unit.
+                      </>
+                    ) : (
+                      <>
+                        Codes up to <strong>{batchSize} consecutive units</strong>{" "}
+                        per API call to cut cost. Automatically reduced for long
+                        turns/windows, and capped lower for utterance coding to
+                        protect accuracy. Larger values trade a little reliability
+                        for lower cost.
+                      </>
+                    )}
+                  </p>
+                </div>
               </StepBlock>
 
               <StepBlock

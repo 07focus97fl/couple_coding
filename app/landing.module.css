@@ -689,6 +689,37 @@
   font-weight: 500;
   color: var(--accent-light);
   margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.schemeSoon {
+  font-family: var(--sans);
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8a8680;
+  background: #ffffff0f;
+  padding: 2px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.schemeAvail {
+  font-family: var(--sans);
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-light);
+  background: var(--accent-glow);
+  padding: 2px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.schemeCardSoon {
+  opacity: 0.72;
 }
 .schemeFull {
   font-weight: 600;

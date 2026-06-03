@@ -10,6 +10,7 @@ import {
   DEFAULT_OUTPUT_TYPE,
   DEFAULT_SCALE,
   DEFAULT_WINDOW_SECONDS,
+  DEFAULT_BATCH_SIZE,
 } from "./types";
 import { DEFAULT_REASONING_LEVEL, ReasoningLevel } from "./models";
 
@@ -28,7 +29,7 @@ export interface PersistedFile {
 }
 
 export interface PersistedSession {
-  version: 5;
+  version: 6;
   files: PersistedFile[];
   selectedModel: string;
   reasoningLevel: ReasoningLevel;
@@ -39,6 +40,7 @@ export interface PersistedSession {
   scale: RatingScale;
   windowSeconds: number;
   perSpeaker: boolean;
+  batchSize: number;
   categories: CategoryDefinition[];
   categoriesDirty: boolean;
   systemPrompt: string;
@@ -61,14 +63,20 @@ export function deserialize(raw: string): PersistedSession | null {
     if (!p.files || !Array.isArray(p.files)) return null;
     if (typeof p.systemPrompt !== "string") return null;
     if (!p.categories || !Array.isArray(p.categories)) return null;
-    if (p.version !== 3 && p.version !== 4 && p.version !== 5) return null;
+    if (
+      p.version !== 3 &&
+      p.version !== 4 &&
+      p.version !== 5 &&
+      p.version !== 6
+    )
+      return null;
 
-    // Migrate v3 -> v4 (granularity -> segmentation axis) and v4 -> v5
-    // (perSpeaker, default on). v5 payloads pass through.
+    // Migrate v3 -> v4 (granularity -> segmentation axis), v4 -> v5 (perSpeaker,
+    // default on), and v5 -> v6 (batchSize, default 1). v6 payloads pass through.
     const granularity: Granularity =
       p.granularity === "utterance" ? "utterance" : "turn";
     return {
-      version: 5,
+      version: 6,
       files: p.files,
       selectedModel: p.selectedModel ?? "",
       reasoningLevel: p.reasoningLevel ?? DEFAULT_REASONING_LEVEL,
@@ -79,6 +87,7 @@ export function deserialize(raw: string): PersistedSession | null {
       scale: p.scale ?? DEFAULT_SCALE,
       windowSeconds: p.windowSeconds ?? DEFAULT_WINDOW_SECONDS,
       perSpeaker: p.perSpeaker ?? true,
+      batchSize: p.batchSize ?? DEFAULT_BATCH_SIZE,
       categories: p.categories,
       categoriesDirty: p.categoriesDirty ?? false,
       systemPrompt: p.systemPrompt,

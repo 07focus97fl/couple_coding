@@ -77,3 +77,46 @@ export function buildUserMessage(
 
   return message;
 }
+
+/**
+ * Batched variant: code several consecutive targets in one call. The shared
+ * prior/following context is rendered once at each end (the targets serve as
+ * each other's internal context), and each target is labelled with the
+ * unit_index the model must echo back in its `units` entry. The targets are
+ * consecutive pre-segments, so context only needs to wrap the whole group.
+ */
+export function buildBatchUserMessage(
+  beforeSegs: PreSegment[],
+  targets: PreSegment[],
+  afterSegs: PreSegment[],
+  topic?: string,
+): string {
+  let message = "";
+
+  if (topic && topic.trim().length > 0) {
+    message += `CONVERSATION TOPIC: ${topic.trim()}\n\n`;
+  }
+
+  if (beforeSegs.length > 0) {
+    message += "PRIOR CONTEXT:\n";
+    for (const seg of beforeSegs) {
+      message += `${renderSegment(seg)}\n`;
+    }
+    message += "\n";
+  }
+
+  message +=
+    'UNITS TO CODE — code each one independently. In "units", return exactly one entry per unit below, tagged with its unit_index:\n';
+  targets.forEach((seg, i) => {
+    message += `\n[unit_index ${i}] ${renderSegment(seg)}\n`;
+  });
+
+  if (afterSegs.length > 0) {
+    message += "\nFOLLOWING CONTEXT:\n";
+    for (const seg of afterSegs) {
+      message += `${renderSegment(seg)}\n`;
+    }
+  }
+
+  return message;
+}

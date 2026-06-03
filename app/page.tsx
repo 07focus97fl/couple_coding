@@ -57,9 +57,9 @@ export default function LandingPage() {
           <em>automated</em>
         </h1>
         <p className={s.heroSub}>
-          Upload a conversation transcript. Choose a validated coding scheme.
-          Get every speaking turn coded with a transparent rationale — ready
-          for validation against human coders.
+          Upload a transcript — or raw audio. Choose a validated coding scheme.
+          Get every turn, utterance, or time window coded with a transparent
+          rationale — ready for validation against human coders.
         </p>
         <div className={s.heroActions}>
           <Link href="/coding" className={s.btnPrimary}>
@@ -141,20 +141,40 @@ export default function LandingPage() {
                     <div className={s.appHistCount}>6</div>
                     <div
                       className={s.appHistBar}
-                      style={{ height: "75%", background: "#7b9068" }}
+                      style={{ height: "100%", background: "#7a8a99" }}
                     />
                   </div>
-                  <div className={s.appHistLabel}>PO</div>
+                  <div className={s.appHistLabel}>IN</div>
                 </div>
                 <div className={s.appHistCol}>
                   <div className={s.appHistBarWrap}>
-                    <div className={s.appHistCount}>8</div>
+                    <div className={s.appHistCount}>3</div>
                     <div
                       className={s.appHistBar}
-                      style={{ height: "100%", background: "#a88a5e" }}
+                      style={{ height: "50%", background: "#907a5c" }}
                     />
                   </div>
-                  <div className={s.appHistLabel}>NE</div>
+                  <div className={s.appHistLabel}>B</div>
+                </div>
+                <div className={s.appHistCol}>
+                  <div className={s.appHistBarWrap}>
+                    <div className={s.appHistCount}>3</div>
+                    <div
+                      className={s.appHistBar}
+                      style={{ height: "50%", background: "#a88a5e" }}
+                    />
+                  </div>
+                  <div className={s.appHistLabel}>ID</div>
+                </div>
+                <div className={s.appHistCol}>
+                  <div className={s.appHistBarWrap}>
+                    <div className={s.appHistCount}>2</div>
+                    <div
+                      className={s.appHistBar}
+                      style={{ height: "33%", background: "#c18660" }}
+                    />
+                  </div>
+                  <div className={s.appHistLabel}>R</div>
                 </div>
               </div>
             </div>
@@ -171,14 +191,14 @@ export default function LandingPage() {
                     {"Honestly, thank you for handling dinner tonight — that took a lot off my plate."}
                   </div>
                   <div className={s.appRationale}>
-                    {"Expresses gratitude and validates the partner’s contribution — clear positive affect."}
+                    {"Specific appreciation acknowledging the partner’s contribution — integrative, the default constructive code."}
                   </div>
                 </div>
                 <div
                   className={s.appChip}
-                  style={{ background: "#7b90682e", color: "#7b9068" }}
+                  style={{ background: "#7a8a992e", color: "#7a8a99" }}
                 >
-                  PO
+                  IN
                 </div>
               </div>
 
@@ -193,14 +213,14 @@ export default function LandingPage() {
                     {"I just feel like I’m the only one who ever notices when something needs doing."}
                   </div>
                   <div className={s.appRationale}>
-                    {"Frames her effort as one-sided and casts the partner as inattentive — a complaint carrying negative affect."}
+                    {"Global, one-sided fault aimed at the partner’s behavior, not character — Blame."}
                   </div>
                 </div>
                 <div
                   className={s.appChip}
-                  style={{ background: "#a88a5e2e", color: "#a88a5e" }}
+                  style={{ background: "#907a5c2e", color: "#907a5c" }}
                 >
-                  NE
+                  B
                 </div>
               </div>
 
@@ -215,14 +235,14 @@ export default function LandingPage() {
                     {"That’s not fair — I do plenty around here, you just don’t see it."}
                   </div>
                   <div className={s.appRationale}>
-                    {"Defensive counter-claim that dismisses the partner’s experience instead of engaging with it."}
+                    {"Denies responsibility and dismisses the partner’s account — Indirect Distributive."}
                   </div>
                 </div>
                 <div
                   className={s.appChip}
                   style={{ background: "#a88a5e2e", color: "#a88a5e" }}
                 >
-                  NE
+                  ID
                 </div>
               </div>
 
@@ -237,14 +257,14 @@ export default function LandingPage() {
                     {"Okay. Maybe we can find a system that actually works for both of us."}
                   </div>
                   <div className={s.appRationale}>
-                    {"Shifts toward repair, proposing a mutual, collaborative solution."}
+                    {"Moves toward a mutual, equally-distributed solution — integrative repair."}
                   </div>
                 </div>
                 <div
                   className={s.appChip}
-                  style={{ background: "#7b90682e", color: "#7b9068" }}
+                  style={{ background: "#7a8a992e", color: "#7a8a99" }}
                 >
-                  PO
+                  IN
                 </div>
               </div>
             </div>
@@ -264,21 +284,21 @@ export default function LandingPage() {
               <div className={s.stepNum}>01</div>
               <div className={s.stepTitle}>Upload transcript</div>
               <div className={s.stepText}>
-                Drop in a word-level JSON from your transcription service. Speaker turns are segmented automatically.
+                Drop in a word-level JSON transcript — or upload raw audio (mp3, m4a, wav) and we transcribe it automatically with ElevenLabs. Speaker turns are segmented for you.
               </div>
             </div>
             <div className={s.step}>
               <div className={s.stepNum}>02</div>
               <div className={s.stepTitle}>Choose a scheme</div>
               <div className={s.stepText}>
-                Pick from validated systems — Valence, SPAFF, RCISS, CIRS — or define custom categories.
+                Code with our validated couple-conflict scheme (VCTS) or your own custom categories — as categorical codes or continuous 1–7 ratings. Valence, SPAFF, RCISS &amp; CIRS are on the way.
               </div>
             </div>
             <div className={s.step}>
               <div className={s.stepNum}>03</div>
               <div className={s.stepTitle}>Code with context</div>
               <div className={s.stepText}>
-                Claude codes each turn using a configurable window of prior turns to capture conversational dynamics.
+                Your chosen model — Claude, GPT, or Gemini — codes each turn, utterance, or time window using a configurable window of surrounding context.
               </div>
             </div>
             <div className={s.step}>
@@ -305,15 +325,15 @@ export default function LandingPage() {
             <div className={s.featureIcon}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
             </div>
-            <h3>Auto speaker segmentation</h3>
-            <p>Parses word-level JSON transcripts and automatically groups utterances into coherent speaker turns.</p>
+            <h3>Audio or transcript in</h3>
+            <p>Upload word-level JSON or raw audio (auto-transcribed via ElevenLabs); words are grouped into coherent speaker turns automatically.</p>
           </div>
           <div className={s.featureCard}>
             <div className={s.featureIcon}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             </div>
             <h3>Validated coding schemes</h3>
-            <p>Comes with established systems — Valence, SPAFF, RCISS, CIRS — used across decades of relationships research.</p>
+            <p>Ships with a validated couple-conflict scheme (VCTS) plus custom categories. Valence, SPAFF, RCISS &amp; CIRS — from decades of relationships research — are coming soon.</p>
           </div>
           <div className={s.featureCard}>
             <div className={s.featureIcon}>
@@ -343,6 +363,27 @@ export default function LandingPage() {
             <h3>Flexible CSV export</h3>
             <p>Control which columns to include, filter by speaker, and export data ready for your analysis pipeline.</p>
           </div>
+          <div className={s.featureCard}>
+            <div className={s.featureIcon}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+            </div>
+            <h3>Categorical or continuous</h3>
+            <p>Assign discrete codes, or rate each unit on continuous 1–7 scales with your own min/max anchors.</p>
+          </div>
+          <div className={s.featureCard}>
+            <div className={s.featureIcon}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            </div>
+            <h3>Flexible segmentation</h3>
+            <p>Code by speaking turn, by utterance, or by fixed time window — with optional per-speaker coding.</p>
+          </div>
+          <div className={s.featureCard}>
+            <div className={s.featureIcon}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>
+            </div>
+            <h3>Model of your choice</h3>
+            <p>Run on Anthropic, OpenAI, or Google models with your own API key — pick the cost/quality tradeoff you want.</p>
+          </div>
         </div>
       </section>
 
@@ -352,34 +393,56 @@ export default function LandingPage() {
           <div className={s.reveal}>
             <div className={s.sectionLabel}>Coding systems</div>
             <div className={`${s.sectionTitle} ${s.schemesTitleLight}`}>
-              Validated schemes, ready to use
+              Validated schemes, with more on the way
             </div>
-            <div className={s.sectionDesc}>Choose from established coding systems or bring your own.</div>
+            <div className={s.sectionDesc}>Start with our couple-conflict scheme or bring your own — more validated systems are coming.</div>
           </div>
           <div className={`${s.schemesGrid} ${s.reveal}`}>
             <div className={s.schemeCard}>
-              <div className={s.schemeName}>Valence</div>
+              <div className={s.schemeName}>
+                VCTS
+                <span className={s.schemeAvail}>Available</span>
+              </div>
+              <div className={s.schemeFull}>Couple Conflict Coding</div>
+              <div className={s.schemeDesc}>
+                Six-code conflict scheme — Integrative, Non-Constructive, Indirect Distributive, Prescription, Blame, Rejection.
+              </div>
+            </div>
+            <div className={`${s.schemeCard} ${s.schemeCardSoon}`}>
+              <div className={s.schemeName}>
+                Valence
+                <span className={s.schemeSoon}>Coming soon</span>
+              </div>
               <div className={s.schemeFull}>Positive / Negative Affect</div>
               <div className={s.schemeDesc}>
                 Binary affect coding — the simplest and most common starting point for interaction research.
               </div>
             </div>
-            <div className={s.schemeCard}>
-              <div className={s.schemeName}>SPAFF</div>
+            <div className={`${s.schemeCard} ${s.schemeCardSoon}`}>
+              <div className={s.schemeName}>
+                SPAFF
+                <span className={s.schemeSoon}>Coming soon</span>
+              </div>
               <div className={s.schemeFull}>Specific Affect Coding System</div>
               <div className={s.schemeDesc}>
                 Gottman&apos;s fine-grained system distinguishing contempt, defensiveness, stonewalling, and more.
               </div>
             </div>
-            <div className={s.schemeCard}>
-              <div className={s.schemeName}>RCISS</div>
+            <div className={`${s.schemeCard} ${s.schemeCardSoon}`}>
+              <div className={s.schemeName}>
+                RCISS
+                <span className={s.schemeSoon}>Coming soon</span>
+              </div>
               <div className={s.schemeFull}>Rapid Couples Interaction Scoring</div>
               <div className={s.schemeDesc}>
                 Efficient speaker-listener distinction with positive and negative codes for each role.
               </div>
             </div>
-            <div className={s.schemeCard}>
-              <div className={s.schemeName}>CIRS</div>
+            <div className={`${s.schemeCard} ${s.schemeCardSoon}`}>
+              <div className={s.schemeName}>
+                CIRS
+                <span className={s.schemeSoon}>Coming soon</span>
+              </div>
               <div className={s.schemeFull}>Couples Interaction Rating System</div>
               <div className={s.schemeDesc}>
                 Global ratings of conflict, support, and withdrawal behaviors at the conversation level.
@@ -410,16 +473,16 @@ export default function LandingPage() {
                   </span>
                   <span
                     className={s.rChip}
-                    style={{ background: "#a88a5e2e", color: "#a88a5e" }}
+                    style={{ background: "#907a5c2e", color: "#907a5c" }}
                   >
-                    NE
+                    B
                   </span>
                 </div>
                 <div className={s.rUtter}>
                   {"I just feel like I’m the only one who ever notices when something needs doing."}
                 </div>
                 <div className={s.rRationale}>
-                  {"Frames her effort as one-sided and casts the partner as inattentive — a complaint carrying negative affect."}
+                  {"Global, one-sided fault aimed at the partner’s behavior, not character — Blame."}
                 </div>
               </div>
               <div className={s.rationaleRow}>
@@ -432,14 +495,14 @@ export default function LandingPage() {
                     className={s.rChip}
                     style={{ background: "#a88a5e2e", color: "#a88a5e" }}
                   >
-                    NE
+                    ID
                   </span>
                 </div>
                 <div className={s.rUtter}>
                   {"That’s not fair — I do plenty around here, you just don’t see it."}
                 </div>
                 <div className={s.rRationale}>
-                  {"Defensive counter-claim that dismisses the partner’s experience. Read against turn 12, it escalates the exchange rather than repairing it."}
+                  {"Denies responsibility and dismisses the partner’s account. Read against turn 12, it escalates the exchange rather than repairing it."}
                 </div>
               </div>
             </div>

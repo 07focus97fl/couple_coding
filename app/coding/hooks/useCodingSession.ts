@@ -13,6 +13,7 @@ import {
   DEFAULT_SCALE,
   DEFAULT_SEGMENTATION,
   DEFAULT_WINDOW_SECONDS,
+  DEFAULT_BATCH_SIZE,
   Granularity,
   OutputType,
   RatingScale,
@@ -167,6 +168,7 @@ export interface CodingSession {
   scale: RatingScale;
   windowSeconds: number;
   perSpeaker: boolean;
+  batchSize: number;
   systemPrompt: string;
   promptDirty: boolean;
   contextBefore: number;
@@ -178,6 +180,7 @@ export interface CodingSession {
   setScale: (s: RatingScale) => void;
   setWindowSeconds: (n: number) => void;
   setPerSpeaker: (b: boolean) => void;
+  setBatchSize: (n: number) => void;
   setCategories: (c: CategoryDefinition[]) => void;
   resetCategories: () => void;
   setSystemPrompt: (v: string) => void;
@@ -249,6 +252,9 @@ export function useCodingSession(): CodingSession {
   );
   // Per-speaker time coding is on by default; only affects time segmentation.
   const [perSpeaker, setPerSpeakerState] = useState<boolean>(true);
+  // How many consecutive pre-segments to code per API call (cost reduction);
+  // 1 = one unit per call. Auto-capped server-side for large units.
+  const [batchSize, setBatchSizeState] = useState<number>(DEFAULT_BATCH_SIZE);
   // granularity (turn | utterance) is the categorical-era view of segmentation.
   const granularity: Granularity =
     segmentation === "utterance" ? "utterance" : "turn";
@@ -321,6 +327,7 @@ export function useCodingSession(): CodingSession {
           setScaleState(parsed.scale);
           setWindowSecondsState(parsed.windowSeconds);
           setPerSpeakerState(parsed.perSpeaker);
+          setBatchSizeState(parsed.batchSize);
           setCategoriesState(parsed.categories);
           setCategoriesDirty(parsed.categoriesDirty);
           setSystemPromptState(parsed.systemPrompt);
@@ -412,7 +419,7 @@ export function useCodingSession(): CodingSession {
     if (!hydrated) return null;
     if (isAnyCoding) return null;
     return {
-      version: 5,
+      version: 6,
       files: files.map((f) => ({
         id: f.id,
         fileName: f.fileName,
@@ -429,6 +436,7 @@ export function useCodingSession(): CodingSession {
       scale,
       windowSeconds,
       perSpeaker,
+      batchSize,
       categories,
       categoriesDirty,
       systemPrompt,
@@ -448,6 +456,7 @@ export function useCodingSession(): CodingSession {
     scale,
     windowSeconds,
     perSpeaker,
+    batchSize,
     categories,
     categoriesDirty,
     systemPrompt,
@@ -790,6 +799,10 @@ export function useCodingSession(): CodingSession {
     setWindowSecondsState(n);
   }, []);
 
+  const setBatchSize = useCallback((n: number) => {
+    setBatchSizeState(Number.isFinite(n) ? Math.max(1, Math.floor(n)) : 1);
+  }, []);
+
   const setPerSpeaker = useCallback(
     (next: boolean) => {
       if (next === perSpeaker) return;
@@ -866,6 +879,7 @@ export function useCodingSession(): CodingSession {
         scale,
         windowSeconds,
         perSpeaker,
+        batchSize,
       };
       const segs = segment(file.rawTranscript.words, mode);
 
@@ -1009,6 +1023,7 @@ export function useCodingSession(): CodingSession {
     scale,
     windowSeconds,
     perSpeaker,
+    batchSize,
     categories,
     systemPrompt,
     contextBefore,
@@ -1102,6 +1117,7 @@ export function useCodingSession(): CodingSession {
     scale,
     windowSeconds,
     perSpeaker,
+    batchSize,
     systemPrompt,
     promptDirty,
     contextBefore,
@@ -1113,6 +1129,7 @@ export function useCodingSession(): CodingSession {
     setScale,
     setWindowSeconds,
     setPerSpeaker,
+    setBatchSize,
     setCategories,
     resetCategories,
     setSystemPrompt,

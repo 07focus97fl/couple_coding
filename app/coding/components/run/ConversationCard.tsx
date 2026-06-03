@@ -131,9 +131,11 @@ export function ConversationCard({
               {totals.inputTokens.toLocaleString()} in ·{" "}
               {totals.outputTokens.toLocaleString()} out · ≈{" "}
               {formatCost(
-                totals.callCount > 0 ? totals.costUsd / totals.callCount : 0,
+                file.progress.completed > 0
+                  ? totals.costUsd / file.progress.completed
+                  : 0,
               )}{" "}
-              per exchange ({totals.callCount} calls)
+              per exchange (over {file.progress.completed.toLocaleString()})
             </div>
           )}
 
