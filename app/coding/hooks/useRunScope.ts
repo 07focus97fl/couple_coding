@@ -8,7 +8,7 @@ import type { CodingMode } from "@/lib/types";
 
 export interface RunScope {
   /** Total API calls the run will make under the current segmentation and batch
-   *  size — one call per batch of exchanges — across selected files. */
+   *  size — one call per batch of units — across selected files. */
   apiCalls: number;
   fileCount: number;
   perFile: { fileName: string; calls: number }[];

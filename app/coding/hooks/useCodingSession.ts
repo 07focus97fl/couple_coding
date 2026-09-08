@@ -56,8 +56,8 @@ export interface CodingSession {
   setSelectedModel: (id: string) => void;
   reasoningLevel: ReasoningLevel;
   setReasoningLevel: (l: ReasoningLevel) => void;
-  apiKey: string;
-  setApiKey: (k: string) => void;
+  anthropicKey: string;
+  setAnthropicKey: (k: string) => void;
   openaiKey: string;
   setOpenaiKey: (k: string) => void;
   googleKey: string;
@@ -112,8 +112,8 @@ export interface CodingSession {
   hasFiles: boolean;
   stepDone: [boolean, boolean, boolean, boolean];
   selectedFiles: TranscriptFile[];
-  totalTurns: number;
-  completedTurns: number;
+  totalUnits: number;
+  completedUnits: number;
   allCodedUnits: CodedUnit[];
   categoryColorMap: Record<string, string>;
   runStartedAt: number | null;
@@ -173,8 +173,8 @@ export function useCodingSession(): CodingSession {
     setSelectedModel: model.setSelectedModel,
     reasoningLevel: model.reasoningLevel,
     setReasoningLevel: model.setReasoningLevel,
-    apiKey: model.apiKey,
-    setApiKey: model.setApiKey,
+    anthropicKey: model.anthropicKey,
+    setAnthropicKey: model.setAnthropicKey,
     openaiKey: model.openaiKey,
     setOpenaiKey: model.setOpenaiKey,
     googleKey: model.googleKey,
@@ -225,8 +225,8 @@ export function useCodingSession(): CodingSession {
     hasFiles: upload.hasFiles,
     stepDone,
     selectedFiles: upload.selectedFiles,
-    totalTurns: run.totalTurns,
-    completedTurns: run.completedTurns,
+    totalUnits: run.totalUnits,
+    completedUnits: run.completedUnits,
     allCodedUnits: run.allCodedUnits,
     categoryColorMap: scheme.categoryColorMap,
     runStartedAt: run.runStartedAt,

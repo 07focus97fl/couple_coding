@@ -102,7 +102,7 @@ export function ConversationCard({
           <span className={s.metaDim}>
             {totals.hasUsage ? formatCost(totals.costUsd) : "—"}
           </span>
-          {file.codedUnits.length > 0 && <ExportButton codedTurns={sorted} />}
+          {file.codedUnits.length > 0 && <ExportButton codedUnits={sorted} />}
           <button
             type="button"
             className={s.chevron}
@@ -135,7 +135,7 @@ export function ConversationCard({
                   ? totals.costUsd / file.progress.completed
                   : 0,
               )}{" "}
-              per exchange (over {file.progress.completed.toLocaleString()})
+              per unit (over {file.progress.completed.toLocaleString()})
             </div>
           )}
 

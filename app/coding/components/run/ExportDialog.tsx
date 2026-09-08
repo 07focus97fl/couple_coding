@@ -31,15 +31,15 @@ import { generateCsv, dimsFromUnits } from "@/lib/results/generate-csv";
 interface ExportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  codedTurns: CodedUnit[];
+  codedUnits: CodedUnit[];
 }
 
-export function ExportDialog({ open, onOpenChange, codedTurns }: ExportDialogProps) {
+export function ExportDialog({ open, onOpenChange, codedUnits }: ExportDialogProps) {
   const [config, setConfig] = useState<ExportConfig>(DEFAULT_EXPORT_CONFIG);
 
-  const dims = dimsFromUnits(codedTurns);
+  const dims = dimsFromUnits(codedUnits);
   const isContinuous = !!dims;
-  const hasTimeWindows = codedTurns.some((u) => u.kind === "time");
+  const hasTimeWindows = codedUnits.some((u) => u.kind === "time");
   const columnDefs = isContinuous
     ? COLUMN_DEFINITIONS.filter(
         (c) =>
@@ -65,15 +65,15 @@ export function ExportDialog({ open, onOpenChange, codedTurns }: ExportDialogPro
   const handleExport = () => {
     const filtered =
       config.speakerFilter === "all"
-        ? codedTurns
-        : codedTurns.filter((t) => t.speaker === config.speakerFilter);
+        ? codedUnits
+        : codedUnits.filter((t) => t.speaker === config.speakerFilter);
 
     const csv = generateCsv(filtered, config.visibleColumns, dims);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "coded_turns.csv";
+    a.download = "coded_units.csv";
     a.click();
     URL.revokeObjectURL(url);
     onOpenChange(false);

@@ -6,10 +6,10 @@ import { ExportDialog } from "./ExportDialog";
 import { CodedUnit } from "@/lib/types";
 
 interface ExportButtonProps {
-  codedTurns: CodedUnit[];
+  codedUnits: CodedUnit[];
 }
 
-export function ExportButton({ codedTurns }: ExportButtonProps) {
+export function ExportButton({ codedUnits }: ExportButtonProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -17,7 +17,7 @@ export function ExportButton({ codedTurns }: ExportButtonProps) {
       <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
         Export CSV
       </Button>
-      <ExportDialog open={open} onOpenChange={setOpen} codedTurns={codedTurns} />
+      <ExportDialog open={open} onOpenChange={setOpen} codedUnits={codedUnits} />
     </>
   );
 }

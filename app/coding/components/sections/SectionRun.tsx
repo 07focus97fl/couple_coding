@@ -66,8 +66,8 @@ export function SectionRun() {
     schemeId,
     selectedModel,
     stepDone,
-    totalTurns,
-    completedTurns,
+    totalUnits,
+    completedUnits,
     allCodedUnits,
     runStats,
     apiLogs,
@@ -97,7 +97,7 @@ export function SectionRun() {
   const circleState =
     runState === "done" ? "done" : runState === "running" ? "active" : "idle";
 
-  const pct = totalTurns > 0 ? (completedTurns / totalTurns) * 100 : 0;
+  const pct = totalUnits > 0 ? (completedUnits / totalUnits) * 100 : 0;
 
   const hint = !anySelected
     ? "Select at least one file in Section 01"
@@ -120,7 +120,7 @@ export function SectionRun() {
       title="Watch it code, live."
       description="Every turn streams in with its category and the model's rationale. Click any row to inspect the full reasoning and override the code. Nothing is committed until you export — reliability is yours to verify."
       cardTitle="Run"
-      cardMeta={totalTurns > 0 ? `${completedTurns}/${totalTurns}` : undefined}
+      cardMeta={totalUnits > 0 ? `${completedUnits}/${totalUnits}` : undefined}
       state={circleState}
       circleKind="accent"
       headAction={
@@ -157,19 +157,19 @@ export function SectionRun() {
             <strong>{scope.apiCalls.toLocaleString()}</strong> API call
             {scope.apiCalls !== 1 ? "s" : ""} —{" "}
             {batchSize > 1
-              ? `up to ${batchSize} exchanges per call`
-              : "one per exchange"}{" "}
+              ? `up to ${batchSize} units per call`
+              : "one per unit"}{" "}
             — across {scope.fileCount} file
             {scope.fileCount !== 1 ? "s" : ""}.
           </div>
           {!runStats.hasUsage && (
             <div className={s.scopeGuide}>
               Cost can&rsquo;t be predicted reliably up front — it depends on
-              transcript length, number of exchanges, context window, model, and
+              transcript length, number of units, context window, model, and
               how much the model writes per turn. To gauge it: code one
               transcript (or a small batch) first, read the exact{" "}
-              <strong>per-exchange cost</strong> in the run summary below, then
-              multiply by your total exchanges.
+              <strong>per-unit cost</strong> in the run summary below, then
+              multiply by your total units.
             </div>
           )}
           {scope.fileCount > 1 && (
@@ -199,7 +199,7 @@ export function SectionRun() {
             }
           />
           <span className={s.statsText}>
-            {totalTurns > 0 ? `${completedTurns}/${totalTurns}` : "—"}
+            {totalUnits > 0 ? `${completedUnits}/${totalUnits}` : "—"}
           </span>
           <span className={s.statsDot}>·</span>
           <span className={s.statsDim}>
@@ -246,7 +246,7 @@ export function SectionRun() {
                 ? runStats.costUsd / runStats.completed
                 : 0,
             )}{" "}
-            per exchange (over {runStats.completed.toLocaleString()})
+            per unit (over {runStats.completed.toLocaleString()})
           </span>
         </div>
       )}

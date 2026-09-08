@@ -213,7 +213,9 @@ export interface ApiLogParsedUnit {
 }
 
 export interface ApiLog {
+  /** Turn number of the first unit in the call; the window index in time mode. */
   turnNumber: number;
+  /** Speaker of that unit; the comma-joined speaker list for a time window. */
   speaker: string;
   /** How the transcript was cut for this run (turn / utterance / time). */
   segmentation: SegmentationStrategy;

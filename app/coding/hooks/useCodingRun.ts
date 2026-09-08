@@ -32,8 +32,8 @@ export interface CodingRunState {
   // Derived
   runStartedAt: number | null;
   runStats: RunStats;
-  totalTurns: number;
-  completedTurns: number;
+  totalUnits: number;
+  completedUnits: number;
   allCodedUnits: CodedUnit[];
   doneFiles: TranscriptFile[];
 }
@@ -81,8 +81,8 @@ export function useCodingRun({
     [selectedFiles],
   );
 
-  const totalTurns = selectedFiles.reduce((s, f) => s + f.progress.total, 0);
-  const completedTurns = selectedFiles.reduce(
+  const totalUnits = selectedFiles.reduce((s, f) => s + f.progress.total, 0);
+  const completedUnits = selectedFiles.reduce(
     (s, f) => s + f.progress.completed,
     0,
   );
@@ -90,8 +90,8 @@ export function useCodingRun({
   const runStats = useRunStats(
     apiLogs,
     runStartedAt,
-    totalTurns,
-    completedTurns,
+    totalUnits,
+    completedUnits,
     isAnyCoding,
   );
 
@@ -297,8 +297,8 @@ export function useCodingRun({
 
     runStartedAt,
     runStats,
-    totalTurns,
-    completedTurns,
+    totalUnits,
+    completedUnits,
     allCodedUnits,
     doneFiles,
   };

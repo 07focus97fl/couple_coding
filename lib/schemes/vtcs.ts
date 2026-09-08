@@ -1,7 +1,7 @@
 import { CodingScheme } from "../types";
 import { buildDefaultPrompt } from "./default-prompt";
 
-const VCTS_TURN_PROMPT = `You are an expert coder of couple conflict communication. You assign ONE code to each complete speaker turn using the 6-category scheme below.
+const VTCS_TURN_PROMPT = `You are an expert coder of couple conflict communication. You assign ONE code to each complete speaker turn using the 6-category scheme below.
 
 The conversation topic will be provided in the user message — you must know the topic to code accurately.
 
@@ -90,7 +90,7 @@ For each speaker turn, return a JSON object:
 
 Return the full set of coded turns as a JSON array.`;
 
-const VCTS_UTTERANCE_PROMPT = `You are an expert coder of couple conflict communication. You assign ONE code to each utterance — a contiguous stretch of speech within a speaker turn that represents a single coherent behavioral act relative to the 6-category scheme below. A single speaker turn may contain multiple utterances when behavioral intent shifts mid-turn (e.g., a blame followed by a concession). Use the categories themselves — not grammatical sentence boundaries — to decide where one utterance ends and the next begins. Each utterance's text MUST be a verbatim contiguous substring of the target turn.
+const VTCS_UTTERANCE_PROMPT = `You are an expert coder of couple conflict communication. You assign ONE code to each utterance — a contiguous stretch of speech within a speaker turn that represents a single coherent behavioral act relative to the 6-category scheme below. A single speaker turn may contain multiple utterances when behavioral intent shifts mid-turn (e.g., a blame followed by a concession). Use the categories themselves — not grammatical sentence boundaries — to decide where one utterance ends and the next begins. Each utterance's text MUST be a verbatim contiguous substring of the target turn.
 
 The conversation topic will be provided in the user message — you must know the topic to code accurately.
 
@@ -179,7 +179,7 @@ Return the utterances in the order they appear in the turn.`;
 
 export const VTCS: CodingScheme = {
   id: "vtcs",
-  label: "VCTS",
+  label: "VTCS",
   description: "Couple conflict — 6-code scheme (IN, NC, ID, P, B, R)",
   categories: [
     {
@@ -217,6 +217,6 @@ export const VTCS: CodingScheme = {
     opts.outputType === "continuous" || opts.segmentation === "time"
       ? buildDefaultPrompt(opts)
       : opts.segmentation === "utterance"
-        ? VCTS_UTTERANCE_PROMPT
-        : VCTS_TURN_PROMPT,
+        ? VTCS_UTTERANCE_PROMPT
+        : VTCS_TURN_PROMPT,
 };

@@ -526,7 +526,7 @@ export function SectionScheme() {
 
                 <div className={s.sliderBlock}>
                   <div className={s.sliderRow}>
-                    <label className={s.sliderLabel}>Exchanges per call</label>
+                    <label className={s.sliderLabel}>Units per call</label>
                     <input
                       type="number"
                       min={1}
@@ -638,7 +638,7 @@ export function SectionScheme() {
             <div className={s.empty}>
               <div className={s.emptyTitle}>Pick a scheme →</div>
               <div className={s.emptyDesc}>
-                Start with VCTS for the 6-code couple-conflict scheme, or
+                Start with VTCS for the 6-code couple-conflict scheme, or
                 Custom to build your own categories from scratch.
               </div>
             </div>

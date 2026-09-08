@@ -61,8 +61,8 @@ function ClearIcon() {
 }
 
 /**
- * VCTS-only table for labelling each transcript with its conversation topic.
- * Topics are required for VCTS (the model needs the discussion subject to code
+ * VTCS-only table for labelling each transcript with its conversation topic.
+ * Topics are required for VTCS (the model needs the discussion subject to code
  * accurately), so empty rows are flagged and a running count is shown.
  */
 export function TopicTable() {
@@ -77,7 +77,7 @@ export function TopicTable() {
     <div className={s.block}>
       <div className={s.head}>
         <span className={s.headTitle}>Conversation topics</span>
-        <span className={s.reqTag}>Required for VCTS</span>
+        <span className={s.reqTag}>Required for VTCS</span>
         {total > 0 && (
           <span className={`${s.count} ${allSet ? s.countDone : ""}`}>
             {setCount}/{total} set
@@ -85,7 +85,7 @@ export function TopicTable() {
         )}
       </div>
       <p className={s.hint}>
-        VCTS codes each turn against what the couple was discussing, so every
+        VTCS codes each turn against what the couple was discussing, so every
         transcript needs a topic before you run it.
       </p>
 

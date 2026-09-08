@@ -291,7 +291,7 @@ export default function LandingPage() {
               <div className={s.stepNum}>02</div>
               <div className={s.stepTitle}>Choose a scheme</div>
               <div className={s.stepText}>
-                Code with our validated couple-conflict scheme (VCTS) or your own custom categories — as categorical codes or continuous 1–7 ratings. Valence, SPAFF, RCISS &amp; CIRS are on the way.
+                Code with our validated couple-conflict scheme (VTCS) or your own custom categories — as categorical codes or continuous 1–7 ratings. Valence, SPAFF, RCISS &amp; CIRS are on the way.
               </div>
             </div>
             <div className={s.step}>
@@ -333,7 +333,7 @@ export default function LandingPage() {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             </div>
             <h3>Validated coding schemes</h3>
-            <p>Ships with a validated couple-conflict scheme (VCTS) plus custom categories. Valence, SPAFF, RCISS &amp; CIRS — from decades of relationships research — are coming soon.</p>
+            <p>Ships with a validated couple-conflict scheme (VTCS) plus custom categories. Valence, SPAFF, RCISS &amp; CIRS — from decades of relationships research — are coming soon.</p>
           </div>
           <div className={s.featureCard}>
             <div className={s.featureIcon}>
@@ -400,7 +400,7 @@ export default function LandingPage() {
           <div className={`${s.schemesGrid} ${s.reveal}`}>
             <div className={s.schemeCard}>
               <div className={s.schemeName}>
-                VCTS
+                VTCS
                 <span className={s.schemeAvail}>Available</span>
               </div>
               <div className={s.schemeFull}>Couple Conflict Coding</div>

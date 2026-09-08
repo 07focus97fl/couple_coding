@@ -22,8 +22,8 @@ export interface ModelAndKeysState {
   setSelectedModel: (id: string) => void;
   reasoningLevel: ReasoningLevel;
   setReasoningLevel: (l: ReasoningLevel) => void;
-  apiKey: string;
-  setApiKey: (k: string) => void;
+  anthropicKey: string;
+  setAnthropicKey: (k: string) => void;
   openaiKey: string;
   setOpenaiKey: (k: string) => void;
   googleKey: string;
@@ -41,7 +41,7 @@ export interface ModelAndKeysState {
 }
 
 export function useModelAndKeys(): ModelAndKeysState {
-  const [apiKey, setApiKeyState] = useState("");
+  const [anthropicKey, setAnthropicKeyState] = useState("");
   const [openaiKey, setOpenaiKeyState] = useState("");
   const [googleKey, setGoogleKeyState] = useState("");
   // Empty until the user explicitly picks a model — nothing is preselected, so the
@@ -55,7 +55,7 @@ export function useModelAndKeys(): ModelAndKeysState {
   // autosave blob; they live under their own localStorage entries).
   const loadStoredKeys = useCallback(() => {
     const storedKey = localStorage.getItem("anthropic_api_key");
-    if (storedKey) setApiKeyState(storedKey);
+    if (storedKey) setAnthropicKeyState(storedKey);
     const storedOpenai = localStorage.getItem("openai_api_key");
     if (storedOpenai) setOpenaiKeyState(storedOpenai);
     const storedGoogle = localStorage.getItem("google_api_key");
@@ -74,12 +74,12 @@ export function useModelAndKeys(): ModelAndKeysState {
       ? openaiKey
       : activeProvider === "google"
       ? googleKey
-      : apiKey;
+      : anthropicKey;
 
   // ── Handlers ──
 
-  const setApiKey = useCallback((val: string) => {
-    setApiKeyState(val);
+  const setAnthropicKey = useCallback((val: string) => {
+    setAnthropicKeyState(val);
     if (val) localStorage.setItem("anthropic_api_key", val);
     else localStorage.removeItem("anthropic_api_key");
   }, []);
@@ -113,8 +113,8 @@ export function useModelAndKeys(): ModelAndKeysState {
     setSelectedModel,
     reasoningLevel,
     setReasoningLevel,
-    apiKey,
-    setApiKey,
+    anthropicKey,
+    setAnthropicKey,
     openaiKey,
     setOpenaiKey,
     googleKey,

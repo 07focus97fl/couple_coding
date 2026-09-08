@@ -131,8 +131,8 @@ export function SectionModel() {
     reasoningLevel,
     setReasoningLevel,
     activeProvider,
-    apiKey,
-    setApiKey,
+    anthropicKey,
+    setAnthropicKey,
     openaiKey,
     setOpenaiKey,
     googleKey,
@@ -146,7 +146,7 @@ export function SectionModel() {
   // the run uses. Keys for other providers stay saved in this browser and
   // reappear if you switch back to a model from that provider.
   const providerKeys = [
-    { id: "anthropic" as const, name: "Anthropic", value: apiKey, setValue: setApiKey, placeholder: "sk-ant-…" },
+    { id: "anthropic" as const, name: "Anthropic", value: anthropicKey, setValue: setAnthropicKey, placeholder: "sk-ant-…" },
     { id: "openai" as const, name: "OpenAI", value: openaiKey, setValue: setOpenaiKey, placeholder: "sk-…" },
     { id: "google" as const, name: "Google", value: googleKey, setValue: setGoogleKey, placeholder: "AIza…" },
   ];
