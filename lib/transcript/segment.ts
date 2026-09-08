@@ -1,3 +1,11 @@
+/**
+ * WHAT:    The segmentation seam: turns a transcript into the PreSegment[] the run
+ *          will code, according to the chosen strategy (turn / utterance / time).
+ *          Adding a new way to cut a transcript means adding a branch here.
+ * STEP:    Run. Called client-side before POSTing to /api/code, and by useRunScope
+ *          to predict the call count.
+ * RUNS ON: both (pure function)
+ */
 import {
   CodingMode,
   PreSegment,

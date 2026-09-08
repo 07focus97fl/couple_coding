@@ -1,4 +1,10 @@
 "use client";
+/**
+ * WHAT:    The left sidebar: the four steps with scroll-spy highlighting, done
+ *          checkmarks, and a key-linked indicator.
+ * STEP:    Page chrome.
+ * RUNS ON: client
+ */
 
 import { useSession } from "../../hooks/CodingSessionContext";
 import { scrollToSection } from "../../hooks/useScrollSpy";

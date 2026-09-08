@@ -1,4 +1,10 @@
 "use client";
+/**
+ * WHAT:    The sticky top bar with the wordmark; publishes its own height as the
+ *          --header-h CSS variable for the rail and scroll-spy.
+ * STEP:    Page chrome.
+ * RUNS ON: client
+ */
 
 import Link from "next/link";
 import { useEffect, useRef } from "react";

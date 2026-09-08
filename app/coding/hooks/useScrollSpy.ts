@@ -1,4 +1,10 @@
 "use client";
+/**
+ * WHAT:    Tracks which numbered section is in view (for the stage rail) and
+ *          scrolls to a section on request.
+ * STEP:    Shared UI.
+ * RUNS ON: client
+ */
 
 import { useEffect, useState } from "react";
 

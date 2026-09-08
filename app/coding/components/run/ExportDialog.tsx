@@ -1,4 +1,10 @@
 "use client";
+/**
+ * WHAT:    Modal to pick CSV columns and a speaker filter, then download one file's
+ *          coded units.
+ * STEP:    Run.
+ * RUNS ON: client
+ */
 
 import { useState } from "react";
 import {

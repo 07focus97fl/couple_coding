@@ -1,3 +1,11 @@
+/**
+ * WHAT:    The shape of the saved session (PersistedSession), its serializer, and
+ *          the migration that upgrades older saves (v3 to v6) on load.
+ * STEP:    Shared. Used by useSessionPersistence and useAutosave.
+ * RUNS ON: client
+ * STORAGE: localStorage "ccc_session_v3" (the key name is frozen; see the note
+ *          below)
+ */
 import {
   CategoryDefinition,
   OutputType,

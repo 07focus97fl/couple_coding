@@ -1,4 +1,10 @@
 "use client";
+/**
+ * WHAT:    Modal explaining the accepted audio and JSON formats, with a link to the
+ *          sample file.
+ * STEP:    Upload.
+ * RUNS ON: client
+ */
 
 import {
   Dialog,

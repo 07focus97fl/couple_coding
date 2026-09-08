@@ -1,3 +1,10 @@
+/**
+ * WHAT:    The model catalog: every model the app offers, its provider, whether it
+ *          exposes a reasoning-effort setting, and its USD price per million
+ *          tokens. To add or re-price a model, edit MODELS here and nothing else.
+ * STEP:    Model (the picker) and Run (pricing for the cost figures).
+ * RUNS ON: both
+ */
 export type ProviderId = "anthropic" | "openai" | "google";
 
 // Reasoning effort levels (OpenAI GPT-5.x). "none" favors latency; higher levels

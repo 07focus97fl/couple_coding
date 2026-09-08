@@ -1,3 +1,11 @@
+/**
+ * WHAT:    Builds the two strings each LLM call receives: the final system prompt
+ *          (the user's prompt plus the category or rating block) and the user
+ *          message (prior context, the target unit or units, following context, and
+ *          the topic).
+ * STEP:    Run, server side. Called by lib/coding/code-segments.ts.
+ * RUNS ON: server only (pure functions)
+ */
 import {
   CategoryDefinition,
   CodingMode,

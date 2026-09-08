@@ -1,3 +1,12 @@
+/**
+ * WHAT:    Builds the editable default system prompt for a coding mode (role, task,
+ *          context and output wording chosen by segmentation x output type x
+ *          per-speaker). Schemes without a hand-written prompt use this; the user
+ *          can edit the result in the Prompt editor.
+ * STEP:    Scheme. The final prompt sent to the model is assembled server-side by
+ *          lib/coding/build-messages.ts, which appends the category block.
+ * RUNS ON: both
+ */
 import { PromptOptions } from "@/lib/types";
 
 const ROLE =

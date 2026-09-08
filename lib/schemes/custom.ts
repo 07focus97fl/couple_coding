@@ -1,3 +1,9 @@
+/**
+ * WHAT:    The "Custom" scheme: two blank categories the researcher fills in, with
+ *          the generic default prompt.
+ * STEP:    Scheme. Registered in index.ts.
+ * RUNS ON: both
+ */
 import { CodingScheme } from "../types";
 import { buildDefaultPrompt } from "./default-prompt";
 

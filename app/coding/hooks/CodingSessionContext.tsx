@@ -1,4 +1,10 @@
 "use client";
+/**
+ * WHAT:    Puts the single CodingSession object into React context so every
+ *          component can read it with useSession() instead of prop drilling.
+ * STEP:    Shared.
+ * RUNS ON: client
+ */
 
 import { createContext, useContext, ReactNode } from "react";
 import { CodingSession, useCodingSession } from "./useCodingSession";

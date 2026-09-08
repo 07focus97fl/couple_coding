@@ -1,4 +1,11 @@
 "use client";
+/**
+ * WHAT:    Live run telemetry from the API logs: elapsed time, rate, ETA, token
+ *          totals and cost, plus the formatters the run UI uses to display them.
+ * STEP:    Run. Called by useCodingRun; formatters used by SectionRun and
+ *          ConversationCard.
+ * RUNS ON: client
+ */
 
 import { useEffect, useMemo, useState } from "react";
 import { ApiLog } from "@/lib/types";

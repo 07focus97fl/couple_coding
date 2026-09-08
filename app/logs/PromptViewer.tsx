@@ -1,4 +1,10 @@
 "use client";
+/**
+ * WHAT:    Read-only tabbed viewer (system prompt / user message / tool JSON) with
+ *          a Copy button. Used only by /logs.
+ * STEP:    Run (debugging).
+ * RUNS ON: client
+ */
 
 import { useState } from "react";
 import s from "./PromptViewer.module.css";

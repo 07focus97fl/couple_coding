@@ -1,3 +1,10 @@
+/**
+ * WHAT:    The VTCS scheme: six couple-conflict codes (IN, NC, ID, P, B, R) with
+ *          hand-written turn and utterance prompts. Continuous-rating and
+ *          time-window runs fall back to the generic default prompt.
+ * STEP:    Scheme. Registered in index.ts.
+ * RUNS ON: both
+ */
 import { CodingScheme } from "../types";
 import { buildDefaultPrompt } from "./default-prompt";
 

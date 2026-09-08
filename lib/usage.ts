@@ -1,3 +1,10 @@
+/**
+ * WHAT:    Turns each provider's differently shaped token-usage report into four
+ *          buckets (input, output, cache read, cache write) and multiplies them by
+ *          the catalog price to get a USD cost. All cost math lives here.
+ * STEP:    Run. Called server-side per API call and client-side for run totals.
+ * RUNS ON: both (pure functions)
+ */
 import type { ModelPricing, ProviderId } from "@/lib/models";
 
 /**

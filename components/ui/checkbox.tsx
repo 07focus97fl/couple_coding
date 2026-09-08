@@ -1,3 +1,9 @@
+/**
+ * WHAT:    shadcn/ui primitive (generated). Restyle through its Tailwind classes;
+ *          add other primitives with `npx shadcn add <name>`.
+ * STEP:    UI kit.
+ * RUNS ON: client
+ */
 "use client"
 
 import { Checkbox as CheckboxPrimitive } from "@base-ui/react/checkbox"

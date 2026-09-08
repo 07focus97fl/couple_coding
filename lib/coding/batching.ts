@@ -1,3 +1,11 @@
+/**
+ * WHAT:    Groups consecutive pre-segments into batches so several units can be
+ *          coded in one API call; the requested batch size is capped per method and
+ *          by an input-token ceiling.
+ * STEP:    Run. Server side to plan the calls; client side (useRunScope) to predict
+ *          how many calls a run will make.
+ * RUNS ON: both (pure functions)
+ */
 import { CodingMode, PreSegment, DEFAULT_BATCH_SIZE } from "@/lib/types";
 
 /**

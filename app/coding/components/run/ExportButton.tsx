@@ -1,4 +1,9 @@
 "use client";
+/**
+ * WHAT:    The per-file Export CSV button that opens ExportDialog.
+ * STEP:    Run.
+ * RUNS ON: client
+ */
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";

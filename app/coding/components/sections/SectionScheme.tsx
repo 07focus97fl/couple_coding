@@ -1,4 +1,11 @@
 "use client";
+/**
+ * WHAT:    Step 03: choose a scheme, edit its categories, set the coding mode
+ *          (segmentation, output type, scale, window, batch size), edit the prompt,
+ *          and set context and topics.
+ * STEP:    Scheme. State comes from useSession() (useSchemeSettings).
+ * RUNS ON: client
+ */
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useSession } from "../../hooks/CodingSessionContext";

@@ -1,3 +1,9 @@
+/**
+ * WHAT:    The root HTML shell for every page: loads the web fonts and sets the
+ *          page title and description.
+ * STEP:    Page shell.
+ * RUNS ON: server (React server component)
+ */
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, DM_Serif_Display, Instrument_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";

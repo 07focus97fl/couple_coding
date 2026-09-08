@@ -1,4 +1,12 @@
 "use client";
+/**
+ * WHAT:    Writes the session snapshot to localStorage 800 ms after it last
+ *          changed; if it is too large, saves a copy without transcripts and
+ *          reports "metadata-only". Returns the current save status.
+ * STEP:    Shared. Fed by useSessionPersistence.
+ * RUNS ON: client
+ * STORAGE: localStorage "ccc_session_v3"
+ */
 
 import { useEffect, useState } from "react";
 import {

@@ -1,3 +1,10 @@
+/**
+ * WHAT:    The provider-neutral shapes every adapter accepts and returns: the tool
+ *          definition, the call parameters, and the parsed-input plus raw-response
+ *          result.
+ * STEP:    Run, server side.
+ * RUNS ON: server only (types)
+ */
 import type { ProviderId } from "@/lib/models";
 
 /**

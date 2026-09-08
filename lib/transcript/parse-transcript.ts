@@ -1,3 +1,9 @@
+/**
+ * WHAT:    Collapses ElevenLabs word tokens into speaking turns: a new turn starts
+ *          whenever the speaker changes. This is the deterministic "turn" cut.
+ * STEP:    Upload (turn counts) and Run (turn segmentation, utterance re-timing).
+ * RUNS ON: both (pure function)
+ */
 import { TranscriptWord, SpeakingTurn } from "@/lib/types";
 
 export function parseTranscript(words: TranscriptWord[]): SpeakingTurn[] {

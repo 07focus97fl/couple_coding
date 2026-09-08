@@ -1,3 +1,9 @@
+/**
+ * WHAT:    Google adapter: Gemini function calling; translates the neutral JSON
+ *          schema into Gemini's schema type.
+ * STEP:    Run, server side. Called only through lib/llm/index.ts.
+ * RUNS ON: server only
+ */
 import {
   GoogleGenAI,
   Type,

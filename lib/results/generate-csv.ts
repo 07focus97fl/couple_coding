@@ -1,3 +1,9 @@
+/**
+ * WHAT:    Turns coded units into CSV text, honouring the chosen columns and adding
+ *          one rating_<dimension> column per dimension in continuous mode.
+ * STEP:    Run (export). Used by ExportDialog and the export-all action.
+ * RUNS ON: both (pure functions)
+ */
 import { CodedUnit, ColumnKey, COLUMN_DEFINITIONS } from "@/lib/types";
 
 function escapeCsvField(field: string): string {

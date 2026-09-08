@@ -1,4 +1,12 @@
 "use client";
+/**
+ * WHAT:    The /logs debug page: reads the last run's API logs from sessionStorage
+ *          and shows every call's prompts, tool schema, parsed units, raw response
+ *          and cost.
+ * STEP:    Run (debugging). Opened from the API logs button in SectionRun.
+ * RUNS ON: client
+ * STORAGE: sessionStorage "api_logs" (written by useCodingRun)
+ */
 
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { ApiLog, ApiLogParsedUnit } from "@/lib/types";

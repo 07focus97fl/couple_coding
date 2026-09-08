@@ -1,3 +1,9 @@
+/**
+ * WHAT:    The SPAFF scheme (Specific Affect Coding System). Marked comingSoon:
+ *          listed in the UI but not selectable; has no categories yet.
+ * STEP:    Scheme. Registered in index.ts.
+ * RUNS ON: both
+ */
 import { CodingScheme } from "../types";
 import { buildDefaultPrompt } from "./default-prompt";
 

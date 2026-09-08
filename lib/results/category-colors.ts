@@ -1,3 +1,9 @@
+/**
+ * WHAT:    Deterministic colours and 2-3 letter abbreviations for category chips
+ *          and histogram bars.
+ * STEP:    Scheme and Run (UI colouring).
+ * RUNS ON: client (pure functions)
+ */
 import { CategoryDefinition, CodingScheme } from "@/lib/types";
 
 export const PALETTE = [

@@ -1,4 +1,10 @@
 "use client";
+/**
+ * WHAT:    The /coding page: provides the session and stacks the header, stage
+ *          rail, hero and the four numbered steps. No logic lives here.
+ * STEP:    Page.
+ * RUNS ON: client
+ */
 
 import { CodingSessionProvider } from "./hooks/CodingSessionContext";
 import { StickyHeader } from "./components/layout/StickyHeader";

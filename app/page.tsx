@@ -1,4 +1,11 @@
 "use client";
+/**
+ * WHAT:    The landing page at "/": marketing copy, a hand-built preview of the Run
+ *          panel, and links into /coding. Its scheme, provider and file-format copy
+ *          is typed by hand, so keep it in step with lib/ when those change.
+ * STEP:    Page.
+ * RUNS ON: client
+ */
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";

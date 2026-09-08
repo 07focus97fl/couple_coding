@@ -1,4 +1,10 @@
 "use client";
+/**
+ * WHAT:    The collapsible system-prompt textarea inside Step 03, with word count,
+ *          an "edited" tag and a Reset button.
+ * STEP:    Scheme.
+ * RUNS ON: client
+ */
 
 import { useMemo, useState } from "react";
 import { useSession } from "../../hooks/CodingSessionContext";

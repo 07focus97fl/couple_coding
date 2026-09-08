@@ -1,3 +1,9 @@
+/**
+ * WHAT:    The Valence scheme (positive vs. negative affect). Marked comingSoon:
+ *          listed in the UI but not selectable.
+ * STEP:    Scheme. Registered in index.ts.
+ * RUNS ON: both
+ */
 import { CodingScheme } from "../types";
 import { buildDefaultPrompt } from "./default-prompt";
 

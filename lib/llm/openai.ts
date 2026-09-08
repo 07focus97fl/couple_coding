@@ -1,3 +1,9 @@
+/**
+ * WHAT:    OpenAI adapter: the Responses API for reasoning models, Chat Completions
+ *          otherwise, both with a forced function tool.
+ * STEP:    Run, server side. Called only through lib/llm/index.ts.
+ * RUNS ON: server only
+ */
 import OpenAI from "openai";
 import type { StructuredCallParams, StructuredCallResult } from "./types";
 

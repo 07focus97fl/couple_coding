@@ -1,4 +1,9 @@
 "use client";
+/**
+ * WHAT:    The heading and subtitle at the top of the /coding main column.
+ * STEP:    Page chrome.
+ * RUNS ON: client
+ */
 
 import s from "./Hero.module.css";
 

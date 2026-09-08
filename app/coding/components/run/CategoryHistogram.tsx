@@ -1,4 +1,10 @@
 "use client";
+/**
+ * WHAT:    Bar chart of category counts (categorical) or mean ratings (continuous)
+ *          for one file.
+ * STEP:    Run.
+ * RUNS ON: client
+ */
 
 import { useMemo } from "react";
 import { useSession } from "../../hooks/CodingSessionContext";

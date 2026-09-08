@@ -1,3 +1,10 @@
+/**
+ * WHAT:    Gives model-split utterances exact word-level timings by finding their
+ *          text inside the parent turn's words; flags approximateTiming when the
+ *          text cannot be matched verbatim.
+ * STEP:    Run, client side, as results stream in (useCodingRun).
+ * RUNS ON: both (pure functions)
+ */
 import {
   CodedUnit,
   RawTranscript,

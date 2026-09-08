@@ -1,3 +1,10 @@
+/**
+ * WHAT:    POST /api/transcribe: proxies an audio upload to ElevenLabs
+ *          speech-to-text using the key the browser sends in the x-elevenlabs-key
+ *          header, and returns the word-level JSON unchanged.
+ * STEP:    Upload. Called by useTranscriptFiles.transcribeAudio.
+ * RUNS ON: server only
+ */
 export const runtime = "nodejs";
 export const maxDuration = 300;
 

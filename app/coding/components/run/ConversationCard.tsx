@@ -1,4 +1,10 @@
 "use client";
+/**
+ * WHAT:    One collapsible card per coded transcript: status, progress, cost, a
+ *          category histogram and the coded rows.
+ * STEP:    Run.
+ * RUNS ON: client
+ */
 
 import { useMemo } from "react";
 import { useSession } from "../../hooks/CodingSessionContext";

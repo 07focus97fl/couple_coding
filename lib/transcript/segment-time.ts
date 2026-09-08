@@ -1,3 +1,9 @@
+/**
+ * WHAT:    Cuts a transcript into fixed-duration windows whose text is labelled by
+ *          speaker; silent windows are skipped and the rest re-indexed.
+ * STEP:    Run (time-window segmentation). Called only by segment.ts.
+ * RUNS ON: both (pure function)
+ */
 import { PreSegment, TranscriptWord } from "@/lib/types";
 
 /**

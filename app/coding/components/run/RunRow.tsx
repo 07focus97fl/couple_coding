@@ -1,4 +1,10 @@
 "use client";
+/**
+ * WHAT:    One coded unit: index, speaker, text, rationale and its category chip or
+ *          rating bars. Memoized and fed by props so streaming rows stay cheap.
+ * STEP:    Run.
+ * RUNS ON: client
+ */
 
 import { memo, type ReactNode } from "react";
 import { CodedUnit, OutputType, RatingScale } from "@/lib/types";

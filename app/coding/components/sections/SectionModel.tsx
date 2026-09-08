@@ -1,4 +1,10 @@
 "use client";
+/**
+ * WHAT:    Step 02: pick a provider and model, set the reasoning level, and enter
+ *          that provider's API key.
+ * STEP:    Model. State comes from useSession() (useModelAndKeys).
+ * RUNS ON: client
+ */
 
 import { useState } from "react";
 import { useSession } from "../../hooks/CodingSessionContext";

@@ -1,3 +1,10 @@
+/**
+ * WHAT:    One entry point for "call the model with a forced tool": picks the
+ *          provider adapter (Anthropic / OpenAI / Google) by provider id. To add a
+ *          provider, add an adapter file here and a case in the switch.
+ * STEP:    Run, server side. Called by lib/coding/code-segments.ts.
+ * RUNS ON: server only (SDK clients, API keys)
+ */
 import { runAnthropic } from "./anthropic";
 import { runOpenAI } from "./openai";
 import { runGoogle } from "./google";

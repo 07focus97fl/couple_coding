@@ -1,4 +1,13 @@
+/**
+ * WHAT:    Every shared type and default value: transcript words and turns, the
+ *          coding mode, pre-segments, coded units, schemes, per-file state, API
+ *          logs and CSV columns. Start here to learn the vocabulary.
+ * STEP:    Shared by all four steps, client and server.
+ * RUNS ON: both (types and constants only)
+ */
 import type { NormalizedUsage } from "@/lib/usage";
+
+// ── Transcript input (ElevenLabs word-level JSON, and the turns cut from it) ──
 
 export interface TranscriptWord {
   text: string;
@@ -24,6 +33,8 @@ export interface SpeakingTurn {
   startTime: number;
   endTime: number;
 }
+
+// ── Coding mode: what a run does (segmentation x output type + options) ──
 
 /**
  * How a transcript is divided into codeable units (axis A).
@@ -76,6 +87,8 @@ export interface PromptOptions {
   /** Only meaningful when segmentation === "time". */
   perSpeaker?: boolean;
 }
+
+// ── Units: what is sent to the model (PreSegment) and what comes back (CodedUnit) ──
 
 export interface CodingUnit {
   unitId: string;
@@ -133,6 +146,8 @@ export interface PreSegment {
   speakers?: string[];
 }
 
+// ── CSV export ──
+
 export type ColumnKey =
   | "unitId"
   | "turnNumber"
@@ -169,6 +184,8 @@ export const COLUMN_DEFINITIONS: { key: ColumnKey; label: string; csvHeader: str
   { key: "endTime", label: "End (s)", csvHeader: "End Time (s)" },
 ];
 
+// ── Coding schemes ──
+
 export interface CategoryDefinition {
   name: string;
   description: string;
@@ -183,6 +200,8 @@ export interface CodingScheme {
   comingSoon?: boolean;
   badge?: string;
 }
+
+// ── Client-side state for one uploaded file ──
 
 export interface TranscriptFile {
   id: string;
@@ -199,6 +218,8 @@ export interface TranscriptFile {
   transcribeError?: string;
   topic?: string;
 }
+
+// ── API logs: one per LLM call, shown on /logs ──
 
 export interface ApiLogParsedUnit {
   unitId: string;
@@ -245,6 +266,8 @@ export interface ApiLog {
   /** Number of provider calls made for this segment (1 + retries). */
   attempts?: number;
 }
+
+// ── Defaults ──
 
 export const DEFAULT_CONTEXT_BEFORE = 5;
 export const DEFAULT_CONTEXT_AFTER = 5;

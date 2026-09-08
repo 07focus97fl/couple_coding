@@ -1,4 +1,10 @@
 "use client";
+/**
+ * WHAT:    Step 04: the Run and Export buttons, the pre-run call-count panel, live
+ *          stats and cost, and one ConversationCard per selected file.
+ * STEP:    Run. State comes from useSession() (useCodingRun) and useRunScope.
+ * RUNS ON: client
+ */
 
 import { useSession } from "../../hooks/CodingSessionContext";
 import { useRunScope } from "../../hooks/useRunScope";

@@ -1,4 +1,10 @@
 "use client";
+/**
+ * WHAT:    VTCS-only table inside Step 03 for giving each transcript its
+ *          conversation topic (sent to the model with every call).
+ * STEP:    Scheme.
+ * RUNS ON: client
+ */
 
 import { useSession } from "../../hooks/CodingSessionContext";
 import s from "./TopicTable.module.css";

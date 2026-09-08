@@ -1,4 +1,11 @@
 "use client";
+/**
+ * WHAT:    The frame every numbered step sits in: eyebrow, title, description and a
+ *          collapsible card with a state circle. Pure layout; takes everything as
+ *          props.
+ * STEP:    Page chrome. Used by all four Section* components.
+ * RUNS ON: client
+ */
 
 import { ReactNode, useState } from "react";
 import s from "./SectionShell.module.css";

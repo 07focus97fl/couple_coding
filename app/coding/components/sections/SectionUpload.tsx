@@ -1,4 +1,11 @@
 "use client";
+/**
+ * WHAT:    Step 01: drag-and-drop or pick transcript JSON / audio files, list them
+ *          with turn counts and status, transcribe audio, and enter the ElevenLabs
+ *          key.
+ * STEP:    Upload. State comes from useSession() (useTranscriptFiles).
+ * RUNS ON: client
+ */
 
 import { useRef, useState } from "react";
 import { useSession } from "../../hooks/CodingSessionContext";

@@ -1,3 +1,9 @@
+/**
+ * WHAT:    Anthropic adapter: Messages API with a forced tool and prompt caching on
+ *          the system block.
+ * STEP:    Run, server side. Called only through lib/llm/index.ts.
+ * RUNS ON: server only
+ */
 import Anthropic from "@anthropic-ai/sdk";
 import type { StructuredCallParams, StructuredCallResult } from "./types";
 

@@ -1,4 +1,10 @@
 "use client";
+/**
+ * WHAT:    Predicts how many API calls a run will make by re-running the same
+ *          segmentation and batching the server will use. Counting only.
+ * STEP:    Run (the pre-run scope panel in SectionRun).
+ * RUNS ON: client
+ */
 
 import { useMemo } from "react";
 import { useSession } from "./CodingSessionContext";

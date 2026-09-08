@@ -1,3 +1,10 @@
+/**
+ * WHAT:    Builds the JSON schema of the forced "code_exchange" tool the model must
+ *          call (its shape depends on output type, segmentation, per-speaker and
+ *          batching) and the output-token budget for a call.
+ * STEP:    Run, server side. Called by lib/coding/code-segments.ts.
+ * RUNS ON: server only (imports the Anthropic SDK for a type)
+ */
 import Anthropic from "@anthropic-ai/sdk";
 import { CategoryDefinition, CodingMode, RatingScale, DEFAULT_SCALE } from "@/lib/types";
 
