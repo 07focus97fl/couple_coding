@@ -130,7 +130,7 @@ export default function LogsPage() {
                 Turn {log.turnNumber} &middot; {log.speaker}
               </span>
               <span style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                <span style={granularityBadge(log.segmentation === "utterance")}>
+                <span style={segmentationBadge(log.segmentation === "utterance")}>
                   {log.segmentation === "utterance" ? "Utterance" : log.segmentation === "time" ? "Window" : "Turn"}
                 </span>
                 <span style={badge}>{primaryCategory}</span>
@@ -337,7 +337,7 @@ const badge: React.CSSProperties = {
   fontWeight: 600,
 };
 
-function granularityBadge(isUtterance: boolean): React.CSSProperties {
+function segmentationBadge(isUtterance: boolean): React.CSSProperties {
   return {
     background: isUtterance ? "#fff5e8" : "#ece8e1",
     color: isUtterance ? "#8a5a12" : "#8a8680",
