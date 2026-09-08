@@ -1,7 +1,7 @@
 import {
   CodedUnit,
-  Granularity,
   RawTranscript,
+  SegmentationStrategy,
   SpeakingTurn,
   TranscriptWord,
 } from "@/lib/types";
@@ -78,9 +78,9 @@ export function alignIncomingUnit(
   unit: CodedUnit,
   rawTranscript: RawTranscript | null,
   turns: SpeakingTurn[],
-  granularity: Granularity,
+  segmentation: SegmentationStrategy,
 ): CodedUnit {
-  if (granularity !== "utterance" || unit.utteranceIndex === undefined) {
+  if (segmentation !== "utterance" || unit.utteranceIndex === undefined) {
     return unit;
   }
   const parentTurn = turns.find((t) => t.turnNumber === unit.turnNumber);

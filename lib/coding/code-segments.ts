@@ -13,7 +13,6 @@ import {
   CategoryDefinition,
   CodedUnit,
   CodingMode,
-  Granularity,
   PreSegment,
 } from "@/lib/types";
 import {
@@ -81,8 +80,6 @@ export interface RunPlan {
   systemPrompt: string;
   /** The forced tool the model must call. */
   tool: LlmTool;
-  /** Legacy turn/utterance view of the segmentation, stamped on each ApiLog. */
-  activeGranularity: Granularity;
   parse: ParseContext;
 }
 
@@ -92,8 +89,6 @@ export function buildRunPlan(input: RunPlanInput): RunPlan {
   const provider = modelDef.provider;
   const pricing = modelDef.pricing;
 
-  const activeGranularity: Granularity =
-    mode.segmentation === "utterance" ? "utterance" : "turn";
   const parse = buildParseContext(mode, categories, segments);
 
   const systemPrompt = buildSystemPrompt(input.rawPrompt, categories, mode);
@@ -139,7 +134,6 @@ export function buildRunPlan(input: RunPlanInput): RunPlan {
     topic: input.topic,
     systemPrompt,
     tool,
-    activeGranularity,
     parse,
   };
 }
@@ -258,7 +252,7 @@ async function processBatch(
   ): ApiLog => ({
     turnNumber: headSeg.turnNumber ?? headSeg.index,
     speaker: headSeg.speaker ?? (headSeg.speakers ?? []).join(", "),
-    granularity: plan.activeGranularity,
+    segmentation: plan.mode.segmentation,
     unitIds,
     contextBefore,
     contextAfter,

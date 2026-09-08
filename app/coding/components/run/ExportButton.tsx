@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ExportDialog } from "./ExportDialog";
-import { CodedTurn } from "@/lib/types";
+import { CodedUnit } from "@/lib/types";
 
 interface ExportButtonProps {
-  codedTurns: CodedTurn[];
+  codedTurns: CodedUnit[];
 }
 
 export function ExportButton({ codedTurns }: ExportButtonProps) {

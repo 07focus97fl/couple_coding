@@ -1,6 +1,5 @@
 import {
   CategoryDefinition,
-  Granularity,
   OutputType,
   RatingScale,
   RawTranscript,
@@ -34,7 +33,6 @@ export interface PersistedSession {
   selectedModel: string;
   reasoningLevel: ReasoningLevel;
   schemeId: string | null;
-  granularity: Granularity;
   segmentation: SegmentationStrategy;
   outputType: OutputType;
   scale: RatingScale;
@@ -59,6 +57,8 @@ export function deserialize(raw: string): PersistedSession | null {
       version?: number;
       /** Legacy single-window field (pre-before/after split); migrated to contextBefore. */
       contextWindow?: number;
+      /** Legacy (v3) turn/utterance axis; migrated to segmentation. */
+      granularity?: string;
     };
     if (!p.files || !Array.isArray(p.files)) return null;
     if (typeof p.systemPrompt !== "string") return null;
@@ -73,7 +73,7 @@ export function deserialize(raw: string): PersistedSession | null {
 
     // Migrate v3 -> v4 (granularity -> segmentation axis), v4 -> v5 (perSpeaker,
     // default on), and v5 -> v6 (batchSize, default 1). v6 payloads pass through.
-    const granularity: Granularity =
+    const legacySegmentation: SegmentationStrategy =
       p.granularity === "utterance" ? "utterance" : "turn";
     return {
       version: 6,
@@ -81,8 +81,7 @@ export function deserialize(raw: string): PersistedSession | null {
       selectedModel: p.selectedModel ?? "",
       reasoningLevel: p.reasoningLevel ?? DEFAULT_REASONING_LEVEL,
       schemeId: p.schemeId ?? null,
-      granularity,
-      segmentation: p.segmentation ?? granularity,
+      segmentation: p.segmentation ?? legacySegmentation,
       outputType: p.outputType ?? DEFAULT_OUTPUT_TYPE,
       scale: p.scale ?? DEFAULT_SCALE,
       windowSeconds: p.windowSeconds ?? DEFAULT_WINDOW_SECONDS,

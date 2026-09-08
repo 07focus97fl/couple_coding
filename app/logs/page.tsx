@@ -101,7 +101,6 @@ export default function LogsPage() {
         // Pre-split logs only had a single prior-context field; read it as a fallback.
         const legacy = log as Partial<{
           contextTurnNumbers: number[];
-          contextWindow: number;
         }>;
         const beforeNumbers =
           log.contextBeforeTurnNumbers ?? legacy.contextTurnNumbers ?? [];
@@ -122,8 +121,8 @@ export default function LogsPage() {
                 Turn {log.turnNumber} &middot; {log.speaker}
               </span>
               <span style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                <span style={granularityBadge(log.granularity === "utterance")}>
-                  {log.granularity === "utterance" ? "Utterance" : "Turn"}
+                <span style={granularityBadge(log.segmentation === "utterance")}>
+                  {log.segmentation === "utterance" ? "Utterance" : log.segmentation === "time" ? "Window" : "Turn"}
                 </span>
                 <span style={badge}>{primaryCategory}</span>
                 <span style={{ fontSize: "0.75rem", color: "#8a8680" }}>
@@ -159,7 +158,7 @@ export default function LogsPage() {
                   <span style={{ color: "#8a8680" }}>
                     {" "}
                     &middot; settings:{" "}
-                    {log.contextBefore ?? legacy.contextWindow ?? "?"} before /{" "}
+                    {log.contextBefore ?? "?"} before /{" "}
                     {log.contextAfter ?? 0} after
                   </span>
                   <div

@@ -33,7 +33,6 @@ export function useSessionPersistence({
   const { selectedModel, reasoningLevel, restoreModel, loadStoredKeys } = model;
   const {
     schemeId,
-    granularity,
     segmentation,
     outputType,
     scale,
@@ -93,8 +92,7 @@ export function useSessionPersistence({
       selectedModel,
       reasoningLevel,
       schemeId,
-      granularity,
-      segmentation,
+        segmentation,
       outputType,
       scale,
       windowSeconds,
@@ -113,7 +111,6 @@ export function useSessionPersistence({
     selectedModel,
     reasoningLevel,
     schemeId,
-    granularity,
     segmentation,
     outputType,
     scale,

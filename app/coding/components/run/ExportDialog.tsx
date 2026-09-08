@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import {
-  CodedTurn,
+  CodedUnit,
   ColumnKey,
   SpeakerFilter,
   ExportConfig,
@@ -31,7 +31,7 @@ import { generateCsv, dimsFromUnits } from "@/lib/results/generate-csv";
 interface ExportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  codedTurns: CodedTurn[];
+  codedTurns: CodedUnit[];
 }
 
 export function ExportDialog({ open, onOpenChange, codedTurns }: ExportDialogProps) {

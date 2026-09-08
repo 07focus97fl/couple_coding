@@ -25,8 +25,6 @@ export interface SpeakingTurn {
   endTime: number;
 }
 
-export type Granularity = "turn" | "utterance";
-
 /**
  * How a transcript is divided into codeable units (axis A).
  * - "turn": one unit per speaking turn (deterministic, by speaker change)
@@ -114,8 +112,6 @@ export interface CodedUnit extends CodingUnit {
   /** True when the model response could not be parsed. */
   error?: boolean;
 }
-
-export type CodedTurn = CodedUnit;
 
 /**
  * A pre-segmented chunk of transcript handed to the coding API. Produced by a
@@ -219,7 +215,8 @@ export interface ApiLogParsedUnit {
 export interface ApiLog {
   turnNumber: number;
   speaker: string;
-  granularity: Granularity;
+  /** How the transcript was cut for this run (turn / utterance / time). */
+  segmentation: SegmentationStrategy;
   unitIds: string[];
   /** Source transcript file, stamped client-side so the /logs view can group + order by file. */
   fileName?: string;
@@ -249,7 +246,6 @@ export interface ApiLog {
 
 export const DEFAULT_CONTEXT_BEFORE = 5;
 export const DEFAULT_CONTEXT_AFTER = 5;
-export const DEFAULT_GRANULARITY: Granularity = "turn";
 export const DEFAULT_SEGMENTATION: SegmentationStrategy = "turn";
 export const DEFAULT_OUTPUT_TYPE: OutputType = "categorical";
 export const DEFAULT_WINDOW_SECONDS = 30;

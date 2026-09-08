@@ -19,7 +19,6 @@ import {
   DEFAULT_SEGMENTATION,
   DEFAULT_WINDOW_SECONDS,
   DEFAULT_BATCH_SIZE,
-  Granularity,
   OutputType,
   RatingScale,
   SegmentationStrategy,
@@ -40,7 +39,6 @@ export interface SchemeSettingsState {
   activeScheme: CodingScheme | null;
   categories: CategoryDefinition[];
   categoriesDirty: boolean;
-  granularity: Granularity;
   segmentation: SegmentationStrategy;
   outputType: OutputType;
   scale: RatingScale;
@@ -52,7 +50,6 @@ export interface SchemeSettingsState {
   contextBefore: number;
   contextAfter: number;
   setSchemeId: (id: string) => void;
-  setGranularity: (g: Granularity) => void;
   setSegmentation: (s: SegmentationStrategy) => void;
   setOutputType: (o: OutputType) => void;
   setScale: (s: RatingScale) => void;
@@ -95,9 +92,6 @@ export function useSchemeSettings(): SchemeSettingsState {
   // How many consecutive pre-segments to code per API call (cost reduction);
   // 1 = one unit per call. Auto-capped server-side for large units.
   const [batchSize, setBatchSizeState] = useState<number>(DEFAULT_BATCH_SIZE);
-  // granularity (turn | utterance) is the categorical-era view of segmentation.
-  const granularity: Granularity =
-    segmentation === "utterance" ? "utterance" : "turn";
   const [categories, setCategoriesState] = useState<CategoryDefinition[]>(
     () => DEFAULT_SCHEME?.categories ?? [],
   );
@@ -197,12 +191,6 @@ export function useSchemeSettings(): SchemeSettingsState {
     [segmentation, outputType, regenerateDefaultPrompt],
   );
 
-  // Back-compat alias for the turn/utterance toggle.
-  const setGranularity = useCallback(
-    (next: Granularity) => setSegmentation(next),
-    [setSegmentation],
-  );
-
   const setScale = useCallback((next: RatingScale) => {
     setScaleState(next);
   }, []);
@@ -292,7 +280,6 @@ export function useSchemeSettings(): SchemeSettingsState {
     activeScheme,
     categories,
     categoriesDirty,
-    granularity,
     segmentation,
     outputType,
     scale,
@@ -304,7 +291,6 @@ export function useSchemeSettings(): SchemeSettingsState {
     contextBefore,
     contextAfter,
     setSchemeId,
-    setGranularity,
     setSegmentation,
     setOutputType,
     setScale,

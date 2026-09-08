@@ -7,9 +7,7 @@
  * RUNS ON: server only
  */
 import {
-  SpeakingTurn,
   CategoryDefinition,
-  Granularity,
   CodingMode,
   PreSegment,
   DEFAULT_CONTEXT_BEFORE,
@@ -21,37 +19,18 @@ import { formatSseEvent } from "@/lib/coding/sse";
 
 /** The request body the client sends (see README "POST /api/code"). */
 interface CodeRequest {
-  // Preferred inputs
-  segments?: PreSegment[];
-  mode?: CodingMode;
-  // Legacy inputs (still accepted so the client/server need not deploy in lockstep)
-  turns?: SpeakingTurn[];
-  granularity?: Granularity;
+  /** Pre-cut units, produced client-side by lib/transcript/segment.ts. */
+  segments: PreSegment[];
+  mode: CodingMode;
   model: string;
   categories: CategoryDefinition[];
   systemPrompt: string;
   contextBefore?: number;
   contextAfter?: number;
-  /** Legacy single-window field; mapped onto contextBefore when the newer fields are absent. */
-  contextWindow?: number;
   apiKey?: string;
   topic?: string;
   /** Reasoning effort for models that support it (OpenAI GPT-5.x). */
   reasoningEffort?: string;
-}
-
-/** Adapt legacy SpeakingTurn[] input into the common PreSegment shape. */
-function turnsToSegments(turns: SpeakingTurn[]): PreSegment[] {
-  return turns.map((t) => ({
-    index: t.turnNumber,
-    kind: "turn" as const,
-    text: t.text,
-    startTime: t.startTime,
-    endTime: t.endTime,
-    wordCount: t.wordCount,
-    turnNumber: t.turnNumber,
-    speaker: t.speaker,
-  }));
 }
 
 function badRequest(message: string): Response {
@@ -63,33 +42,20 @@ function badRequest(message: string): Response {
 
 export async function POST(request: Request) {
   const {
-    segments: reqSegments,
-    mode: reqMode,
-    turns,
-    granularity,
+    segments,
+    mode,
     model,
     categories,
     systemPrompt: rawPrompt,
     contextBefore: reqContextBefore,
     contextAfter: reqContextAfter,
-    contextWindow: legacyContextWindow,
     apiKey: clientKey,
     topic,
     reasoningEffort: reqReasoningEffort,
   } = (await request.json()) as CodeRequest;
 
-  const contextBefore =
-    reqContextBefore ?? legacyContextWindow ?? DEFAULT_CONTEXT_BEFORE;
+  const contextBefore = reqContextBefore ?? DEFAULT_CONTEXT_BEFORE;
   const contextAfter = reqContextAfter ?? DEFAULT_CONTEXT_AFTER;
-
-  const mode: CodingMode = reqMode ?? {
-    segmentation: granularity === "utterance" ? "utterance" : "turn",
-    outputType: "categorical",
-  };
-  const segments: PreSegment[] =
-    reqSegments && reqSegments.length > 0
-      ? reqSegments
-      : turnsToSegments(turns ?? []);
 
   // ── Validation ──────────────────────────────────────────────────────────
 
@@ -115,6 +81,10 @@ export async function POST(request: Request) {
 
   if (!segments || !Array.isArray(segments) || segments.length === 0) {
     return badRequest("No turns provided");
+  }
+
+  if (!mode || typeof mode !== "object" || !mode.segmentation || !mode.outputType) {
+    return badRequest("No coding mode provided");
   }
 
   if (!categories || !Array.isArray(categories) || categories.filter((c) => c.name.trim() !== "").length < 2) {
@@ -148,8 +118,7 @@ export async function POST(request: Request) {
       try {
         await codeSegments(plan, (e) => {
           if (e.type === "result") {
-            // `codedTurn` duplicates `codedUnit` for older clients.
-            send("result", { codedUnit: e.unit, codedTurn: e.unit });
+            send("result", { codedUnit: e.unit });
           } else if (e.type === "log") {
             send("log", e.log);
           } else {

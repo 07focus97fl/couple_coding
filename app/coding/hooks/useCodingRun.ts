@@ -52,7 +52,6 @@ export function useCodingRun({
   const { files, setFiles, hasFiles, selectedFiles } = upload;
   const { selectedModel, reasoningLevel, activeProviderKey } = model;
   const {
-    granularity,
     segmentation,
     outputType,
     scale,
@@ -144,10 +143,8 @@ export function useCodingRun({
           body: JSON.stringify({
             segments: segs,
             mode,
-            turns,
             model: selectedModel,
             reasoningEffort: reasoningLevel,
-            granularity,
             categories,
             systemPrompt,
             contextBefore,
@@ -168,15 +165,14 @@ export function useCodingRun({
           if (event === "result") {
             const parsed = JSON.parse(data) as {
               codedUnit?: CodedUnit;
-              codedTurn?: CodedUnit;
             };
-            const incoming = parsed.codedUnit ?? parsed.codedTurn;
+            const incoming = parsed.codedUnit;
             if (incoming) {
               const aligned = alignIncomingUnit(
                 incoming,
                 file.rawTranscript,
                 turns,
-                granularity,
+                segmentation,
               );
               setFiles((prev) =>
                 prev.map((f) =>
@@ -237,7 +233,6 @@ export function useCodingRun({
     hasFiles,
     selectedModel,
     reasoningLevel,
-    granularity,
     segmentation,
     outputType,
     scale,

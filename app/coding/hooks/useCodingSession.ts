@@ -13,7 +13,6 @@ import {
   CategoryDefinition,
   CodedUnit,
   CodingScheme,
-  Granularity,
   OutputType,
   RatingScale,
   SegmentationStrategy,
@@ -80,7 +79,6 @@ export interface CodingSession {
   activeScheme: CodingScheme | null;
   categories: CategoryDefinition[];
   categoriesDirty: boolean;
-  granularity: Granularity;
   segmentation: SegmentationStrategy;
   outputType: OutputType;
   scale: RatingScale;
@@ -92,7 +90,6 @@ export interface CodingSession {
   contextBefore: number;
   contextAfter: number;
   setSchemeId: (id: string) => void;
-  setGranularity: (g: Granularity) => void;
   setSegmentation: (s: SegmentationStrategy) => void;
   setOutputType: (o: OutputType) => void;
   setScale: (s: RatingScale) => void;
@@ -200,7 +197,6 @@ export function useCodingSession(): CodingSession {
     activeScheme: scheme.activeScheme,
     categories: scheme.categories,
     categoriesDirty: scheme.categoriesDirty,
-    granularity: scheme.granularity,
     segmentation: scheme.segmentation,
     outputType: scheme.outputType,
     scale: scheme.scale,
@@ -212,7 +208,6 @@ export function useCodingSession(): CodingSession {
     contextBefore: scheme.contextBefore,
     contextAfter: scheme.contextAfter,
     setSchemeId: scheme.setSchemeId,
-    setGranularity: scheme.setGranularity,
     setSegmentation: scheme.setSegmentation,
     setOutputType: scheme.setOutputType,
     setScale: scheme.setScale,
