@@ -1,4 +1,10 @@
-import { RawTranscript, SpeakingTurn, TranscriptWord } from "@/lib/types";
+import {
+  CodedUnit,
+  Granularity,
+  RawTranscript,
+  SpeakingTurn,
+  TranscriptWord,
+} from "@/lib/types";
 
 export interface AlignmentResult {
   startTime: number;
@@ -59,4 +65,31 @@ export function alignUtteranceToWords(
     endTime: turnWords[endWordIdx].end,
     ok: true,
   };
+}
+
+/**
+ * Give a streamed utterance unit exact word-level start/end times. Utterance
+ * units arrive with their parent turn's timing (the model only returns text);
+ * this re-times them by locating the text inside the turn's words. If the text
+ * cannot be found verbatim, the unit keeps the turn timing and is flagged
+ * `approximateTiming`. Turn and time-window units pass through untouched.
+ */
+export function alignIncomingUnit(
+  unit: CodedUnit,
+  rawTranscript: RawTranscript | null,
+  turns: SpeakingTurn[],
+  granularity: Granularity,
+): CodedUnit {
+  if (granularity !== "utterance" || unit.utteranceIndex === undefined) {
+    return unit;
+  }
+  const parentTurn = turns.find((t) => t.turnNumber === unit.turnNumber);
+  if (!parentTurn) return unit;
+  if (!rawTranscript) return unit;
+  const turnWords = getTurnWords(rawTranscript, parentTurn);
+  const aligned = alignUtteranceToWords(unit.text, turnWords);
+  if (aligned.ok) {
+    return { ...unit, startTime: aligned.startTime, endTime: aligned.endTime };
+  }
+  return { ...unit, approximateTiming: true };
 }

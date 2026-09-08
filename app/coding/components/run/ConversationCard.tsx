@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useSession } from "../../hooks/CodingSessionContext";
-import { sortUnits } from "../../hooks/useCodingSession";
+import { sortUnits } from "@/lib/results/sort-units";
 import { formatCost, sumLogUsage } from "../../hooks/useRunStats";
 import { CategoryHistogram } from "./CategoryHistogram";
 import { RunRow } from "./RunRow";
