@@ -1,4 +1,4 @@
-import { TranscriptWord, SpeakingTurn } from "./types";
+import { TranscriptWord, SpeakingTurn } from "@/lib/types";
 
 export function parseTranscript(words: TranscriptWord[]): SpeakingTurn[] {
   if (words.length === 0) return [];

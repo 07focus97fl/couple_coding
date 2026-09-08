@@ -1,4 +1,4 @@
-import { RawTranscript, SpeakingTurn, TranscriptWord } from "./types";
+import { RawTranscript, SpeakingTurn, TranscriptWord } from "@/lib/types";
 
 export interface AlignmentResult {
   startTime: number;

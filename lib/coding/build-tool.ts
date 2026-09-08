@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { CategoryDefinition, CodingMode, RatingScale, DEFAULT_SCALE } from "./types";
+import { CategoryDefinition, CodingMode, RatingScale, DEFAULT_SCALE } from "@/lib/types";
 
 export const TOOL_NAME = "code_exchange";
 

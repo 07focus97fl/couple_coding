@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useSession } from "../../hooks/CodingSessionContext";
-import { codeFor, FALLBACK_COLOR } from "@/lib/category-colors";
+import { codeFor, FALLBACK_COLOR } from "@/lib/results/category-colors";
 import type { CodedUnit } from "@/lib/types";
 import s from "./CategoryHistogram.module.css";
 

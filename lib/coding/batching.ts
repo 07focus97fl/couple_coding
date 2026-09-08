@@ -1,4 +1,4 @@
-import { CodingMode, PreSegment, DEFAULT_BATCH_SIZE } from "./types";
+import { CodingMode, PreSegment, DEFAULT_BATCH_SIZE } from "@/lib/types";
 
 /**
  * Batching layer: group consecutive PreSegments so several units can be coded in

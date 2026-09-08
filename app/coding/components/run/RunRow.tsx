@@ -2,7 +2,7 @@
 
 import { memo, type ReactNode } from "react";
 import { CodedUnit, OutputType, RatingScale } from "@/lib/types";
-import { codeFor, colorWithAlpha, FALLBACK_COLOR } from "@/lib/category-colors";
+import { codeFor, colorWithAlpha, FALLBACK_COLOR } from "@/lib/results/category-colors";
 import s from "./RunRow.module.css";
 
 function speakerKey(speaker: string): "a" | "b" {

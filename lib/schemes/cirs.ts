@@ -1,5 +1,5 @@
 import { CodingScheme } from "../types";
-import { buildDefaultPrompt } from "../prompt-defaults";
+import { buildDefaultPrompt } from "./default-prompt";
 
 export const CIRS: CodingScheme = {
   id: "CIRS",

@@ -1,4 +1,4 @@
-import { PromptOptions } from "./types";
+import { PromptOptions } from "@/lib/types";
 
 const ROLE =
   "You are an expert behavioral coder for couple conversation research.";

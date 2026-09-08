@@ -6,8 +6,8 @@ import { sortUnits } from "../../hooks/useCodingSession";
 import { formatCost, sumLogUsage } from "../../hooks/useRunStats";
 import { CategoryHistogram } from "./CategoryHistogram";
 import { RunRow } from "./RunRow";
-import { ExportButton } from "../ExportButton";
-import { FALLBACK_COLOR } from "@/lib/category-colors";
+import { ExportButton } from "./ExportButton";
+import { FALLBACK_COLOR } from "@/lib/results/category-colors";
 import type { TranscriptFile } from "@/lib/types";
 import s from "./ConversationCard.module.css";
 

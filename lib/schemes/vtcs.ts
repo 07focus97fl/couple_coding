@@ -1,5 +1,5 @@
 import { CodingScheme } from "../types";
-import { buildDefaultPrompt } from "../prompt-defaults";
+import { buildDefaultPrompt } from "./default-prompt";
 
 const VCTS_TURN_PROMPT = `You are an expert coder of couple conflict communication. You assign ONE code to each complete speaker turn using the 6-category scheme below.
 

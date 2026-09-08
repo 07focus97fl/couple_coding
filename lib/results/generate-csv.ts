@@ -1,4 +1,4 @@
-import { CodedUnit, ColumnKey, COLUMN_DEFINITIONS } from "./types";
+import { CodedUnit, ColumnKey, COLUMN_DEFINITIONS } from "@/lib/types";
 
 function escapeCsvField(field: string): string {
   if (field.includes(",") || field.includes('"') || field.includes("\n")) {

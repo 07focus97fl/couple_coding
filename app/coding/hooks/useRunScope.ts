@@ -2,8 +2,8 @@
 
 import { useMemo } from "react";
 import { useSession } from "./CodingSessionContext";
-import { segment } from "@/lib/segment";
-import { chunkSegments } from "@/lib/batching";
+import { segment } from "@/lib/transcript/segment";
+import { chunkSegments } from "@/lib/coding/batching";
 import type { CodingMode } from "@/lib/types";
 
 export interface RunScope {

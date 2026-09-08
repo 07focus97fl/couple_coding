@@ -11,8 +11,8 @@ import {
   DEFAULT_SCALE,
   DEFAULT_WINDOW_SECONDS,
   DEFAULT_BATCH_SIZE,
-} from "./types";
-import { DEFAULT_REASONING_LEVEL, ReasoningLevel } from "./models";
+} from "@/lib/types";
+import { DEFAULT_REASONING_LEVEL, ReasoningLevel } from "@/lib/models";
 
 // NOTE: the storage key string is intentionally kept as "ccc_session_v3" even
 // though the schema is now v5. Renaming it would orphan existing saved sessions;

@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { ApiLog, ApiLogParsedUnit } from "@/lib/types";
-import { PromptViewer } from "@/app/coding/components/PromptViewer";
+import { PromptViewer } from "./PromptViewer";
 import { getModel } from "@/lib/models";
 import { normalizeUsage, costFromUsage, formatCost } from "@/lib/usage";
 

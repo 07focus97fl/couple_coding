@@ -3,7 +3,7 @@ import {
   PreSegment,
   TranscriptWord,
   DEFAULT_WINDOW_SECONDS,
-} from "./types";
+} from "@/lib/types";
 import { parseTranscript } from "./parse-transcript";
 import { segmentByTime } from "./segment-time";
 

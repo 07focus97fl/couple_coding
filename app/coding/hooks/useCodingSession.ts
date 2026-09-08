@@ -23,22 +23,22 @@ import {
   TranscriptFile,
 } from "@/lib/types";
 import { CODING_SCHEMES } from "@/lib/coding-schemes";
-import { alignUtteranceToWords, getTurnWords } from "@/lib/align-utterances";
-import { parseTranscript } from "@/lib/parse-transcript";
-import { segment } from "@/lib/segment";
-import { generateCsv, dimsFromUnits } from "@/lib/generate-csv";
+import { alignUtteranceToWords, getTurnWords } from "@/lib/results/align-utterances";
+import { parseTranscript } from "@/lib/transcript/parse-transcript";
+import { segment } from "@/lib/transcript/segment";
+import { generateCsv, dimsFromUnits } from "@/lib/results/generate-csv";
 import {
   DEFAULT_REASONING_LEVEL,
   getModel,
   type ProviderId,
   type ReasoningLevel,
 } from "@/lib/models";
-import { buildColorMap } from "@/lib/category-colors";
+import { buildColorMap } from "@/lib/results/category-colors";
 import {
   AUTOSAVE_KEY,
   deserialize,
   PersistedSession,
-} from "@/lib/autosave-schema";
+} from "./autosave-schema";
 import { useAutosave, AutosaveState } from "./useAutosave";
 import { useRunStats, RunStats } from "./useRunStats";
 import { useScrollSpy } from "./useScrollSpy";

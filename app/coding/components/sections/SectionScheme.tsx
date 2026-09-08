@@ -5,7 +5,7 @@ import { useSession } from "../../hooks/CodingSessionContext";
 import { SectionShell } from "../layout/SectionShell";
 import { CODING_SCHEMES } from "@/lib/coding-schemes";
 import { CategoryDefinition } from "@/lib/types";
-import { codeFor, FALLBACK_COLOR } from "@/lib/category-colors";
+import { codeFor, FALLBACK_COLOR } from "@/lib/results/category-colors";
 import { PromptEditor } from "./PromptEditor";
 import { TopicTable } from "./TopicTable";
 import s from "./SectionScheme.module.css";

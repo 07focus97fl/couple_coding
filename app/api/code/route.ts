@@ -16,9 +16,9 @@ import {
   buildSystemPrompt,
   buildUserMessage,
   buildBatchUserMessage,
-} from "./prompts";
-import { buildCodingTool, computeMaxTokens } from "@/lib/coding-tool";
-import { chunkSegments, effectiveBatchCap } from "@/lib/batching";
+} from "@/lib/coding/build-messages";
+import { buildCodingTool, computeMaxTokens } from "@/lib/coding/build-tool";
+import { chunkSegments, effectiveBatchCap } from "@/lib/coding/batching";
 import { runStructuredCall } from "@/lib/llm";
 import { getModel } from "@/lib/models";
 import {

@@ -1,4 +1,4 @@
-import { CategoryDefinition, CodingScheme } from "./types";
+import { CategoryDefinition, CodingScheme } from "@/lib/types";
 
 export const PALETTE = [
   "#a65a3d",

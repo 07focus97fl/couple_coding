@@ -26,7 +26,7 @@ import {
   DEFAULT_EXPORT_CONFIG,
   COLUMN_DEFINITIONS,
 } from "@/lib/types";
-import { generateCsv, dimsFromUnits } from "@/lib/generate-csv";
+import { generateCsv, dimsFromUnits } from "@/lib/results/generate-csv";
 
 interface ExportDialogProps {
   open: boolean;

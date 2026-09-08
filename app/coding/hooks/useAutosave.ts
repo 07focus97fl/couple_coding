@@ -7,7 +7,7 @@ import {
   PersistedSession,
   serialize,
   stripRawTranscripts,
-} from "@/lib/autosave-schema";
+} from "./autosave-schema";
 
 export type AutosaveState =
   | "idle"

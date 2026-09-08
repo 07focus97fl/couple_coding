@@ -1,4 +1,4 @@
-import { PreSegment, TranscriptWord } from "./types";
+import { PreSegment, TranscriptWord } from "@/lib/types";
 
 /**
  * Render a window's tokens as speaker-labeled lines, e.g.
