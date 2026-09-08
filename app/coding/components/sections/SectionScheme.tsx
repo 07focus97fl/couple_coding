@@ -263,6 +263,8 @@ export function SectionScheme() {
     batchSize,
     setBatchSize,
   } = useSession();
+  // Bumped when a category row is deleted so the rows remount (see onRemove).
+  const [rowGeneration, setRowGeneration] = useState(0);
 
   const schemesNav = CODING_SCHEMES.filter((sc) => sc.id !== "custom");
   const ctxUnit = segmentation === "time" ? "window" : "turn";
@@ -353,7 +355,7 @@ export function SectionScheme() {
                   <div className={s.catList}>
                     {categories.map((cat, i) => (
                       <CategoryRow
-                        key={i}
+                        key={`${rowGeneration}-${i}`}
                         cat={cat}
                         color={
                           categoryColorMap[cat.name] ?? FALLBACK_COLOR
@@ -365,6 +367,8 @@ export function SectionScheme() {
                           setCategories(updated);
                         }}
                         onRemove={() => {
+                          // Remount the rows so none inherits the deleted row's state.
+                          setRowGeneration((g) => g + 1);
                           setCategories(
                             categories.filter((_, idx) => idx !== i),
                           );

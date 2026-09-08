@@ -326,23 +326,29 @@ export function useTranscriptFiles(): TranscriptFilesState {
     );
   }, []);
 
-  // Autosave stores the raw transcript and a few flags; everything else
-  // (turns, coded units, progress) is rebuilt at run time.
+  // Autosave stores the raw transcript and a few flags; turns are re-parsed
+  // here, coded units and progress are rebuilt at run time.
   const restoreFiles = useCallback((persisted: PersistedFile[]) => {
     setFiles(
       persisted
         .filter((f) => f.rawTranscript !== null)
-        .map((f) => ({
-          id: f.id,
-          fileName: f.fileName,
-          rawTranscript: f.rawTranscript as RawTranscript,
-          turns: [],
-          codedUnits: [],
-          selected: f.selected,
-          status: "pending" as const,
-          progress: { completed: 0, total: 0 },
-          topic: f.topic ?? "",
-        })),
+        .map((f) => {
+          const rawTranscript = f.rawTranscript as RawTranscript;
+          const turns = Array.isArray(rawTranscript.words)
+            ? parseTranscript(rawTranscript.words)
+            : [];
+          return {
+            id: f.id,
+            fileName: f.fileName,
+            rawTranscript,
+            turns,
+            codedUnits: [],
+            selected: f.selected,
+            status: "pending" as const,
+            progress: { completed: 0, total: turns.length },
+            topic: f.topic ?? "",
+          };
+        }),
     );
   }, []);
 

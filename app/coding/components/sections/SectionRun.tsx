@@ -182,7 +182,7 @@ export function SectionRun() {
             <details className={s.scopeFiles}>
               <summary>Per file</summary>
               {scope.perFile.map((f) => (
-                <div key={f.fileName}>
+                <div key={f.id}>
                   {f.fileName}: {f.calls.toLocaleString()} call
                   {f.calls !== 1 ? "s" : ""}
                 </div>

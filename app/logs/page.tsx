@@ -47,7 +47,7 @@ export default function LogsPage() {
     }
   }, [raw]);
 
-  const sortedLogs = useMemo<ApiLog[]>(() => {
+  const sortedLogs = useMemo<{ log: ApiLog; arrival: number }[]>(() => {
     // Logs stream back out of order (the server codes several segments at once),
     // so present them grouped by the file they came from (in the order files
     // were coded), then ordered by turn/window number within each file.
@@ -66,7 +66,7 @@ export default function LogsPage() {
           return a.log.turnNumber - b.log.turnNumber;
         return a.i - b.i; // stable tiebreak: preserve arrival order on ties
       })
-      .map((x) => x.log);
+      .map((x) => ({ log: x.log, arrival: x.i }));
   }, [logs]);
 
   const [expanded, setExpanded] = useState<Record<number, boolean>>({});
@@ -103,8 +103,9 @@ export default function LogsPage() {
         </button>
       </div>
 
-      {sortedLogs.map((log, i) => {
-        const isOpen = expanded[i] ?? false;
+      {sortedLogs.map(({ log, arrival }) => {
+        // Keyed by arrival, not list position: the list re-sorts as logs stream in.
+        const isOpen = expanded[arrival] ?? false;
         const units: ApiLogParsedUnit[] = log.parsedUnits ?? [];
         // Pre-split logs only had a single prior-context field; read it as a fallback.
         const legacy = log as Partial<{
@@ -123,8 +124,8 @@ export default function LogsPage() {
         const cost = log.costUsd ?? costFromUsage(usage, logModel?.pricing ?? null);
         const attempts = log.attempts ?? 1;
         return (
-          <div key={i} style={card}>
-            <button onClick={() => toggle(i)} style={cardHeader}>
+          <div key={arrival} style={card}>
+            <button onClick={() => toggle(arrival)} style={cardHeader}>
               <span style={{ fontWeight: 600 }}>
                 Turn {log.turnNumber} &middot; {log.speaker}
               </span>

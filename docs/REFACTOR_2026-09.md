@@ -72,23 +72,23 @@ The `README.md` has the file map; this document is the "why".
 
 | # | Where (pre-refactor path) | Problem | Fix | Status |
 |---|---|---|---|---|
-| A1 | `useCodingSession.ts:940` | The SSE parser reset `eventType` on every network chunk, so an event whose `event:` and `data:` lines arrived in different chunks was silently dropped: a lost coded row or log while progress still advanced. | Keep `eventType` across chunks (now in `lib/coding/sse.ts`). | pending |
-| A2 | `useCodingSession.ts:346-350` | `sessionStorage.setItem("api_logs", …)` had no try/catch; a long run exceeds the ~5 MB quota and the throw inside an effect crashes the page mid-run. Also never cleared on a new run, so `/logs` showed the previous run until the first new log. | try/catch; remove the key when logs are empty. | pending |
-| A3 | `useCodingSession.ts:300-314` | Files restored from autosave came back with no turns, so the Upload table showed "—" for turn count until a run. | Re-parse turns on restore. | pending |
-| A4 | `SectionScheme.tsx:349` | `key={i}` on the editable category list; deleting a middle row left the wrong row's open/closed state and textarea height. | Key rows by a generated stable id. | pending |
-| A5 | `app/logs/page.tsx:64-66,99,119` | Expanded state and keys used the position in a list that re-sorts as logs arrive; an open card jumped to another log. | Key by arrival index. | pending |
-| A6 | `StageRail.tsx:31` | "Key linked" showed when an Anthropic key was saved but no model selected. | Require a selected model too. | pending |
-| A7 | `route.ts:252` | Malformed JSON body produced a framework 500 and a confusing client error. | Return a 400 with a clear message. | pending |
-| A8 | `app/api/transcribe/route.ts:58` | `upstream.json()` was unguarded. | try/catch → 502. | pending |
-| A9 | `useCodingSession.ts:872-884` | Segmentation ran before the `try`, so a throw aborted the multi-file loop with no file marked as errored. | Move inside the `try`. | pending |
-| A10 | `route.ts:296` | Error text said "No turns provided" for the `segments` field. | "No segments provided". | pending |
-| A11 | `lib/autosave-schema.ts:18` | Comment said the schema was v5; code was v6; the literal `6` was duplicated in the hook. | One exported `AUTOSAVE_VERSION`. | pending |
-| A12 | `ConversationCard.tsx:61`, `SectionRun.tsx:179` | Per-file cost joined logs on file *name*; two uploads with the same name merged costs and produced duplicate React keys. | Stamp `fileId` on each log; join on it. | pending |
-| A13 | `app/page.tsx:287` | Landing said "mp3, m4a, wav"; the app accepts mp3, mp4, wav. | Fix copy. | pending |
-| A14 | `app/layout.tsx:34` | Meta description said "using Claude AI"; three providers are supported. | Provider-neutral copy. | pending |
-| A15 | `app/globals.css:10` | `--font-sans: var(--font-sans)` was self-referential; Geist fonts were loaded and never used. | Point at a loaded font; drop Geist. | pending |
-| A16 | `app/api/code/route.ts` | No `maxDuration` (the transcribe route has one); serverless hosts would kill long runs silently. | Add `maxDuration = 300`. | pending |
-| A17 | `SectionUpload.tsx:253-262, 329-335` | Dropzone not keyboard-reachable; row checkbox had no accessible name. | `role`/`tabIndex`/key handler; `aria-label`. | pending |
+| A1 | `useCodingSession.ts:940` | The SSE parser reset `eventType` on every network chunk, so an event whose `event:` and `data:` lines arrived in different chunks was silently dropped: a lost coded row or log while progress still advanced. | Keep `eventType` across chunks (now in `lib/coding/sse.ts`). | fixed |
+| A2 | `useCodingSession.ts:346-350` | `sessionStorage.setItem("api_logs", …)` had no try/catch; a long run exceeds the ~5 MB quota and the throw inside an effect crashes the page mid-run. Also never cleared on a new run, so `/logs` showed the previous run until the first new log. | try/catch; remove the key when logs are empty. | fixed |
+| A3 | `useCodingSession.ts:300-314` | Files restored from autosave came back with no turns, so the Upload table showed "—" for turn count until a run. | Re-parse turns on restore. | fixed |
+| A4 | `SectionScheme.tsx:349` | `key={i}` on the editable category list; deleting a middle row left the wrong row's open/closed state and textarea height. | Key rows by a generated stable id. | fixed |
+| A5 | `app/logs/page.tsx:64-66,99,119` | Expanded state and keys used the position in a list that re-sorts as logs arrive; an open card jumped to another log. | Key by arrival index. | fixed |
+| A6 | `StageRail.tsx:31` | "Key linked" showed when an Anthropic key was saved but no model selected. | Require a selected model too. | fixed |
+| A7 | `route.ts:252` | Malformed JSON body produced a framework 500 and a confusing client error. | Return a 400 with a clear message. | fixed |
+| A8 | `app/api/transcribe/route.ts:58` | `upstream.json()` was unguarded. | try/catch → 502. | fixed |
+| A9 | `useCodingSession.ts:872-884` | Segmentation ran before the `try`, so a throw aborted the multi-file loop with no file marked as errored. | Move inside the `try`. | fixed |
+| A10 | `route.ts:296` | Error text said "No turns provided" for the `segments` field. | "No segments provided". | fixed |
+| A11 | `lib/autosave-schema.ts:18` | Comment said the schema was v5; code was v6; the literal `6` was duplicated in the hook. | One exported `AUTOSAVE_VERSION`. | fixed |
+| A12 | `ConversationCard.tsx:61`, `SectionRun.tsx:179` | Per-file cost joined logs on file *name*; two uploads with the same name merged costs and produced duplicate React keys. | Stamp `fileId` on each log; join on it. | fixed |
+| A13 | `app/page.tsx:287` | Landing said "mp3, m4a, wav"; the app accepts mp3, mp4, wav. | Fix copy. | fixed |
+| A14 | `app/layout.tsx:34` | Meta description said "using Claude AI"; three providers are supported. | Provider-neutral copy. | fixed |
+| A15 | `app/globals.css:10` | `--font-sans: var(--font-sans)` was self-referential; Geist fonts were loaded and never used. | Point at a loaded font; drop Geist. | fixed |
+| A16 | `app/api/code/route.ts` | No `maxDuration` (the transcribe route has one); serverless hosts would kill long runs silently. | Add `maxDuration = 300`. | fixed |
+| A17 | `SectionUpload.tsx:253-262, 329-335` | Dropzone not keyboard-reachable; row checkbox had no accessible name. | `role`/`tabIndex`/key handler; `aria-label`. | fixed |
 
 ### 4B. Real bugs that need a design decision (documented, not fixed)
 

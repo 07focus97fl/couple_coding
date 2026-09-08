@@ -266,6 +266,15 @@ export function SectionUpload() {
           onDragLeave={() => setDragOver(false)}
           onDrop={onDrop}
           onClick={() => inputRef.current?.click()}
+          role="button"
+          tabIndex={0}
+          aria-label="Add transcript or audio files"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              inputRef.current?.click();
+            }
+          }}
         >
           <input
             ref={inputRef}
@@ -339,6 +348,7 @@ export function SectionUpload() {
                         disabled={checkboxDisabled}
                         onChange={() => toggleFile(f.id)}
                         className={s.checkbox}
+                        aria-label={`Select ${f.fileName}`}
                       />
                     </div>
                     <div className={s.tdFile}>

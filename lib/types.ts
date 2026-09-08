@@ -243,6 +243,8 @@ export interface ApiLog {
   unitIds: string[];
   /** Source transcript file, stamped client-side so the /logs view can group + order by file. */
   fileName?: string;
+  /** Id of that file, stamped client-side; results cards attribute cost by it. */
+  fileId?: string;
   model: string;
   systemPrompt: string;
   userMessage: string;

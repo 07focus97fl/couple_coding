@@ -64,8 +64,8 @@ export function ConversationCard({
   } = useSession();
 
   const totals = useMemo(
-    () => sumLogUsage(apiLogs.filter((l) => l.fileName === file.fileName)),
-    [apiLogs, file.fileName],
+    () => sumLogUsage(apiLogs.filter((l) => l.fileId === file.id)),
+    [apiLogs, file.id],
   );
   const sorted = useMemo(() => sortUnits(file.codedUnits), [file.codedUnits]);
 

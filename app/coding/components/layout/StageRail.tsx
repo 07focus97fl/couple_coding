@@ -32,9 +32,12 @@ function CheckSvg() {
 }
 
 export function StageRail() {
-  const { activeSectionId, stepDone, activeProviderKey } = useSession();
+  const { activeSectionId, stepDone, activeProviderKey, selectedModel } =
+    useSession();
 
-  const keyLinked = activeProviderKey !== "";
+  // Only counts once a model is chosen: before that the fallback provider could
+  // show a saved Anthropic key as linked while no run is possible.
+  const keyLinked = selectedModel !== "" && activeProviderKey !== "";
 
   return (
     <aside className={s.rail}>

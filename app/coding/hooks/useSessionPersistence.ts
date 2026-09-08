@@ -10,7 +10,12 @@
  * STORAGE: localStorage "ccc_session_v3" (read here; written by useAutosave.ts)
  */
 import { useEffect, useMemo, useState } from "react";
-import { AUTOSAVE_KEY, deserialize, PersistedSession } from "./autosave-schema";
+import {
+  AUTOSAVE_KEY,
+  AUTOSAVE_VERSION,
+  deserialize,
+  PersistedSession,
+} from "./autosave-schema";
 import { useAutosave, AutosaveState } from "./useAutosave";
 import type { TranscriptFilesState } from "./useTranscriptFiles";
 import type { ModelAndKeysState } from "./useModelAndKeys";
@@ -81,7 +86,7 @@ export function useSessionPersistence({
     if (!hydrated) return null;
     if (isAnyCoding) return null;
     return {
-      version: 6,
+      version: AUTOSAVE_VERSION,
       files: files.map((f) => ({
         id: f.id,
         fileName: f.fileName,

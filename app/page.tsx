@@ -291,7 +291,7 @@ export default function LandingPage() {
               <div className={s.stepNum}>01</div>
               <div className={s.stepTitle}>Upload transcript</div>
               <div className={s.stepText}>
-                Drop in a word-level JSON transcript — or upload raw audio (mp3, m4a, wav) and we transcribe it automatically with ElevenLabs. Speaker turns are segmented for you.
+                Drop in a word-level JSON transcript — or upload raw audio (mp3, mp4, wav) and we transcribe it automatically with ElevenLabs. Speaker turns are segmented for you.
               </div>
             </div>
             <div className={s.step}>

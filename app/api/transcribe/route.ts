@@ -62,6 +62,14 @@ export async function POST(request: Request) {
     );
   }
 
-  const data = await upstream.json();
+  let data: unknown;
+  try {
+    data = await upstream.json();
+  } catch {
+    return new Response(
+      JSON.stringify({ error: "ElevenLabs returned a non-JSON body" }),
+      { status: 502, headers: { "Content-Type": "application/json" } },
+    );
+  }
   return Response.json(data);
 }

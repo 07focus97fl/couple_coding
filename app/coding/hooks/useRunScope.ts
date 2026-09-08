@@ -17,7 +17,7 @@ export interface RunScope {
    *  size — one call per batch of units — across selected files. */
   apiCalls: number;
   fileCount: number;
-  perFile: { fileName: string; calls: number }[];
+  perFile: { id: string; fileName: string; calls: number }[];
 }
 
 /**
@@ -61,6 +61,7 @@ export function useRunScope(): RunScope {
     };
     const selected = files.filter((f) => f.selected && f.rawTranscript);
     const perFile = selected.map((f) => ({
+      id: f.id,
       fileName: f.fileName,
       calls: chunkSegments(segment(f.rawTranscript!.words, mode), mode).length,
     }));

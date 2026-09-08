@@ -5,18 +5,8 @@
  * RUNS ON: server (React server component)
  */
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, DM_Serif_Display, Instrument_Sans, JetBrains_Mono } from "next/font/google";
+import { DM_Serif_Display, Instrument_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 const dmSerif = DM_Serif_Display({
   variable: "--font-serif",
@@ -37,7 +27,8 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "Couple Conversation Coder",
-  description: "Code couple conversation transcripts using Claude AI",
+  description:
+    "Code couple conversation transcripts with the LLM of your choice (Anthropic, OpenAI or Google).",
 };
 
 export default function RootLayout({
@@ -48,7 +39,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${dmSerif.variable} ${instrumentSans.variable} ${jetbrainsMono.variable} antialiased`}
+        className={`${dmSerif.variable} ${instrumentSans.variable} ${jetbrainsMono.variable} antialiased`}
       >
         {children}
       </body>

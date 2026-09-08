@@ -17,6 +17,9 @@ import { getModel } from "@/lib/models";
 import { buildRunPlan, codeSegments } from "@/lib/coding/code-segments";
 import { formatSseEvent } from "@/lib/coding/sse";
 
+/** Let long runs finish on serverless hosts (mirrors /api/transcribe). */
+export const maxDuration = 300;
+
 /** The request body the client sends (see README "POST /api/code"). */
 interface CodeRequest {
   /** Pre-cut units, produced client-side by lib/transcript/segment.ts. */
@@ -41,6 +44,12 @@ function badRequest(message: string): Response {
 }
 
 export async function POST(request: Request) {
+  let body: CodeRequest;
+  try {
+    body = (await request.json()) as CodeRequest;
+  } catch {
+    return badRequest("Invalid JSON body");
+  }
   const {
     segments,
     mode,
@@ -52,7 +61,7 @@ export async function POST(request: Request) {
     apiKey: clientKey,
     topic,
     reasoningEffort: reqReasoningEffort,
-  } = (await request.json()) as CodeRequest;
+  } = body;
 
   const contextBefore = reqContextBefore ?? DEFAULT_CONTEXT_BEFORE;
   const contextAfter = reqContextAfter ?? DEFAULT_CONTEXT_AFTER;
@@ -80,7 +89,7 @@ export async function POST(request: Request) {
   }
 
   if (!segments || !Array.isArray(segments) || segments.length === 0) {
-    return badRequest("No turns provided");
+    return badRequest("No segments provided");
   }
 
   if (!mode || typeof mode !== "object" || !mode.segmentation || !mode.outputType) {

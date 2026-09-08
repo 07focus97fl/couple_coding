@@ -69,8 +69,14 @@ export function useCodingRun({
   const [runStartedAt, setRunStartedAt] = useState<number | null>(null);
 
   useEffect(() => {
-    if (apiLogs.length > 0) {
-      sessionStorage.setItem("api_logs", JSON.stringify(apiLogs));
+    try {
+      if (apiLogs.length > 0) {
+        sessionStorage.setItem("api_logs", JSON.stringify(apiLogs));
+      } else {
+        sessionStorage.removeItem("api_logs");
+      }
+    } catch {
+      // Quota exceeded on a very long run: /logs will show a partial list.
     }
   }, [apiLogs]);
 
@@ -107,10 +113,6 @@ export function useCodingRun({
 
     for (const file of filesToCode) {
       if (!file.rawTranscript) continue;
-      const turns =
-        file.turns.length > 0
-          ? file.turns
-          : parseTranscript(file.rawTranscript.words);
       const mode: CodingMode = {
         segmentation,
         outputType,
@@ -119,24 +121,31 @@ export function useCodingRun({
         perSpeaker,
         batchSize,
       };
-      const segs = segment(file.rawTranscript.words, mode);
-
-      setFiles((prev) =>
-        prev.map((f) =>
-          f.id === file.id
-            ? {
-                ...f,
-                turns,
-                status: "coding" as const,
-                codedUnits: [],
-                error: undefined,
-                progress: { completed: 0, total: segs.length },
-              }
-            : f,
-        ),
-      );
 
       try {
+        // Inside the try so a malformed transcript marks this file as errored
+        // instead of aborting the whole multi-file loop.
+        const turns =
+          file.turns.length > 0
+            ? file.turns
+            : parseTranscript(file.rawTranscript.words);
+        const segs = segment(file.rawTranscript.words, mode);
+
+        setFiles((prev) =>
+          prev.map((f) =>
+            f.id === file.id
+              ? {
+                  ...f,
+                  turns,
+                  status: "coding" as const,
+                  codedUnits: [],
+                  error: undefined,
+                  progress: { completed: 0, total: segs.length },
+                }
+              : f,
+          ),
+        );
+
         const response = await fetch("/api/code", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -192,6 +201,7 @@ export function useCodingRun({
           } else if (event === "log") {
             const log = JSON.parse(data) as ApiLog;
             log.fileName = file.fileName;
+            log.fileId = file.id;
             setApiLogs((prev) => [...prev, log]);
           } else if (event === "error") {
             const { message } = JSON.parse(data);

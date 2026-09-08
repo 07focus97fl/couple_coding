@@ -22,6 +22,9 @@ export async function* readSseEvents(
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  // Kept across chunks: an "event:" line and its "data:" line can arrive in
+  // different network chunks.
+  let eventType = "";
 
   while (true) {
     const { done, value } = await reader.read();
@@ -31,7 +34,6 @@ export async function* readSseEvents(
     const lines = buffer.split("\n");
     buffer = lines.pop() || "";
 
-    let eventType = "";
     for (const line of lines) {
       if (line.startsWith("event: ")) {
         eventType = line.slice(7);

@@ -21,9 +21,12 @@ import {
 } from "@/lib/types";
 import { DEFAULT_REASONING_LEVEL, ReasoningLevel } from "@/lib/models";
 
+// The schema version written by serialize(); bump it when PersistedSession
+// changes and add a migration line in deserialize().
+export const AUTOSAVE_VERSION = 6 as const;
 // NOTE: the storage key string is intentionally kept as "ccc_session_v3" even
-// though the schema is now v5. Renaming it would orphan existing saved sessions;
-// instead we migrate v3/v4 payloads in place via deserialize() (see below).
+// though the schema is now v6. Renaming it would orphan existing saved sessions;
+// instead deserialize() migrates older payloads in place (see below).
 export const AUTOSAVE_KEY = "ccc_session_v3";
 export const AUTOSAVE_MAX_BYTES = 3_000_000;
 
@@ -36,7 +39,7 @@ export interface PersistedFile {
 }
 
 export interface PersistedSession {
-  version: 6;
+  version: typeof AUTOSAVE_VERSION;
   files: PersistedFile[];
   selectedModel: string;
   reasoningLevel: ReasoningLevel;
@@ -75,7 +78,7 @@ export function deserialize(raw: string): PersistedSession | null {
       p.version !== 3 &&
       p.version !== 4 &&
       p.version !== 5 &&
-      p.version !== 6
+      p.version !== AUTOSAVE_VERSION
     )
       return null;
 
@@ -84,7 +87,7 @@ export function deserialize(raw: string): PersistedSession | null {
     const legacySegmentation: SegmentationStrategy =
       p.granularity === "utterance" ? "utterance" : "turn";
     return {
-      version: 6,
+      version: AUTOSAVE_VERSION,
       files: p.files,
       selectedModel: p.selectedModel ?? "",
       reasoningLevel: p.reasoningLevel ?? DEFAULT_REASONING_LEVEL,
