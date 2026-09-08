@@ -47,8 +47,6 @@ export interface UsageTotals {
   cacheReadTokens: number;
   cacheWriteTokens: number;
   hasUsage: boolean;
-  /** Number of logged API calls (a single call may cover several exchanges when batching). */
-  callCount: number;
 }
 
 /** Sum normalized usage + cost across a set of logs (one log = one API call). */
@@ -82,7 +80,6 @@ export function sumLogUsage(logs: ApiLog[]): UsageTotals {
     cacheReadTokens,
     cacheWriteTokens,
     hasUsage,
-    callCount: logs.length,
   };
 }
 

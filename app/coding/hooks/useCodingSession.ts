@@ -34,7 +34,6 @@ export const SECTION_IDS = [
   "s-scheme",
   "s-run",
 ] as const;
-export type SectionId = (typeof SECTION_IDS)[number];
 
 export interface CodingSession {
   // Upload
@@ -63,12 +62,9 @@ export interface CodingSession {
   setOpenaiKey: (k: string) => void;
   googleKey: string;
   setGoogleKey: (k: string) => void;
-  showKey: boolean;
-  setShowKey: (b: boolean) => void;
   // Derived from the selected model: its provider and the matching key.
   activeProvider: ProviderId;
   activeProviderKey: string;
-  setActiveProviderKey: (k: string) => void;
   elevenLabsKey: string;
   setElevenLabsKey: (k: string) => void;
   showElevenKey: boolean;
@@ -183,11 +179,8 @@ export function useCodingSession(): CodingSession {
     setOpenaiKey: model.setOpenaiKey,
     googleKey: model.googleKey,
     setGoogleKey: model.setGoogleKey,
-    showKey: model.showKey,
-    setShowKey: model.setShowKey,
     activeProvider: model.activeProvider,
     activeProviderKey: model.activeProviderKey,
-    setActiveProviderKey: model.setActiveProviderKey,
     elevenLabsKey: upload.elevenLabsKey,
     setElevenLabsKey: upload.setElevenLabsKey,
     showElevenKey: upload.showElevenKey,

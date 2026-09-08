@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useSession } from "../../hooks/CodingSessionContext";
 import { SectionShell } from "../layout/SectionShell";
-import { CODING_SCHEMES } from "@/lib/coding-schemes";
+import { CODING_SCHEMES } from "@/lib/schemes";
 import { CategoryDefinition } from "@/lib/types";
 import { codeFor, FALLBACK_COLOR } from "@/lib/results/category-colors";
 import { PromptEditor } from "./PromptEditor";

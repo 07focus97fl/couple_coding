@@ -67,10 +67,7 @@ const PER_SPEAKER_TIME_OUTPUT =
 const CONTINUOUS_PER_SPEAKER_TIME_OUTPUT =
   "You MUST use the code_exchange tool to return a `speakers` array. Return ONE entry for each speaker who actually speaks in the target window — each entry has that speaker's id, a numeric rating for every dimension, and a brief `rationale` (1-2 sentences). Do NOT return entries for silent speakers; those are recorded automatically by the system.";
 
-export function buildDefaultPrompt(
-  opts: PromptOptions,
-  schemeRules?: string,
-): string {
+export function buildDefaultPrompt(opts: PromptOptions): string {
   const isContinuous = opts.outputType === "continuous";
 
   let task: string;
@@ -101,11 +98,5 @@ export function buildDefaultPrompt(
     output = isContinuous ? CONTINUOUS_TURN_OUTPUT : TURN_OUTPUT;
   }
 
-  const parts = [ROLE, task, context];
-  if (schemeRules && schemeRules.trim().length > 0) {
-    parts.push(schemeRules.trim());
-  }
-  parts.push(output);
-
-  return parts.join("\n\n");
+  return [ROLE, task, context, output].join("\n\n");
 }

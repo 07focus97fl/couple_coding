@@ -1,12 +1,6 @@
 import OpenAI from "openai";
 import type { StructuredCallParams, StructuredCallResult } from "./types";
 
-/** o-series reasoning models (o3, o3-pro, …) always reason. GPT-5.x reason when
- *  the caller passes an explicit effort. */
-function isReasoningModel(model: string): boolean {
-  return /^o\d/.test(model);
-}
-
 /**
  * Map the app's effort levels onto a Responses-API `reasoning.effort` value.
  * The Responses API has no "none"; "minimal" is its lowest setting. Anything
@@ -35,17 +29,18 @@ function toResponsesEffort(
  * route validates/retries the result defensively, so strict mode is not
  * required. We never send `temperature` for any provider.
  *
- * Reasoning models (GPT-5.x with an effort, or o-series) go through the
- * Responses API: `/v1/chat/completions` rejects `reasoning_effort` together with
- * function tools ("Please use /v1/responses instead"). Non-reasoning models stay
- * on Chat Completions.
+ * Reasoning models (those flagged `reasoning: true` in lib/models.ts, which
+ * arrive here with an effort) go through the Responses API:
+ * `/v1/chat/completions` rejects `reasoning_effort` together with function
+ * tools ("Please use /v1/responses instead"). Everything else stays on Chat
+ * Completions.
  */
 export async function runOpenAI(
   p: StructuredCallParams,
 ): Promise<StructuredCallResult> {
   const client = new OpenAI({ apiKey: p.apiKey });
   const effort = p.reasoningEffort;
-  const reasoning = !!effort || isReasoningModel(p.model);
+  const reasoning = !!effort;
 
   if (reasoning) {
     const respBody: Record<string, unknown> = {

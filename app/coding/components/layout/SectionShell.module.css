@@ -58,10 +58,6 @@
   min-height: 48px;
 }
 
-.cardHeadClosed {
-  /* no border between head and body when closed */
-}
-
 .circle {
   width: 26px;
   height: 26px;

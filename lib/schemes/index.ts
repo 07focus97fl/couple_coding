@@ -14,5 +14,3 @@ export const CODING_SCHEMES: CodingScheme[] = [
   CIRS,
   CUSTOM,
 ];
-
-export { VALENCE, VTCS, SPAFF, RCISS, CIRS, CUSTOM };

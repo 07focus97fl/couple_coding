@@ -73,40 +73,6 @@
   flex-shrink: 0;
 }
 
-.granularity {
-  display: inline-flex;
-  padding: 0.18rem;
-  background: #fff;
-  border: 1px solid rgba(26, 26, 30, 0.1);
-  border-radius: 999px;
-}
-
-.granBtn {
-  padding: 0.2rem 0.7rem;
-  border: none;
-  background: transparent;
-  border-radius: 999px;
-  font-family: var(--sans);
-  font-size: 0.74rem;
-  font-weight: 500;
-  color: var(--muted);
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.granBtn:hover {
-  color: var(--ink);
-}
-
-.granBtnActive {
-  background: var(--ink);
-  color: var(--paper);
-}
-
-.granBtnActive:hover {
-  color: var(--paper);
-}
-
 .resetBtn {
   padding: 0.28rem 0.7rem;
   background: #fff;
@@ -177,10 +143,4 @@
 @keyframes promptFadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
-}
-
-@media (max-width: 720px) {
-  .granularity {
-    display: none;
-  }
 }

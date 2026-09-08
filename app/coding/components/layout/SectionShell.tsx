@@ -78,7 +78,7 @@ export function SectionShell({
       <h2 className={s.title}>{title}</h2>
       <p className={s.description}>{description}</p>
       <div className={s.card}>
-        <div className={`${s.cardHead} ${!open ? s.cardHeadClosed : ""}`}>
+        <div className={s.cardHead}>
           <div
             className={s.circle}
             data-state={state}

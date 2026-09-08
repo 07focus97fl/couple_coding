@@ -28,12 +28,9 @@ export interface ModelAndKeysState {
   setOpenaiKey: (k: string) => void;
   googleKey: string;
   setGoogleKey: (k: string) => void;
-  showKey: boolean;
-  setShowKey: (b: boolean) => void;
   // Derived from the selected model: its provider and the matching key.
   activeProvider: ProviderId;
   activeProviderKey: string;
-  setActiveProviderKey: (k: string) => void;
   modelName: string;
 
   // For sibling hooks (not part of the public session)
@@ -47,7 +44,6 @@ export function useModelAndKeys(): ModelAndKeysState {
   const [apiKey, setApiKeyState] = useState("");
   const [openaiKey, setOpenaiKeyState] = useState("");
   const [googleKey, setGoogleKeyState] = useState("");
-  const [showKey, setShowKey] = useState(false);
   // Empty until the user explicitly picks a model — nothing is preselected, so the
   // API-key field only appears once a provider is chosen.
   const [selectedModel, setSelectedModel] = useState("");
@@ -100,16 +96,6 @@ export function useModelAndKeys(): ModelAndKeysState {
     else localStorage.removeItem("google_api_key");
   }, []);
 
-  // Writes whichever provider key matches the currently-selected model.
-  const setActiveProviderKey = useCallback(
-    (val: string) => {
-      if (activeProvider === "openai") setOpenaiKey(val);
-      else if (activeProvider === "google") setGoogleKey(val);
-      else setApiKey(val);
-    },
-    [activeProvider, setOpenaiKey, setGoogleKey, setApiKey],
-  );
-
   const restoreModel = useCallback((parsed: PersistedSession) => {
     if (parsed.selectedModel) {
       // Guard against stale/removed model IDs in old saved sessions —
@@ -133,11 +119,8 @@ export function useModelAndKeys(): ModelAndKeysState {
     setOpenaiKey,
     googleKey,
     setGoogleKey,
-    showKey,
-    setShowKey,
     activeProvider,
     activeProviderKey,
-    setActiveProviderKey,
     modelName,
 
     loadStoredKeys,

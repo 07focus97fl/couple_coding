@@ -138,10 +138,6 @@ export function getModel(id: string): ModelDef | undefined {
   return MODELS.find((m) => m.id === id);
 }
 
-export function getProvider(id: ProviderId): ProviderDef | undefined {
-  return PROVIDERS.find((p) => p.id === id);
-}
-
 export function modelsByProvider(providerId: ProviderId): ModelDef[] {
   return MODELS.filter((m) => m.provider === providerId);
 }
