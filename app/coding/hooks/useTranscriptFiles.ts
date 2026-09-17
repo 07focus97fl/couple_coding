@@ -1,7 +1,8 @@
 "use client";
 /**
  * WHAT:    Step 1 (Upload) state: the list of transcript files, drag-and-drop,
- *          reading JSON transcripts, sending audio to /api/transcribe, and the
+ *          reading JSON transcripts, splitting a human-coded CSV into one file
+ *          per conversation, sending audio to /api/transcribe, and the
  *          ElevenLabs key that transcription needs.
  * STEP:    Upload. Rendered by components/sections/SectionUpload.tsx; composed
  *          into the session by useCodingSession.ts.
@@ -19,6 +20,11 @@ import {
 } from "react";
 import { RawTranscript, TranscriptFile } from "@/lib/types";
 import { parseTranscript } from "@/lib/transcript/parse-transcript";
+import {
+  csvToConversations,
+  topicOf,
+  turnsFromCsv,
+} from "@/lib/transcript/csv-conversations";
 import type { PersistedFile } from "./autosave-schema";
 
 const ELEVENLABS_MODEL_ID = "scribe_v1";
@@ -150,6 +156,31 @@ export function useTranscriptFiles(): TranscriptFilesState {
             err instanceof Error ? err.message : `Failed to read "${file.name}".`,
           );
         }
+      } else if (lower.endsWith(".csv")) {
+        // A human-coded CSV: one row per turn, one file entry per conversation.
+        // The human code stays inside `source.rows` and is never sent anywhere.
+        try {
+          const text = await file.text();
+          for (const conv of csvToConversations(file.name, text)) {
+            const turns = turnsFromCsv(conv);
+            newFiles.push({
+              id: crypto.randomUUID(),
+              fileName: `${file.name} · ${conv.conversationId}`,
+              rawTranscript: null,
+              turns,
+              codedUnits: [],
+              selected: true,
+              status: "pending",
+              progress: { completed: 0, total: turns.length },
+              topic: topicOf(conv),
+              source: conv,
+            });
+          }
+        } catch (err) {
+          errors.push(
+            err instanceof Error ? err.message : `Failed to read "${file.name}".`,
+          );
+        }
       } else if (/\.(mp3|mp4|wav)$/i.test(lower)) {
         newFiles.push({
           id: crypto.randomUUID(),
@@ -166,7 +197,7 @@ export function useTranscriptFiles(): TranscriptFilesState {
         });
       } else {
         errors.push(
-          `"${file.name}": unsupported file type. Use JSON, MP3, MP4, or WAV.`,
+          `"${file.name}": unsupported file type. Use JSON, CSV, MP3, MP4, or WAV.`,
         );
       }
     }
@@ -326,15 +357,17 @@ export function useTranscriptFiles(): TranscriptFilesState {
     );
   }, []);
 
-  // Autosave stores the raw transcript and a few flags; turns are re-parsed
-  // here, coded units and progress are rebuilt at run time.
+  // Autosave stores the raw transcript (or the CSV rows) and a few flags; turns
+  // are re-parsed here, coded units and progress are rebuilt at run time.
   const restoreFiles = useCallback((persisted: PersistedFile[]) => {
     setFiles(
       persisted
-        .filter((f) => f.rawTranscript !== null)
+        .filter((f) => f.rawTranscript !== null || f.source !== undefined)
         .map((f) => {
-          const rawTranscript = f.rawTranscript as RawTranscript;
-          const turns = Array.isArray(rawTranscript.words)
+          const rawTranscript = f.rawTranscript as RawTranscript | null;
+          const turns = f.source
+            ? turnsFromCsv(f.source)
+            : rawTranscript && Array.isArray(rawTranscript.words)
             ? parseTranscript(rawTranscript.words)
             : [];
           return {
@@ -347,6 +380,7 @@ export function useTranscriptFiles(): TranscriptFilesState {
             status: "pending" as const,
             progress: { completed: 0, total: turns.length },
             topic: f.topic ?? "",
+            source: f.source,
           };
         }),
     );

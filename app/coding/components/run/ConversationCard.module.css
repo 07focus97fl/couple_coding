@@ -83,6 +83,12 @@
   color: var(--muted);
 }
 
+.metaAgree {
+  color: #3f6b43;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .sep {
   color: rgba(26, 26, 30, 0.2);
 }

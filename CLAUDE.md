@@ -24,6 +24,9 @@ grouped in pipeline order: `transcript/` → `schemes/` → `coding/` (server en
   there as behaviour changes, not refactors.
 - API keys are entered in the browser and travel only inside the request they authorise.
   Nothing reads `process.env`.
+- A human-coded CSV's codes (`CsvRow.values` under `TranscriptFile.source`) never reach a
+  `PreSegment` or the `/api/code` body: `segmentFile` builds units from `turns` only, and the
+  request body is an explicit field list. `scripts/check-csv.ts` asserts it; keep it passing.
 - Run `npx tsc --noEmit && npm run lint && npm run build` before committing. `next build` does
   not lint.
 
@@ -32,12 +35,14 @@ grouped in pipeline order: `transcript/` → `schemes/` → `coding/` (server en
 | Change | Open |
 |---|---|
 | Upload / transcription behaviour | `hooks/useTranscriptFiles.ts`, `sections/SectionUpload.tsx`, `app/api/transcribe/route.ts` |
+| Human-coded CSV input, agreement | `lib/transcript/parse-csv.ts`, `lib/transcript/csv-conversations.ts`, `lib/results/agreement.ts`, `components/run/ConfusionMatrix.tsx`, `scripts/check-csv.ts` |
 | Models, prices, providers | `lib/models.ts`, `lib/llm/` |
 | Schemes, categories, default prompt | `lib/schemes/`, `hooks/useSchemeSettings.ts`, `sections/SectionScheme.tsx` |
 | What the model is sent / must return | `lib/coding/build-messages.ts`, `lib/coding/build-tool.ts` |
-| Parsing responses, retries, batching, concurrency | `lib/coding/parse-response.ts`, `lib/coding/code-segments.ts`, `lib/coding/batching.ts` |
-| The run UI, progress, cost | `hooks/useCodingRun.ts`, `hooks/useRunStats.ts`, `sections/SectionRun.tsx`, `components/run/` |
-| CSV export | `lib/results/generate-csv.ts`, `components/run/ExportDialog.tsx`, `lib/types.ts` (`COLUMN_DEFINITIONS`) |
+| Parsing responses, retries, batching, concurrency | `lib/coding/parse-response.ts`, `lib/coding/code-segments.ts`, `lib/coding/retry.ts`, `lib/coding/batching.ts` |
+| The run UI, progress, cost, stop | `hooks/useCodingRun.ts`, `hooks/useRunStats.ts`, `sections/SectionRun.tsx`, `components/run/` |
+| CSV export | `lib/results/generate-csv.ts`, `lib/results/csv-escape.ts`, `components/run/ExportDialog.tsx`, `lib/types.ts` (`COLUMN_DEFINITIONS`) |
+| Audit export (CSV input + results) | `lib/results/generate-audit-csv.ts`, `components/run/AuditExportDialog.tsx`, `lib/types.ts` (`RunConfigSnapshot`) |
 | Autosave | `hooks/useSessionPersistence.ts`, `hooks/autosave-schema.ts`, `hooks/useAutosave.ts` |
 | The `/logs` page | `app/logs/page.tsx`, `app/logs/PromptViewer.tsx` |
 | Landing page copy | `app/page.tsx` (hand-typed; keep in step with `lib/`) |

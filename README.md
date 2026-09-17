@@ -7,7 +7,11 @@ stream in live, show up in a results panel, and export to CSV. Everything you se
 the transcripts, autosaves in your browser.
 
 Transcripts are ElevenLabs word-level JSON (`words[]` with `speaker_id`, `start`, `end`). You can
-also upload audio (mp3, mp4, wav) and have the app transcribe it through ElevenLabs.
+also upload audio (mp3, mp4, wav) and have the app transcribe it through ElevenLabs. To test the
+model against conversations your coders have already coded, upload a CSV with one row per turn
+(see "Testing against human-coded conversations" below): each conversation in it becomes its own
+row in the Upload step, and the export is your file with the model's results and the run's
+configuration appended.
 
 API keys are bring-your-own. Each key is entered in the browser, kept in that browser's
 localStorage, and sent to the server only inside the one request it authorises. The server never
@@ -34,16 +38,51 @@ files it calls.
 
 | Step | What you do | Component | Hook | Library code |
 |---|---|---|---|---|
-| 01 Upload | Add transcript JSON or audio; transcribe audio | `sections/SectionUpload.tsx` | `hooks/useTranscriptFiles.ts` | `lib/transcript/parse-transcript.ts`, `app/api/transcribe/route.ts` |
+| 01 Upload | Add transcript JSON, a human-coded CSV, or audio; transcribe audio | `sections/SectionUpload.tsx` | `hooks/useTranscriptFiles.ts` | `lib/transcript/parse-transcript.ts`, `lib/transcript/csv-conversations.ts`, `app/api/transcribe/route.ts` |
 | 02 Model | Pick provider + model, enter its key | `sections/SectionModel.tsx` | `hooks/useModelAndKeys.ts` | `lib/models.ts` |
 | 03 Scheme | Pick a scheme, edit categories, choose the coding mode, edit the prompt, set context | `sections/SectionScheme.tsx` (+ `PromptEditor`, `TopicTable`) | `hooks/useSchemeSettings.ts` | `lib/schemes/*` |
-| 04 Run | Run, watch progress and cost, inspect results, export CSV | `sections/SectionRun.tsx`, `run/*` | `hooks/useCodingRun.ts` | `lib/transcript/segment.ts` → `POST /api/code` → `lib/coding/*` → `lib/llm/*` → `lib/results/*` |
+| 04 Run | Run or stop, watch progress and cost, inspect results and agreement, export CSV | `sections/SectionRun.tsx`, `run/*` | `hooks/useCodingRun.ts` | `lib/transcript/segment.ts` → `POST /api/code` → `lib/coding/*` → `lib/llm/*` → `lib/results/*` |
 
-When you press Run, the browser cuts each selected transcript into units
-(`lib/transcript/segment.ts`) and POSTs them with your settings to `/api/code`. The server builds
-a plan (final prompt, the JSON schema of the tool the model must call, batches, token budget),
-codes the batches five at a time with retries, and streams each coded unit, each API log and a
-progress counter back as Server-Sent Events. The browser appends them to the file as they arrive.
+When you press Run, the browser freezes a copy of the settings (`RunConfigSnapshot`), cuts each
+selected file into units (`segmentFile` in `lib/transcript/segment.ts`) and POSTs them with your
+settings to `/api/code`. The server builds a plan (final prompt, the JSON schema of the tool the
+model must call, batches, token budget), codes the batches five at a time with retries, and
+streams each coded unit, each API log and a progress counter back as Server-Sent Events. The
+browser appends them to the file as they arrive. Stop aborts the request: the server starts no
+further batches and later files are not sent.
+
+## Testing against human-coded conversations
+
+Upload a `.csv` with one row per speaking turn. Required columns: `exchange_id` (everything
+before its last `_N` is the conversation id, so `mcn_fsu_4221_1_17` belongs to `mcn_fsu_4221_1`),
+`speaker`, `text`. Optional: `topic` (pre-fills the topic table) and `final_code` (the human
+code). Any other column is kept and written back. Every conversation becomes its own row in
+the Upload step, so tick one or two for a cheap trial before running them all. Time-window
+segmentation is unavailable for these rows (no timings).
+
+**The human code never reaches the model.** It lives only in `TranscriptFile.source.rows`;
+`segmentFile` builds the units from `turns` (speaker + text), and the request body is an explicit
+field list. `scripts/check-csv.ts` asserts this against the fixture (`npx --yes tsx scripts/check-csv.ts`).
+
+After the run, each result row shows the human code beside the model's, each card shows its
+agreement rate, and the Run step shows a human × model confusion table (blank human codes and
+rows the model could not code are left out). **Export audit CSV** downloads your file with these
+groups of columns appended, one output row per coded unit (utterance mode fans a turn out into
+several rows that repeat the original cells):
+
+| Group | Columns |
+|---|---|
+| result | `ai_code`, `ai_subcategory`, `ai_rationale`, `ai_alternatives`, `ai_rating_<dim>…` (continuous), `ai_error`, `ai_unit_id`, `ai_utterance_index`, `ai_unit_text`, `agree` (1/0, blank when there is nothing to compare) |
+| run | `run_id`, `run_started_at`, `model_id`, `model_name`, `provider`, `reasoning_effort`, `scheme_id`, `scheme_name`, `segmentation`, `output_type`, `batch_size`, `context_before`, `context_after`, `prompt_edited`, `categories_edited`, `categories_json`, `scale_json` (continuous) |
+| price | `price_*_per_1m` (the catalog rates used), `run_total_calls`, `run_total_cost_usd` |
+| call | `call_index`, `call_timestamp`, `call_attempts`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`, `call_cost_usd`, `context_before_turns`, `context_after_turns` |
+| bulky (optional) | `system_prompt` (the final prompt as sent), `user_message`, `tool_definition_json`, `raw_response_json` |
+
+`call_cost_usd` is the measured price of the API call that produced the row (provider-reported
+usage × catalog price), so a one-conversation trial tells you what a full run will cost. With
+`batch_size > 1` the same call repeats on every unit of its batch; sum by distinct `call_index`
+or read `run_total_cost_usd`. One export per run: stack exports from different prompts or models
+into one long table and compare by `run_id`.
 
 ## File map
 
@@ -65,10 +104,10 @@ All paths under `app/coding/` are relative to that folder.
 |---|---|
 | `useCodingSession.ts` | The composer. Calls the hooks below and assembles the one `CodingSession` object every component reads. Holds no logic; edit the step hook instead. |
 | `CodingSessionContext.tsx` | Provides that object through React context (`useSession()`). |
-| `useTranscriptFiles.ts` | Upload: the file list, drag-and-drop, JSON reading, audio transcription, the ElevenLabs key. |
+| `useTranscriptFiles.ts` | Upload: the file list, drag-and-drop, JSON reading, CSV splitting into conversations, audio transcription, the ElevenLabs key. |
 | `useModelAndKeys.ts` | Model: selected model, reasoning level, the three provider keys, the active provider. |
 | `useSchemeSettings.ts` | Scheme: scheme, categories, coding mode, prompt, context before/after. |
-| `useCodingRun.ts` | Run: `runCoding`, reading the stream, API logs, progress, export-all. |
+| `useCodingRun.ts` | Run: `runCoding` / `stopRun`, reading the stream, API logs, the run-config snapshot, progress, export-all and the audit export. |
 | `useSessionPersistence.ts`, `useAutosave.ts`, `autosave-schema.ts` | Loading the saved session on start, the snapshot to save, the debounced writer, and the saved shape with its migrations. |
 | `useRunScope.ts`, `useRunStats.ts`, `useScrollSpy.ts` | Pre-run call count; live elapsed/rate/ETA/cost; which step is in view. |
 
@@ -78,15 +117,16 @@ All paths under `app/coding/` are relative to that folder.
 |---|---|
 | `types.ts` | Every shared type and default. Read this first. |
 | `models.ts`, `usage.ts` | Model catalog with prices; token-usage normalisation and cost math. |
-| `transcript/` | Words → speaking turns (`parse-transcript.ts`), the segmentation seam (`segment.ts`), fixed time windows (`segment-time.ts`). |
+| `transcript/` | Words → speaking turns (`parse-transcript.ts`), a human-coded CSV → conversations and turns (`parse-csv.ts`, `csv-conversations.ts`), file-origin helpers (`file-origin.ts`), the segmentation seam (`segment.ts`), fixed time windows (`segment-time.ts`). |
 | `schemes/` | One file per coding scheme, the registry (`index.ts`), and the editable default prompt builder (`default-prompt.ts`). |
-| `coding/` | Server-side engine: final prompt and user message (`build-messages.ts`), the forced tool schema and token budget (`build-tool.ts`), batching (`batching.ts`), the run plan, retry loop and worker pool (`code-segments.ts`), turning tool payloads into rows (`parse-response.ts`), the SSE wire format (`sse.ts`). |
+| `coding/` | Server-side engine: final prompt and user message (`build-messages.ts`), the forced tool schema and token budget (`build-tool.ts`), batching (`batching.ts`), the run plan, retry loop and worker pool (`code-segments.ts`), backoff retry rules (`retry.ts`), turning tool payloads into rows (`parse-response.ts`), the SSE wire format (`sse.ts`). |
 | `llm/` | One adapter per provider behind `runStructuredCall()` (`index.ts`). |
-| `results/` | What happens to coded units after they come back: utterance re-timing, ordering, CSV, category colours. |
+| `results/` | What happens to coded units after they come back: utterance re-timing, ordering, CSV (`generate-csv.ts`, `csv-escape.ts`), the audit export (`generate-audit-csv.ts`), human-vs-model agreement (`agreement.ts`), category colours. |
 | `utils.ts` | shadcn's `cn()` helper. |
 
 **Results UI (`app/coding/components/run/`)**: `ConversationCard.tsx` (one card per file),
-`RunRow.tsx` (one coded unit), `CategoryHistogram.tsx`, `ExportButton.tsx` + `ExportDialog.tsx`.
+`RunRow.tsx` (one coded unit), `CategoryHistogram.tsx`, `ConfusionMatrix.tsx` (human × model
+agreement), `ExportButton.tsx` + `ExportDialog.tsx`, `AuditExportDialog.tsx`.
 
 **UI kit**: `components/ui/*` are shadcn primitives (button, checkbox, dialog, label, select).
 Most of the app is styled with CSS modules next to each component, not Tailwind.
@@ -123,7 +163,12 @@ Validation failures return `400 { "error": "..." }`. Otherwise the response is a
 
 Inside: units are batched (`batchSize`, capped per method), each batch gets up to three attempts
 to parse, still-missing units of a multi-unit batch are re-coded alone, and five batches run at
-once. A unit that never parses becomes a row with `error: true`.
+once. A unit that never parses becomes a row with `error: true`. A provider call that fails is
+retried with backoff (rate limits, overloads, server and network errors, up to four times); if
+it still fails, that batch's units become `error: true` rows carrying the provider's message and
+the run goes on. The stream only ends with `error` when the key is rejected (401/403) or ten
+batches fail in a row. Aborting the request (the Stop button) stops the engine from starting
+more batches.
 
 ## `POST /api/transcribe`
 
@@ -134,9 +179,10 @@ Multipart form with the audio `file` and ElevenLabs options; the key goes in the
 
 - **React state**, one hook per step (see the State table). Coded results live only in memory.
 - **localStorage**: `anthropic_api_key`, `openai_api_key`, `google_api_key`, `elevenlabs_api_key`,
-  and `ccc_session_v3` (the autosaved session: files with their transcripts, model, scheme,
-  categories, prompt, mode, context). The saved shape and its v3→v6 migration are in
-  `app/coding/hooks/autosave-schema.ts`. Sessions over 3 MB are saved without transcripts.
+  and `ccc_session_v3` (the autosaved session: files with their transcripts or CSV rows, model,
+  scheme, categories, prompt, mode, context). The saved shape and its v3→v7 migration are in
+  `app/coding/hooks/autosave-schema.ts`. Sessions over 3 MB are saved without word-level
+  transcripts (CSV rows are small and are kept).
 - **sessionStorage**: `api_logs`, the last run's logs, read by `/logs`.
 - **Server**: nothing. No database, no environment variables.
 
@@ -160,11 +206,15 @@ Multipart form with the audio `file` and ElevenLabs options; the key goes in the
   generic default.
 - **Add or re-price a model**: `lib/models.ts`. A new provider also needs an adapter in `lib/llm/`.
 - **Change how units are cut**: `lib/transcript/segment.ts` (and `segment-time.ts` for windows).
+- **Change what a human-coded CSV must contain, or how it is split**: `lib/transcript/csv-conversations.ts`
+  (`parse-csv.ts` is the generic reader). The audit export's columns: `lib/results/generate-audit-csv.ts`;
+  the agreement maths: `lib/results/agreement.ts`. Check both with `npx --yes tsx scripts/check-csv.ts`.
 - **Change what the model is asked**: `lib/schemes/default-prompt.ts` for the editable default,
   `lib/coding/build-messages.ts` for what is appended and how context is laid out,
   `lib/coding/build-tool.ts` for the JSON shape the model must return.
 - **Change how a response becomes rows**: `lib/coding/parse-response.ts`.
-- **Change retries, batching or concurrency**: `lib/coding/code-segments.ts`, `lib/coding/batching.ts`.
+- **Change retries, batching or concurrency**: `lib/coding/code-segments.ts`, `lib/coding/batching.ts`,
+  `lib/coding/retry.ts` (which errors are retried, and the backoff).
 - **Change a CSV column**: `COLUMN_DEFINITIONS` in `lib/types.ts` and `lib/results/generate-csv.ts`.
 - **Change what autosaves**: `app/coding/hooks/useSessionPersistence.ts` and `autosave-schema.ts`
   (bump the version and add a migration line).

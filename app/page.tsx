@@ -64,7 +64,7 @@ export default function LandingPage() {
           <em>automated</em>
         </h1>
         <p className={s.heroSub}>
-          Upload a transcript — or raw audio. Choose a validated coding scheme.
+          Upload a transcript, raw audio, or a CSV your coders already coded. Choose a validated coding scheme.
           Get every turn, utterance, or time window coded with a transparent
           rationale — ready for validation against human coders.
         </p>
@@ -291,7 +291,7 @@ export default function LandingPage() {
               <div className={s.stepNum}>01</div>
               <div className={s.stepTitle}>Upload transcript</div>
               <div className={s.stepText}>
-                Drop in a word-level JSON transcript — or upload raw audio (mp3, mp4, wav) and we transcribe it automatically with ElevenLabs. Speaker turns are segmented for you.
+                Drop in a word-level JSON transcript — or upload raw audio (mp3, mp4, wav) and we transcribe it automatically with ElevenLabs. Speaker turns are segmented for you. Testing the model against conversations your coders already coded? Upload them as a CSV (one row per turn) and export your file back with the model&apos;s results, rationale and configuration appended.
               </div>
             </div>
             <div className={s.step}>
@@ -333,7 +333,7 @@ export default function LandingPage() {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
             </div>
             <h3>Audio or transcript in</h3>
-            <p>Upload word-level JSON or raw audio (auto-transcribed via ElevenLabs); words are grouped into coherent speaker turns automatically.</p>
+            <p>Upload word-level JSON, raw audio (auto-transcribed via ElevenLabs), or a CSV of human-coded turns; words are grouped into coherent speaker turns automatically.</p>
           </div>
           <div className={s.featureCard}>
             <div className={s.featureIcon}>
@@ -412,7 +412,7 @@ export default function LandingPage() {
               </div>
               <div className={s.schemeFull}>Couple Conflict Coding</div>
               <div className={s.schemeDesc}>
-                Six-code conflict scheme — Integrative, Non-Constructive, Indirect Distributive, Prescription, Blame, Rejection.
+                Six-code conflict scheme — Integrative, Non-Continuity, Indirect Distributive, Prescription, Blame, Rejection.
               </div>
             </div>
             <div className={`${s.schemeCard} ${s.schemeCardSoon}`}>

@@ -1,8 +1,8 @@
 "use client";
 /**
- * WHAT:    Step 01: drag-and-drop or pick transcript JSON / audio files, list them
- *          with turn counts and status, transcribe audio, and enter the ElevenLabs
- *          key.
+ * WHAT:    Step 01: drag-and-drop or pick transcript JSON, human-coded CSV or
+ *          audio files, list them with turn counts and status, transcribe audio,
+ *          and enter the ElevenLabs key.
  * STEP:    Upload. State comes from useSession() (useTranscriptFiles).
  * RUNS ON: client
  */
@@ -251,7 +251,7 @@ export function SectionUpload() {
       number="01"
       label="Upload"
       title="Start with your recordings."
-      description="Drop in word-level transcripts or raw audio. Audio rows can be transcribed with ElevenLabs Scribe v1 (speaker diarization), then coded alongside any transcripts you uploaded directly."
+      description="Drop in word-level transcripts, raw audio, or a CSV of conversations your coders have already coded (one row per turn; each conversation becomes its own row below). Audio rows can be transcribed with ElevenLabs Scribe v1 (speaker diarization), then coded alongside any transcripts you uploaded directly."
       cardTitle="Upload"
       cardMeta={summary}
       state={hasFiles ? "done" : "idle"}
@@ -268,7 +268,7 @@ export function SectionUpload() {
           onClick={() => inputRef.current?.click()}
           role="button"
           tabIndex={0}
-          aria-label="Add transcript or audio files"
+          aria-label="Add transcript, coded CSV or audio files"
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
@@ -279,7 +279,7 @@ export function SectionUpload() {
           <input
             ref={inputRef}
             type="file"
-            accept=".json,.mp3,.mp4,.wav"
+            accept=".json,.csv,.mp3,.mp4,.wav"
             multiple
             style={{ display: "none" }}
             onChange={(e) => {
@@ -294,10 +294,10 @@ export function SectionUpload() {
           </div>
           <div className={s.dropText}>
             <div className={s.dropTitle}>
-              Drop transcripts or audio
+              Drop transcripts, coded CSVs or audio
             </div>
             <div className={s.dropSub}>
-              <span>JSON · MP3 · MP4 · WAV</span>
+              <span>JSON · CSV · MP3 · MP4 · WAV</span>
               <button
                 type="button"
                 className={s.formatLink}

@@ -93,6 +93,7 @@ export function useSessionPersistence({
         rawTranscript: f.rawTranscript,
         selected: f.selected,
         topic: f.topic ?? "",
+        source: f.source,
       })),
       selectedModel,
       reasoningLevel,

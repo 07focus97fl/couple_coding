@@ -15,6 +15,7 @@ import {
   CodingScheme,
   OutputType,
   RatingScale,
+  RunConfigSnapshot,
   SegmentationStrategy,
   TranscriptFile,
 } from "@/lib/types";
@@ -104,7 +105,12 @@ export interface CodingSession {
   isAnyCoding: boolean;
   anySelected: boolean;
   runCoding: () => Promise<void>;
+  stopRun: () => void;
+  canStop: boolean;
   handleExportAll: () => void;
+  exportAuditCsv: (includeBulky: boolean) => void;
+  hasAuditExport: boolean;
+  runConfig: RunConfigSnapshot | null;
   openResults: Record<string, boolean>;
   toggleResultsOpen: (fileId: string) => void;
 
@@ -218,7 +224,12 @@ export function useCodingSession(): CodingSession {
     isAnyCoding: run.isAnyCoding,
     anySelected: upload.anySelected,
     runCoding: run.runCoding,
+    stopRun: run.stopRun,
+    canStop: run.canStop,
     handleExportAll: run.handleExportAll,
+    exportAuditCsv: run.exportAuditCsv,
+    hasAuditExport: run.hasAuditExport,
+    runConfig: run.runConfig,
     openResults: run.openResults,
     toggleResultsOpen: run.toggleResultsOpen,
 

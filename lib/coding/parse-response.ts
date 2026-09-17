@@ -484,21 +484,28 @@ export function parseUnitEntry(
   return parseCategoricalUtterances(ctx, seg, payload);
 }
 
-/** The row emitted when a unit could not be parsed after all retries. */
-export function makeErrorUnit(ctx: ParseContext, seg: PreSegment): CodedUnit {
+/**
+ * The row emitted when a unit could not be coded: the response never parsed
+ * after all retries (default reason) or the provider call itself failed.
+ */
+export function makeErrorUnit(
+  ctx: ParseContext,
+  seg: PreSegment,
+  reason = "Failed to parse model response",
+): CodedUnit {
   return ctx.isContinuous
     ? {
         unitId: makeUnitId(seg),
         ...wholeUnitBase(seg),
         ratings: {},
         error: true,
-        rationale: "Failed to parse model response",
+        rationale: reason,
       }
     : {
         unitId: makeUnitId(seg),
         ...wholeUnitBase(seg),
         category: "error",
         error: true,
-        rationale: "Failed to parse model response",
+        rationale: reason,
       };
 }

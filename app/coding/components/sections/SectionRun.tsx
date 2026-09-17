@@ -1,27 +1,41 @@
 "use client";
 /**
- * WHAT:    Step 04: the Run and Export buttons, the pre-run call-count panel, live
- *          stats and cost, and one ConversationCard per selected file.
+ * WHAT:    Step 04: the Run / Stop and Export buttons, the pre-run call-count
+ *          panel, live stats and cost, the human-vs-model agreement table for
+ *          CSV-origin conversations, and one ConversationCard per selected file.
  * STEP:    Run. State comes from useSession() (useCodingRun) and useRunScope.
  * RUNS ON: client
  */
 
+import { useMemo, useState } from "react";
 import { useSession } from "../../hooks/CodingSessionContext";
 import { useRunScope } from "../../hooks/useRunScope";
 import { SectionShell } from "../layout/SectionShell";
 import { ConversationCard } from "../run/ConversationCard";
+import { AuditExportDialog } from "../run/AuditExportDialog";
+import { ConfusionMatrix } from "../run/ConfusionMatrix";
 import {
   formatCost,
   formatElapsed,
   formatEta,
   formatRate,
 } from "../../hooks/useRunStats";
+import { computeAgreement, mergeAgreements, type Agreement } from "@/lib/results/agreement";
+import { isCsvOrigin } from "@/lib/transcript/file-origin";
 import s from "./SectionRun.module.css";
 
 function PlayIcon() {
   return (
     <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none">
       <polygon points="7 5 19 12 7 19" />
+    </svg>
+  );
+}
+
+function StopIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+      <rect x="5" y="5" width="14" height="14" rx="2" />
     </svg>
   );
 }
@@ -78,13 +92,30 @@ export function SectionRun() {
     runStats,
     apiLogs,
     runCoding,
+    stopRun,
+    canStop,
     handleExportAll,
+    hasAuditExport,
+    runConfig,
+    categories,
     doneFiles,
     selectedFiles,
     batchSize,
   } = useSession();
 
   const scope = useRunScope();
+  const [auditOpen, setAuditOpen] = useState(false);
+
+  // Human-vs-model agreement across every selected CSV-origin conversation.
+  const agreement: Agreement | null = useMemo(() => {
+    const parts: Agreement[] = [];
+    for (const f of selectedFiles) {
+      if (!isCsvOrigin(f) || f.codedUnits.length === 0) continue;
+      const a = computeAgreement(f.source, f.codedUnits);
+      if (a) parts.push(a);
+    }
+    return parts.length > 0 ? mergeAgreements(parts) : null;
+  }, [selectedFiles]);
 
   const canRun =
     !isAnyCoding && anySelected && schemeId !== null && selectedModel !== "";
@@ -124,13 +155,24 @@ export function SectionRun() {
       number="04"
       label="Run & Review"
       title="Watch it code, live."
-      description="Every turn streams in with its category and the model's rationale. Click any row to inspect the full reasoning and override the code. Nothing is committed until you export — reliability is yours to verify."
+      description="Every turn streams in with its category and the model's rationale. Conversations uploaded as a coded CSV also show the human code beside the model's, with agreement totals below. Nothing is committed until you export — reliability is yours to verify."
       cardTitle="Run"
       cardMeta={totalUnits > 0 ? `${completedUnits}/${totalUnits}` : undefined}
       state={circleState}
       circleKind="accent"
       headAction={
         <div className={s.headActions}>
+          {hasAuditExport && (
+            <button
+              type="button"
+              onClick={() => setAuditOpen(true)}
+              className={s.exportBtn}
+              title="Download your uploaded CSV with the model's results and the run's configuration appended"
+            >
+              <DownloadIcon />
+              <span>Export audit CSV</span>
+            </button>
+          )}
           {doneFiles.length > 0 && (
             <button
               type="button"
@@ -142,9 +184,20 @@ export function SectionRun() {
               <span>Export CSV</span>
             </button>
           )}
+          {canStop && (
+            <button
+              type="button"
+              onClick={stopRun}
+              className={s.stopBtn}
+              title="Stop after the calls already in flight; later conversations are not started"
+            >
+              <StopIcon />
+              <span>Stop</span>
+            </button>
+          )}
           <button
             type="button"
-            disabled={!canRun && !stepDone[3]}
+            disabled={(!canRun && !stepDone[3]) || canStop}
             onClick={runCoding}
             className={`${s.runBtn} ${runState === "running" ? s.runBtnRunning : ""}`}
           >
@@ -156,19 +209,28 @@ export function SectionRun() {
     >
       {hint && !isAnyCoding && <div className={s.hint}>{hint}</div>}
 
-      {!isAnyCoding && scope.apiCalls > 0 && (
+      {!isAnyCoding && (scope.apiCalls > 0 || scope.blocked.length > 0) && (
         <div className={s.scopePanel}>
-          <div className={s.scopeFact}>
-            This run will make{" "}
-            <strong>{scope.apiCalls.toLocaleString()}</strong> API call
-            {scope.apiCalls !== 1 ? "s" : ""} —{" "}
-            {batchSize > 1
-              ? `up to ${batchSize} units per call`
-              : "one per unit"}{" "}
-            — across {scope.fileCount} file
-            {scope.fileCount !== 1 ? "s" : ""}.
-          </div>
-          {!runStats.hasUsage && (
+          {scope.apiCalls > 0 && (
+            <div className={s.scopeFact}>
+              This run will make{" "}
+              <strong>{scope.apiCalls.toLocaleString()}</strong> API call
+              {scope.apiCalls !== 1 ? "s" : ""} —{" "}
+              {batchSize > 1
+                ? `up to ${batchSize} units per call`
+                : "one per unit"}{" "}
+              — across {scope.fileCount} file
+              {scope.fileCount !== 1 ? "s" : ""}.
+            </div>
+          )}
+          {scope.blocked.length > 0 && (
+            <div className={s.scopeBlocked}>
+              {scope.blocked.length === 1
+                ? `${scope.blocked[0].fileName} will be skipped: ${scope.blocked[0].reason}`
+                : `${scope.blocked.length} files will be skipped: ${scope.blocked[0].reason}`}
+            </div>
+          )}
+          {!runStats.hasUsage && scope.apiCalls > 0 && (
             <div className={s.scopeGuide}>
               Cost can&rsquo;t be predicted reliably up front — it depends on
               transcript length, number of units, context window, model, and
@@ -261,6 +323,13 @@ export function SectionRun() {
         <div className={s.progressFill} style={{ width: `${pct}%` }} />
       </div>
 
+      {agreement && agreement.n > 0 && (
+        <ConfusionMatrix
+          agreement={agreement}
+          categories={runConfig?.categories ?? categories}
+        />
+      )}
+
       {hasActivity ? (
         <div className={s.convList}>
           {selectedFiles.map((f) => (
@@ -272,6 +341,8 @@ export function SectionRun() {
           Coded rows will stream here as the run progresses.
         </div>
       )}
+
+      <AuditExportDialog open={auditOpen} onOpenChange={setAuditOpen} />
     </SectionShell>
   );
 }

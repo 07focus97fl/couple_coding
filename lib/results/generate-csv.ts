@@ -5,13 +5,7 @@
  * RUNS ON: both (pure functions)
  */
 import { CodedUnit, ColumnKey, COLUMN_DEFINITIONS } from "@/lib/types";
-
-function escapeCsvField(field: string): string {
-  if (field.includes(",") || field.includes('"') || field.includes("\n")) {
-    return `"${field.replace(/"/g, '""')}"`;
-  }
-  return field;
-}
+import { escapeCsvField } from "./csv-escape";
 
 function getCellValue(unit: CodedUnit, key: ColumnKey): string {
   switch (key) {

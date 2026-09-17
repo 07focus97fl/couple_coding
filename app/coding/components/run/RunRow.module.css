@@ -78,6 +78,33 @@
   white-space: nowrap;
 }
 
+/* ── Human code chip (CSV-origin conversations) ── */
+.humanChip {
+  justify-self: end;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  border: 1px dashed rgba(26, 26, 30, 0.18);
+  background: rgba(26, 26, 30, 0.04);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.humanChip[data-match="1"] {
+  border-color: transparent;
+  background: rgba(94, 135, 97, 0.16);
+  color: #3f6b43;
+}
+
+.humanChip[data-match="0"] {
+  border-color: transparent;
+  background: rgba(196, 69, 35, 0.1);
+  color: #a53a1e;
+}
+
 @media (max-width: 720px) {
   .row {
     grid-template-columns: 24px 36px 1fr 48px;

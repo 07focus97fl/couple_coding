@@ -294,6 +294,38 @@
   color: #fff;
 }
 
+.stopBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  background: #fff;
+  border: 1px solid #c44523;
+  border-radius: 10px;
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #c44523;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.stopBtn:hover {
+  background: #c44523;
+  color: #fff;
+}
+
+.scopeBlocked {
+  margin-top: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  background: #fff5e8;
+  border: 1px solid #f0c98c;
+  border-radius: 6px;
+  color: #8a5a12;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
 .convList {
   display: flex;
   flex-direction: column;

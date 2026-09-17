@@ -1,11 +1,13 @@
 /**
  * WHAT:    Every shared type and default value: transcript words and turns, the
- *          coding mode, pre-segments, coded units, schemes, per-file state, API
+ *          coding mode, pre-segments, coded units, schemes, per-file state, the
+ *          rows of an uploaded human-coded CSV, the frozen config of a run, API
  *          logs and CSV columns. Start here to learn the vocabulary.
  * STEP:    Shared by all four steps, client and server.
  * RUNS ON: both (types and constants only)
  */
 import type { NormalizedUsage } from "@/lib/usage";
+import type { ProviderId, ReasoningLevel } from "@/lib/models";
 
 // ── Transcript input (ElevenLabs word-level JSON, and the turns cut from it) ──
 
@@ -162,7 +164,8 @@ export type ColumnKey =
   | "startTime"
   | "endTime";
 
-export type SpeakerFilter = "all" | "speaker_0" | "speaker_1";
+/** "all", or one speaker id exactly as it appears on the units (speaker_0, Husband, …). */
+export type SpeakerFilter = string;
 
 export interface ExportConfig {
   visibleColumns: ColumnKey[];
@@ -217,6 +220,45 @@ export interface TranscriptFile {
   transcribeStatus?: 'pending' | 'transcribing' | 'done' | 'error';
   transcribeError?: string;
   topic?: string;
+  /**
+   * Present when this file is one conversation cut from an uploaded CSV of
+   * human-coded turns (the testing / audit input). `rawTranscript` is null for
+   * these; `turns` is built from `source.rows`.
+   */
+  source?: CsvSource;
+}
+
+// ── CSV-origin input: one conversation from an uploaded human-coded CSV ──
+
+export interface CsvRow {
+  /** 1-based data-row ordinal in the uploaded file (the header is row 0). */
+  rowIndex: number;
+  /** Every original cell, keyed by the header cell verbatim. Includes the human code. */
+  values: Record<string, string>;
+}
+
+/**
+ * The rows of ONE conversation from an uploaded CSV, plus what is needed to
+ * write them back out unchanged. The human code lives only here: it is never
+ * copied onto a turn or a pre-segment, so it cannot reach the model.
+ */
+export interface CsvSource {
+  /** The uploaded file's name, e.g. "to_test.csv". */
+  fileName: string;
+  /** exchange_id minus its trailing "_N", e.g. "mcn_fsu_4221_1". */
+  conversationId: string;
+  /** Header cells verbatim, in file order. */
+  columns: string[];
+  /** The actual header spellings resolved (case-insensitively) at import. */
+  keys: {
+    exchangeId: string;
+    speaker: string;
+    text: string;
+    topic?: string;
+    humanCode?: string;
+  };
+  /** This conversation's rows in file order. Invariant: rows[i] <-> turns[i] (turnNumber i + 1). */
+  rows: CsvRow[];
 }
 
 // ── API logs: one per LLM call, shown on /logs ──
@@ -267,6 +309,38 @@ export interface ApiLog {
   costUsd?: number | null;
   /** Number of provider calls made for this segment (1 + retries). */
   attempts?: number;
+}
+
+// ── Run config: everything a run was started with, frozen at Run time ──
+
+/**
+ * A copy of the settings taken when Run is pressed, so an export after the run
+ * describes what actually ran even if the user has since changed a setting.
+ */
+export interface RunConfigSnapshot {
+  /** Client-side id shared by every file of one Run press (base-36 timestamp). */
+  runId: string;
+  /** ISO timestamp of the Run press. */
+  startedAt: string;
+  modelId: string;
+  modelName: string;
+  provider: ProviderId;
+  reasoningEffort: ReasoningLevel;
+  schemeId: string | null;
+  schemeName: string;
+  categories: CategoryDefinition[];
+  categoriesDirty: boolean;
+  segmentation: SegmentationStrategy;
+  outputType: OutputType;
+  scale: RatingScale;
+  windowSeconds: number;
+  perSpeaker: boolean;
+  batchSize: number;
+  contextBefore: number;
+  contextAfter: number;
+  /** The editable prompt as sent. The server appends the category block; see ApiLog.systemPrompt for the final text. */
+  systemPrompt: string;
+  promptDirty: boolean;
 }
 
 // ── Defaults ──

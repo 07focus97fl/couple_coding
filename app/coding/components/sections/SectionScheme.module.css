@@ -664,6 +664,15 @@
   color: var(--ink);
 }
 
+.toggleBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.toggleBtn:disabled:hover {
+  color: var(--muted);
+}
+
 .toggleBtnActive,
 .toggleBtnActive:hover {
   background: var(--ink);

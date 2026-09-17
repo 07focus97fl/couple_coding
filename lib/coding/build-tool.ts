@@ -24,7 +24,7 @@ function categoricalLeaf(categoryEnum: string[]): Leaf {
       subcategory: {
         type: ["string", "null"],
         description:
-          "Optional. When the scheme defines subcategories for a code (e.g., HQ/MR/DR/HJ for ID), specify which one applies. Null otherwise.",
+          "Optional. When the scheme defines subcategories for a code, specify which one applies, using the labels the prompt gives. Null otherwise.",
       },
       alternatives_considered: {
         type: "array",

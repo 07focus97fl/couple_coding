@@ -1,7 +1,7 @@
 "use client";
 /**
- * WHAT:    Modal explaining the accepted audio and JSON formats, with a link to the
- *          sample file.
+ * WHAT:    Modal explaining the accepted audio, JSON and human-coded CSV formats,
+ *          with a link to the sample file.
  * STEP:    Upload.
  * RUNS ON: client
  */
@@ -104,6 +104,43 @@ export function FormatInfoDialog({ open, onOpenChange }: FormatInfoDialogProps) 
             <Button render={<a href="/scribe-v1-example.json" download />}>
               Download example JSON
             </Button>
+          </div>
+
+          {/* Human-coded CSV (testing / audit input) */}
+          <div className="space-y-2">
+            <div className="font-medium">Coded conversations — CSV</div>
+            <p className="text-muted-foreground">
+              To test the model against conversations your coders have already
+              coded, upload a <code>.csv</code> with one row per speaking turn.
+              Each conversation in the file becomes its own row in the list
+              above, so you can run a few before running them all. The export
+              is your file with the model&apos;s results appended as extra
+              columns.
+            </p>
+            <ul className="ml-4 list-disc space-y-1 text-muted-foreground">
+              <li>
+                <code>exchange_id</code> — required. Everything before the last{" "}
+                <code>_N</code> is the conversation id, e.g.{" "}
+                <code>mcn_fsu_4221_1_17</code> belongs to{" "}
+                <code>mcn_fsu_4221_1</code>.
+              </li>
+              <li>
+                <code>speaker</code>, <code>text</code> — required; used verbatim.
+              </li>
+              <li>
+                <code>topic</code> — optional; pre-fills the conversation topic
+                in the Scheme step.
+              </li>
+              <li>
+                <code>final_code</code> — optional; the human code. It never
+                leaves your browser and is only used for the agreement columns
+                and stats.
+              </li>
+            </ul>
+            <p className="text-muted-foreground">
+              Any other columns are kept and written back unchanged. Time-window
+              segmentation is unavailable for CSV rows (no timings).
+            </p>
           </div>
         </div>
       </DialogContent>

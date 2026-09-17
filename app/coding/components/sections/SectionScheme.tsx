@@ -13,14 +13,15 @@ import { SectionShell } from "../layout/SectionShell";
 import { CODING_SCHEMES } from "@/lib/schemes";
 import { CategoryDefinition } from "@/lib/types";
 import { codeFor, FALLBACK_COLOR } from "@/lib/results/category-colors";
+import { isCsvOrigin } from "@/lib/transcript/file-origin";
 import { PromptEditor } from "./PromptEditor";
 import { TopicTable } from "./TopicTable";
 import s from "./SectionScheme.module.css";
 
 /**
  * Split a category definition into a human title (its leading sentence/name)
- * and the remaining preview text — e.g. "Non-Constructive. Process-focused…"
- * → { title: "Non-Constructive", rest: "Process-focused…" }.
+ * and the remaining preview text — e.g. "Non-Continuity. Off topic…"
+ * → { title: "Non-Continuity", rest: "Off topic…" }.
  */
 function splitDefinition(description: string): { title: string; rest: string } {
   const text = (description ?? "").trim();
@@ -262,9 +263,12 @@ export function SectionScheme() {
     setPerSpeaker,
     batchSize,
     setBatchSize,
+    files,
   } = useSession();
   // Bumped when a category row is deleted so the rows remount (see onRemove).
   const [rowGeneration, setRowGeneration] = useState(0);
+  // CSV conversations carry no timings, so time windows cannot be cut for them.
+  const csvSelected = files.some((f) => f.selected && isCsvOrigin(f));
 
   const schemesNav = CODING_SCHEMES.filter((sc) => sc.id !== "custom");
   const ctxUnit = segmentation === "time" ? "window" : "turn";
@@ -399,6 +403,12 @@ export function SectionScheme() {
                           type="button"
                           className={`${s.toggleBtn} ${segmentation === seg ? s.toggleBtnActive : ""}`}
                           onClick={() => setSegmentation(seg)}
+                          disabled={seg === "time" && csvSelected}
+                          title={
+                            seg === "time" && csvSelected
+                              ? "Time windows need word-level timings; CSV conversations have none."
+                              : undefined
+                          }
                         >
                           {seg}
                           <InfoDot tip={SEGMENT_INFO[seg]} />

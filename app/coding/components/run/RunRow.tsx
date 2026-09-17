@@ -1,7 +1,9 @@
 "use client";
 /**
  * WHAT:    One coded unit: index, speaker, text, rationale and its category chip or
- *          rating bars. Memoized and fed by props so streaming rows stay cheap.
+ *          rating bars; for a CSV-origin conversation, also the human code chip
+ *          marked as a match or a mismatch. Memoized and fed by props so
+ *          streaming rows stay cheap.
  * STEP:    Run.
  * RUNS ON: client
  */
@@ -9,14 +11,23 @@
 import { memo, type ReactNode } from "react";
 import { CodedUnit, OutputType, RatingScale } from "@/lib/types";
 import { codeFor, colorWithAlpha, FALLBACK_COLOR } from "@/lib/results/category-colors";
+import { agreeCell } from "@/lib/results/agreement";
 import s from "./RunRow.module.css";
 
-function speakerKey(speaker: string): "a" | "b" {
+/**
+ * Which of the two speaker colours a speaker gets: by position in the file's
+ * roster when known, else by the historical speaker_0 / speaker_1 heuristic.
+ */
+function speakerKey(speaker: string, roster?: string[]): "a" | "b" {
+  if (roster) {
+    const i = roster.indexOf(speaker);
+    if (i >= 0) return i % 2 === 0 ? "a" : "b";
+  }
   return /0|a/i.test(speaker) ? "a" : "b";
 }
 
-function dotColor(speaker: string): string {
-  return speakerKey(speaker) === "a" ? "#7a8a99" : "var(--accent)";
+function dotColor(speaker: string, roster?: string[]): string {
+  return speakerKey(speaker, roster) === "a" ? "#7a8a99" : "var(--accent)";
 }
 
 function fmtTime(t: number): string {
@@ -32,6 +43,10 @@ interface RunRowProps {
   outputType: OutputType;
   scale: RatingScale;
   colorMap: Record<string, string>;
+  /** Speakers of this file in order of first appearance (for colouring). */
+  roster?: string[];
+  /** The human code for this turn ("" when blank); undefined for non-CSV files. */
+  humanCode?: string;
 }
 
 function RunRowImpl({
@@ -41,6 +56,8 @@ function RunRowImpl({
   outputType,
   scale,
   colorMap,
+  roster,
+  humanCode,
 }: RunRowProps) {
   const isTime = unit.kind === "time";
   const isContinuous = outputType === "continuous";
@@ -58,13 +75,13 @@ function RunRowImpl({
           <span
             key={i}
             className={s.speakerDot}
-            style={{ background: dotColor(sp) }}
+            style={{ background: dotColor(sp, roster) }}
           />
         ))}
       </span>
     </div>
   ) : (
-    <div className={s.speaker} data-speaker={speakerKey(unit.speaker ?? "")}>
+    <div className={s.speaker} data-speaker={speakerKey(unit.speaker ?? "", roster)}>
       <span className={s.speakerDot} />
       <span className={s.speakerNum}>{unit.turnNumber}</span>
     </div>
@@ -134,13 +151,31 @@ function RunRowImpl({
     );
   }
 
+  // The human code chip (CSV-origin files only): green on a match, red on a
+  // mismatch, plain when the humans left the turn uncoded.
+  const showHuman = humanCode !== undefined;
+  const humanCol: ReactNode = showHuman ? (
+    <div
+      className={s.humanChip}
+      data-match={agreeCell(humanCode, unit)}
+      title={
+        humanCode
+          ? `Human code: ${humanCode}`
+          : "No human code for this turn"
+      }
+    >
+      {humanCode ? codeFor(humanCode) : "—"}
+    </div>
+  ) : null;
+
   const col2 = isTime ? "72px" : "44px";
   const col4 = isContinuous ? "168px" : "56px";
+  const humanCol4 = showHuman ? "56px " : "";
 
   return (
     <div
       className={s.row}
-      style={{ gridTemplateColumns: `32px ${col2} 1fr ${col4}` }}
+      style={{ gridTemplateColumns: `32px ${col2} 1fr ${humanCol4}${col4}` }}
     >
       <div className={s.idx}>{index + 1}</div>
       {identity}
@@ -150,6 +185,7 @@ function RunRowImpl({
         </div>
         <div className={s.rationale}>{unit.rationale}</div>
       </div>
+      {humanCol}
       {codeCol}
     </div>
   );

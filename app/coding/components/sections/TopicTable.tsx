@@ -7,6 +7,7 @@
  */
 
 import { useSession } from "../../hooks/CodingSessionContext";
+import { isCodeable } from "@/lib/transcript/file-origin";
 import s from "./TopicTable.module.css";
 
 function FileIcon() {
@@ -74,7 +75,7 @@ function ClearIcon() {
 export function TopicTable() {
   const { files, setFileTopic } = useSession();
 
-  const codeable = files.filter((f) => f.rawTranscript !== null);
+  const codeable = files.filter(isCodeable);
   const total = codeable.length;
   const setCount = codeable.filter((f) => (f.topic ?? "").trim() !== "").length;
   const allSet = total > 0 && setCount === total;

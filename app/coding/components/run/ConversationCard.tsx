@@ -1,7 +1,8 @@
 "use client";
 /**
  * WHAT:    One collapsible card per coded transcript: status, progress, cost, a
- *          category histogram and the coded rows.
+ *          category histogram and the coded rows. For a conversation uploaded
+ *          as a coded CSV, also the agreement with the human codes.
  * STEP:    Run.
  * RUNS ON: client
  */
@@ -9,6 +10,8 @@
 import { useMemo } from "react";
 import { useSession } from "../../hooks/CodingSessionContext";
 import { sortUnits } from "@/lib/results/sort-units";
+import { computeAgreement, humanCodeFor } from "@/lib/results/agreement";
+import { isCsvOrigin } from "@/lib/transcript/file-origin";
 import { formatCost, sumLogUsage } from "../../hooks/useRunStats";
 import { CategoryHistogram } from "./CategoryHistogram";
 import { RunRow } from "./RunRow";
@@ -45,7 +48,7 @@ function Chevron({ open }: { open: boolean }) {
  * over many conversations reads as a compact list. The header always shows that
  * conversation's own status, progress, and cost; expanding reveals its category
  * histogram and coded rows. Per-conversation cost is summed from the API logs
- * stamped with this file's name.
+ * stamped with this file's id.
  */
 export function ConversationCard({
   file,
@@ -68,6 +71,22 @@ export function ConversationCard({
     [apiLogs, file.id],
   );
   const sorted = useMemo(() => sortUnits(file.codedUnits), [file.codedUnits]);
+
+  // The speakers in order of first appearance, for stable row colouring.
+  const roster = useMemo(() => {
+    const r: string[] = [];
+    for (const t of file.turns) if (!r.includes(t.speaker)) r.push(t.speaker);
+    return r;
+  }, [file.turns]);
+
+  const source = isCsvOrigin(file) ? file.source : undefined;
+  const agreement = useMemo(
+    () =>
+      source && file.codedUnits.length > 0
+        ? computeAgreement(source, file.codedUnits)
+        : null,
+    [source, file.codedUnits],
+  );
 
   const visible = sorted.slice(-MAX_VISIBLE_ROWS);
   const truncated = sorted.length - visible.length;
@@ -108,6 +127,17 @@ export function ConversationCard({
           <span className={s.metaDim}>
             {totals.hasUsage ? formatCost(totals.costUsd) : "—"}
           </span>
+          {agreement && agreement.n > 0 && (
+            <>
+              <span className={s.sep}>·</span>
+              <span
+                className={s.metaAgree}
+                title={`${agreement.matches} of ${agreement.n} coded turns match the human code`}
+              >
+                {Math.round(agreement.pct)}% agree
+              </span>
+            </>
+          )}
           {file.codedUnits.length > 0 && <ExportButton codedUnits={sorted} />}
           <button
             type="button"
@@ -142,6 +172,9 @@ export function ConversationCard({
                   : 0,
               )}{" "}
               per unit (over {file.progress.completed.toLocaleString()})
+              {agreement && agreement.n > 0
+                ? ` · ${agreement.matches}/${agreement.n} agree with the human code`
+                : ""}
             </div>
           )}
 
@@ -164,6 +197,8 @@ export function ConversationCard({
                     outputType={outputType}
                     scale={scale}
                     colorMap={categoryColorMap}
+                    roster={roster}
+                    humanCode={source ? humanCodeFor(source, unit) : undefined}
                   />
                 ))}
               </div>

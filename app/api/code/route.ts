@@ -1,7 +1,9 @@
 /**
  * WHAT:    POST /api/code — codes one transcript. Reads the request, validates it,
  *          builds a run plan, and streams coded units / API logs / progress back
- *          as Server-Sent Events while the engine works.
+ *          as Server-Sent Events while the engine works. A client that aborts
+ *          the request (Stop button, closed tab) stops the engine from starting
+ *          more batches.
  * STEP:    Run — server side. Called by the client run hook via fetch("/api/code").
  *          All real work happens in lib/coding/code-segments.ts.
  * RUNS ON: server only
@@ -119,29 +121,60 @@ export async function POST(request: Request) {
     topic,
   });
 
+  // Set when the client goes away (Stop button, navigation): the engine polls
+  // it before each batch, and nothing is enqueued into a closed stream.
+  let cancelled = false;
+  request.signal.addEventListener("abort", () => {
+    cancelled = true;
+  });
+
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (event: string, data: unknown) =>
-        controller.enqueue(encoder.encode(formatSseEvent(event, data)));
+      let closed = false;
+      const send = (event: string, data: unknown) => {
+        if (closed || cancelled) return;
+        try {
+          controller.enqueue(encoder.encode(formatSseEvent(event, data)));
+        } catch {
+          closed = true;
+        }
+      };
+      const close = () => {
+        if (closed) return;
+        closed = true;
+        try {
+          controller.close();
+        } catch {
+          /* already closed by the consumer */
+        }
+      };
       try {
-        await codeSegments(plan, (e) => {
-          if (e.type === "result") {
-            send("result", { codedUnit: e.unit });
-          } else if (e.type === "log") {
-            send("log", e.log);
-          } else {
-            send("progress", { completed: e.completed, total: e.total });
-          }
-        });
+        await codeSegments(
+          plan,
+          (e) => {
+            if (e.type === "result") {
+              send("result", { codedUnit: e.unit });
+            } else if (e.type === "log") {
+              send("log", e.log);
+            } else {
+              send("progress", { completed: e.completed, total: e.total });
+            }
+          },
+          () => cancelled,
+        );
         send("done", {});
-        controller.close();
+        close();
       } catch (err) {
         console.error(`[code ${plan.runId}] run FAILED:`, err);
         const message = err instanceof Error ? err.message : "Unknown error";
         send("error", { message });
-        controller.close();
+        close();
       }
+    },
+    cancel() {
+      cancelled = true;
+      console.log(`[code ${plan.runId}] stream cancelled by client`);
     },
   });
 

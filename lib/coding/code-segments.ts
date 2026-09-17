@@ -2,8 +2,12 @@
  * WHAT:    The coding engine for one transcript: turns a validated request into a
  *          RunPlan (prompt, tool schema, batches, token budget), then codes every
  *          batch with retries, partial credit and per-unit fallback, across a small
- *          pool of concurrent workers. Emits results/logs/progress through a callback
- *          so it knows nothing about HTTP or streams.
+ *          pool of concurrent workers. A provider failure (after backoff retries)
+ *          costs that batch only: its units come back as error rows and the run
+ *          goes on, unless failures pile up or the key is rejected. Emits
+ *          results/logs/progress through a callback so it knows nothing about
+ *          HTTP or streams; a `shouldStop` probe lets the caller cancel between
+ *          batches.
  * STEP:    Run — server side. Called by app/api/code/route.ts.
  * RUNS ON: server only (calls the LLM providers through lib/llm)
  */
@@ -37,9 +41,19 @@ import {
   parseUnitEntry,
   type ParseContext,
 } from "./parse-response";
+import {
+  errorMessage,
+  isAuthError,
+  isRetryableProviderError,
+  withRetry,
+} from "./retry";
 
 /** How many batches are coded at the same time. */
 const CONCURRENCY = 5;
+/** Backoff retries per provider call (on top of the parse retries). */
+const CALL_RETRIES = 4;
+/** Give up on the whole file after this many batches fail in a row. */
+const MAX_CONSECUTIVE_FAILURES = 10;
 
 // ── The plan: everything decided once per request ────────────────────────────
 
@@ -149,14 +163,21 @@ export type RunEvent =
  * Code every batch in the plan. Batches are pulled from a shared cursor by
  * CONCURRENCY workers, so up to five API calls are in flight at once. Progress
  * is counted in pre-segments (not batches) so the bar advances the same way
- * regardless of batch size. Throws if a provider call throws.
+ * regardless of batch size. A failed provider call yields error rows for its
+ * batch; the run only throws when the key is rejected or
+ * MAX_CONSECUTIVE_FAILURES batches fail back to back. `shouldStop` is polled
+ * before each batch so a cancelled request stops making billable calls.
  */
 export async function codeSegments(
   plan: RunPlan,
   emit: (e: RunEvent) => void,
+  shouldStop: () => boolean = () => false,
 ): Promise<void> {
   let completed = 0;
   const total = plan.segments.length;
+  let consecutiveFailures = 0;
+  let lastFailure = "";
+  let aborted = false;
 
   // Each batch's global start index (batches are contiguous and in
   // transcript order), so context windows resolve against `segments`.
@@ -173,8 +194,13 @@ export async function codeSegments(
 
   async function runNext(): Promise<void> {
     while (nextBatch < plan.batches.length) {
+      if (aborted) return;
+      if (shouldStop()) {
+        console.log(`[code ${plan.runId}] cancelled by client; not starting more batches`);
+        return;
+      }
       const bi = nextBatch++;
-      const { codedUnits, logs } = await processBatch(
+      const { codedUnits, logs, callFailed, failure } = await processBatch(
         plan,
         plan.batches[bi],
         batchStarts[bi],
@@ -186,6 +212,19 @@ export async function codeSegments(
 
       completed += plan.batches[bi].length;
       emit({ type: "progress", completed, total });
+
+      if (callFailed) {
+        consecutiveFailures++;
+        lastFailure = failure ?? "";
+        if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+          aborted = true;
+          throw new Error(
+            `Stopped after ${MAX_CONSECUTIVE_FAILURES} consecutive provider failures: ${lastFailure}`,
+          );
+        }
+      } else {
+        consecutiveFailures = 0;
+      }
     }
   }
 
@@ -211,14 +250,22 @@ export async function codeSegments(
  * multi-unit batch — falls back to coding each still-missing unit on its
  * own (allowFallback) so batching never yields worse coverage than the
  * one-call-per-unit path. Returns the coded units plus one ApiLog per
- * call made (the batch's own call, plus any fallback calls).
+ * call made (the batch's own call, plus any fallback calls). When the
+ * provider call itself fails even after backoff retries, every unfilled unit
+ * becomes an error row carrying the provider's message and `callFailed` is
+ * set; a rejected key (401/403) is rethrown because nothing would succeed.
  */
 async function processBatch(
   plan: RunPlan,
   batchSegs: PreSegment[],
   startIndex: number,
   allowFallback: boolean,
-): Promise<{ codedUnits: CodedUnit[]; logs: ApiLog[] }> {
+): Promise<{
+  codedUnits: CodedUnit[];
+  logs: ApiLog[];
+  callFailed: boolean;
+  failure?: string;
+}> {
   const { runId, segments, contextBefore, contextAfter, isBatched, topic, parse } = plan;
   const n = batchSegs.length;
   const beforeSegs = segments.slice(
@@ -280,6 +327,7 @@ async function processBatch(
   let attemptsMade = 0;
   let lastResponse: object = {};
   let lastAttempt = 0;
+  let callFailure: string | null = null;
   const stillMissing = () => filled.some((f) => f === null);
 
   for (let attempt = 0; attempt <= MAX_RETRIES && stillMissing(); attempt++) {
@@ -292,23 +340,40 @@ async function processBatch(
     let input: unknown;
     let raw: unknown;
     try {
-      ({ input, raw } = await runStructuredCall({
-        provider: plan.provider,
-        model: plan.model,
-        apiKey: plan.apiKey,
-        system: plan.systemPrompt,
-        user: userMessage,
-        tool: plan.tool,
-        maxTokens: plan.maxTokens,
-        reasoningEffort: plan.reasoningEffort,
-      }));
+      ({ input, raw } = await withRetry(
+        () =>
+          runStructuredCall({
+            provider: plan.provider,
+            model: plan.model,
+            apiKey: plan.apiKey,
+            system: plan.systemPrompt,
+            user: userMessage,
+            tool: plan.tool,
+            maxTokens: plan.maxTokens,
+            reasoningEffort: plan.reasoningEffort,
+          }),
+        {
+          retries: CALL_RETRIES,
+          isRetryable: isRetryableProviderError,
+          onRetry: (n, delayMs, err) =>
+            console.warn(
+              `[code ${runId}] batch ${label} attempt ${attempt}: ` +
+                `provider error (${errorMessage(err)}); backoff retry ${n}/${CALL_RETRIES} in ${delayMs}ms`,
+            ),
+        },
+      ));
     } catch (callErr) {
       console.error(
         `[code ${runId}] batch ${label} attempt ${attempt}: ` +
           `call THREW after ${Date.now() - callStart}ms:`,
         callErr,
       );
-      throw callErr;
+      // A rejected key will fail every batch the same way: stop the file.
+      if (isAuthError(callErr)) throw callErr;
+      // Anything else costs this batch only.
+      callFailure = errorMessage(callErr);
+      lastResponse = { error: callFailure };
+      break;
     }
     const rawObj = (raw ?? {}) as object;
     lastResponse = rawObj;
@@ -342,15 +407,21 @@ async function processBatch(
           Number.isInteger(entry.unit_index)
             ? (entry.unit_index as number)
             : -1;
+        let positional = false;
         if (idx < 0 || idx >= n || filled[idx] !== null) {
           while (pos < n && filled[pos] !== null) pos++;
           idx = pos;
+          positional = true;
         }
         if (idx < 0 || idx >= n || filled[idx] !== null) continue;
         const ok = parseUnitEntry(parse, batchSegs[idx], entry);
         if (ok) {
           filled[idx] = ok.units;
           parsedForLog.push(...ok.parsed);
+        } else if (positional) {
+          // The entry was invalid; move on so the next entry is not checked
+          // against the same slot.
+          pos++;
         }
       }
     } else {
@@ -380,10 +451,21 @@ async function processBatch(
   const inlineErrorIds: string[] = [];
   for (let i = 0; i < n; i++) {
     if (filled[i] !== null) continue;
-    if (allowFallback && n > 1) {
+    if (callFailure !== null) {
+      // The provider call failed after retries: no fallback sub-call (it would
+      // hit the same wall); every unfilled unit carries the provider's message.
+      const errorUnit = makeErrorUnit(
+        parse,
+        batchSegs[i],
+        `Provider error: ${callFailure}`,
+      );
+      filled[i] = [errorUnit];
+      inlineErrorIds.push(errorUnit.unitId);
+    } else if (allowFallback && n > 1) {
       const sub = await processBatch(plan, [batchSegs[i]], startIndex + i, false);
       filled[i] = sub.codedUnits;
       fallbackLogs.push(...sub.logs);
+      if (sub.callFailed) callFailure = sub.failure ?? "provider error";
     } else {
       const errorUnit = makeErrorUnit(parse, batchSegs[i]);
       filled[i] = [errorUnit];
@@ -406,8 +488,14 @@ async function processBatch(
   console.log(
     `[code ${runId}] batch ${label} done: ` +
       `resolved=${ownIds.length} errored=${inlineErrorIds.length} ` +
-      `fallbackCalls=${fallbackLogs.length} ownCalls=${attemptsMade}`,
+      `fallbackCalls=${fallbackLogs.length} ownCalls=${attemptsMade}` +
+      (callFailure !== null ? ` providerFailure="${callFailure}"` : ""),
   );
 
-  return { codedUnits: filled.flatMap((f) => f ?? []), logs };
+  return {
+    codedUnits: filled.flatMap((f) => f ?? []),
+    logs,
+    callFailed: callFailure !== null,
+    failure: callFailure ?? undefined,
+  };
 }

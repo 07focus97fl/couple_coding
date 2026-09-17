@@ -6,7 +6,7 @@
  * RUNS ON: client
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -46,6 +46,14 @@ export function ExportDialog({ open, onOpenChange, codedUnits }: ExportDialogPro
   const dims = dimsFromUnits(codedUnits);
   const isContinuous = !!dims;
   const hasTimeWindows = codedUnits.some((u) => u.kind === "time");
+  // The speakers actually present, in order of first appearance.
+  const speakers = useMemo(() => {
+    const r: string[] = [];
+    for (const u of codedUnits) {
+      if (u.speaker && !r.includes(u.speaker)) r.push(u.speaker);
+    }
+    return r;
+  }, [codedUnits]);
   const columnDefs = isContinuous
     ? COLUMN_DEFINITIONS.filter(
         (c) =>
@@ -131,8 +139,11 @@ export function ExportDialog({ open, onOpenChange, codedUnits }: ExportDialogPro
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Speakers</SelectItem>
-                  <SelectItem value="speaker_0">Speaker 0 only</SelectItem>
-                  <SelectItem value="speaker_1">Speaker 1 only</SelectItem>
+                  {speakers.map((sp) => (
+                    <SelectItem key={sp} value={sp}>
+                      {sp} only
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

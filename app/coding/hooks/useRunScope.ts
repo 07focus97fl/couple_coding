@@ -1,14 +1,17 @@
 "use client";
 /**
  * WHAT:    Predicts how many API calls a run will make by re-running the same
- *          segmentation and batching the server will use. Counting only.
+ *          segmentation and batching the server will use. Counting only. Also
+ *          lists selected files the current mode cannot cut (e.g. time windows
+ *          on a CSV conversation) so the Run step can say so before a run.
  * STEP:    Run (the pre-run scope panel in SectionRun).
  * RUNS ON: client
  */
 
 import { useMemo } from "react";
 import { useSession } from "./CodingSessionContext";
-import { segment } from "@/lib/transcript/segment";
+import { segmentFile } from "@/lib/transcript/segment";
+import { isCodeable } from "@/lib/transcript/file-origin";
 import { chunkSegments } from "@/lib/coding/batching";
 import type { CodingMode } from "@/lib/types";
 
@@ -18,6 +21,8 @@ export interface RunScope {
   apiCalls: number;
   fileCount: number;
   perFile: { id: string; fileName: string; calls: number }[];
+  /** Selected files the current mode cannot segment, with the reason. */
+  blocked: { id: string; fileName: string; reason: string }[];
 }
 
 /**
@@ -46,8 +51,11 @@ export function useRunScope(): RunScope {
   // result, so we recompute only when those change — not on every streamed coded
   // unit while a run is in progress.
   const sig = files
-    .filter((f) => f.selected && f.rawTranscript)
-    .map((f) => `${f.id}:${f.rawTranscript!.words.length}`)
+    .filter((f) => f.selected && isCodeable(f))
+    .map(
+      (f) =>
+        `${f.id}:${f.turns.length}:${f.rawTranscript?.words.length ?? 0}`,
+    )
     .join("|");
 
   return useMemo(() => {
@@ -59,16 +67,25 @@ export function useRunScope(): RunScope {
       perSpeaker,
       batchSize,
     };
-    const selected = files.filter((f) => f.selected && f.rawTranscript);
-    const perFile = selected.map((f) => ({
-      id: f.id,
-      fileName: f.fileName,
-      calls: chunkSegments(segment(f.rawTranscript!.words, mode), mode).length,
-    }));
+    const selected = files.filter((f) => f.selected && isCodeable(f));
+    const perFile: RunScope["perFile"] = [];
+    const blocked: RunScope["blocked"] = [];
+    for (const f of selected) {
+      const r = segmentFile(f, mode);
+      if (r.ok) {
+        perFile.push({
+          id: f.id,
+          fileName: f.fileName,
+          calls: chunkSegments(r.segments, mode).length,
+        });
+      } else {
+        blocked.push({ id: f.id, fileName: f.fileName, reason: r.error });
+      }
+    }
     const apiCalls = perFile.reduce((sum, f) => sum + f.calls, 0);
-    return { apiCalls, fileCount: selected.length, perFile };
+    return { apiCalls, fileCount: perFile.length, perFile, blocked };
     // `files` is intentionally omitted — `sig` captures the count-relevant parts,
-    // so segment() isn't re-run on unrelated state changes during a run.
+    // so segmentFile() isn't re-run on unrelated state changes during a run.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sig, segmentation, outputType, scale, windowSeconds, perSpeaker, batchSize]);
 }
