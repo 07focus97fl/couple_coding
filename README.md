@@ -55,10 +55,14 @@ further batches and later files are not sent.
 
 Upload a `.csv` with one row per speaking turn. Required columns: `exchange_id` (everything
 before its last `_N` is the conversation id, so `mcn_fsu_4221_1_17` belongs to `mcn_fsu_4221_1`),
-`speaker`, `text`. Optional: `topic` (pre-fills the topic table) and `final_code` (the human
-code). Any other column is kept and written back. Every conversation becomes its own row in
-the Upload step, so tick one or two for a cheap trial before running them all. Time-window
-segmentation is unavailable for these rows (no timings).
+`speaker`, `text`. Optional: `topic` (pre-fills the topic table), `start_time` / `end_time`
+(seconds or `m:ss` from the start of the conversation; the start becomes the `[00:12]` stamp the
+VTCS 15-second NC rule reads, and a missing end is taken from the next turn's start) and
+`final_code` (the human code). Any other column is kept and written back. Every conversation
+becomes its own row in the Upload step, so tick one or two for a cheap trial before running
+them all. Time-window segmentation is unavailable for these rows (no word-level timings).
+`for_claude/mock_test_format.csv` is a small working example and `for_claude/test_csv_format.md`
+the full spec.
 
 **The human code never reaches the model.** It lives only in `TranscriptFile.source.rows`;
 `segmentFile` builds the units from `turns` (speaker + text), and the request body is an explicit
@@ -145,7 +149,7 @@ The body the browser sends (`CodeRequest` in `app/api/code/route.ts`):
 | `model` | A model id from `lib/models.ts`. The server resolves the provider from it. |
 | `reasoningEffort` | `none` / `low` / `medium` / `high`; only forwarded for models flagged `reasoning`. |
 | `categories` | `{ name, description }[]`; at least two non-blank names. In continuous mode these are the rating dimensions. |
-| `systemPrompt` | The prompt from the editor. The server appends the category (or rating) block. |
+| `systemPrompt` | The prompt from the editor. The server inserts the category (or rating) definitions where the prompt says `{{CATEGORIES}}`, or appends them as a block when it has no such marker. |
 | `contextBefore`, `contextAfter` | How many neighbouring units to include as context. |
 | `topic` | Optional conversation topic, prepended to every user message. |
 | `apiKey` | The key for the model's provider. Used for this request only. |
@@ -161,7 +165,10 @@ Validation failures return `400 { "error": "..." }`. Otherwise the response is a
 | `done` | `{}` when every batch is finished. |
 | `error` | `{ message }` if a provider call throws; the stream closes. |
 
-Inside: units are batched (`batchSize`, capped per method), each batch gets up to three attempts
+Inside: units are batched (`batchSize`, capped per method). Every call, even one coding a single
+unit, is asked for a `units` array whose entries echo the `[unit_index N]` shown in the user
+message; turns with timings are stamped with their elapsed start time (`[00:12]`); CSV turns
+without timings are not. Each batch gets up to three attempts
 to parse, still-missing units of a multi-unit batch are re-coded alone, and five batches run at
 once. A unit that never parses becomes a row with `error: true`. A provider call that fails is
 retried with backoff (rate limits, overloads, server and network errors, up to four times); if
@@ -209,8 +216,10 @@ Multipart form with the audio `file` and ElevenLabs options; the key goes in the
 - **Change what a human-coded CSV must contain, or how it is split**: `lib/transcript/csv-conversations.ts`
   (`parse-csv.ts` is the generic reader). The audit export's columns: `lib/results/generate-audit-csv.ts`;
   the agreement maths: `lib/results/agreement.ts`. Check both with `npx --yes tsx scripts/check-csv.ts`.
-- **Change what the model is asked**: `lib/schemes/default-prompt.ts` for the editable default,
-  `lib/coding/build-messages.ts` for what is appended and how context is laid out,
+- **Change what the model is asked**: `lib/schemes/default-prompt.ts` for the editable default
+  (`lib/schemes/vtcs.ts` for VTCS coding prompt v2, checked by `scripts/check-vtcs.ts` against
+  `scripts/fixtures/`), `lib/coding/build-messages.ts` for where the definitions go and how
+  context is laid out,
   `lib/coding/build-tool.ts` for the JSON shape the model must return.
 - **Change how a response becomes rows**: `lib/coding/parse-response.ts`.
 - **Change retries, batching or concurrency**: `lib/coding/code-segments.ts`, `lib/coding/batching.ts`,

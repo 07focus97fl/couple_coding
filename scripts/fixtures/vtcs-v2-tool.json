@@ -1,0 +1,45 @@
+{
+  "type": "function",
+  "name": "code_exchange",
+  "description": "Code each numbered target unit independently, following the coding prompt. Return one entry per unit in \"units\", tagged with its unit_index as shown in [unit_index N]. Each target unit is one speaking turn and may begin with a timestamp showing the elapsed time since the conversation started (e.g., [00:12]); use it to apply the first-15-seconds rule for NC [D2.6]. Categorize each speaking turn and provide a rationale.",
+  "strict": false,
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "units": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "object",
+          "properties": {
+            "unit_index": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Index of the target unit this entry codes, as shown in [unit_index N] in the message."
+            },
+            "category": {
+              "type": "string",
+              "enum": ["IN", "NC", "ID", "P", "B", "R"],
+              "description": "The code for this speaking turn, as defined in the coding prompt [D1-D6] and chosen under the precedence rules [CR4]. Do not assign NC to a speaking turn whose timestamp is earlier than 00:15 [D2.6]."
+            },
+            "rationale": {
+              "type": "string",
+              "description": "One to three sentences that walk through how you reached the code, citing the bracketed label of each prompt part at the point where you rely on it. Example: 'Given that the speaking turn is on topic [CR2(a)] and blames the partner's behavior in general terms [D4.1, D4.2], and since the exaggeration blames behavior rather than undermining an idea [D6.5], the correct code is B, with ID (EX) as an alternative [CR4(b)].' Do not simply list labels at the end."
+            },
+            "subcategory": {
+              "type": ["string", "null"],
+              "description": "Optional. When category is ID, the ID subcategory that applies, using the labels the prompt gives (HQ, HJ, MR, DR, EX) [D6.1-D6.5]. If more than one applies, follow CR4(e). Null otherwise."
+            },
+            "alternatives_considered": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Codes that were close but not chosen, including IN, NC or an ID subcategory set aside under the precedence rules [CR4]. Empty array if none."
+            }
+          },
+          "required": ["unit_index", "category", "rationale"]
+        }
+      }
+    },
+    "required": ["units"]
+  }
+}

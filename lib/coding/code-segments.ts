@@ -19,11 +19,7 @@ import {
   CodingMode,
   PreSegment,
 } from "@/lib/types";
-import {
-  buildSystemPrompt,
-  buildUserMessage,
-  buildBatchUserMessage,
-} from "./build-messages";
+import { buildSystemPrompt, buildUserMessage } from "./build-messages";
 import { buildCodingTool, computeMaxTokens } from "./build-tool";
 import { chunkSegments, effectiveBatchCap } from "./batching";
 import { runStructuredCall, type LlmTool } from "@/lib/llm";
@@ -85,7 +81,6 @@ export interface RunPlan {
   segments: PreSegment[];
   /** Consecutive segments grouped per API call (singletons when batchSize is 1). */
   batches: PreSegment[][];
-  isBatched: boolean;
   maxTokens: number;
   contextBefore: number;
   contextAfter: number;
@@ -109,10 +104,9 @@ export function buildRunPlan(input: RunPlanInput): RunPlan {
   const tool = buildCodingTool(mode, categories, parse.roster);
   // Batching: group consecutive pre-segments per call (cost reduction). The cap
   // is the requested batchSize clamped per-method; chunkSegments also auto-
-  // reduces it for large units. batchCap === 1 ⇒ singleton batches ⇒ the
-  // original one-call-per-unit behavior, byte-for-byte.
+  // reduces it for large units. batchCap === 1 ⇒ singleton batches, each still
+  // sent and answered in the `units` shape (a batch of one).
   const batchCap = effectiveBatchCap(mode);
-  const isBatched = batchCap > 1;
   const batches = chunkSegments(segments, mode);
   const maxTokens = computeMaxTokens(
     mode,
@@ -141,7 +135,6 @@ export function buildRunPlan(input: RunPlanInput): RunPlan {
     mode,
     segments,
     batches,
-    isBatched,
     maxTokens,
     contextBefore,
     contextAfter,
@@ -244,8 +237,8 @@ export async function codeSegments(
 }
 
 /**
- * Code one batch of consecutive pre-segments in a single API call (or a
- * single unit when unbatched). Parses the response per-unit with partial
+ * Code one batch of consecutive pre-segments (possibly just one) in a single
+ * API call. Parses the response per-unit with partial
  * credit, retries the call for any units still missing, and — for a
  * multi-unit batch — falls back to coding each still-missing unit on its
  * own (allowFallback) so batching never yields worse coverage than the
@@ -266,7 +259,7 @@ async function processBatch(
   callFailed: boolean;
   failure?: string;
 }> {
-  const { runId, segments, contextBefore, contextAfter, isBatched, topic, parse } = plan;
+  const { runId, segments, contextBefore, contextAfter, topic, parse } = plan;
   const n = batchSegs.length;
   const beforeSegs = segments.slice(
     Math.max(0, startIndex - contextBefore),
@@ -278,9 +271,7 @@ async function processBatch(
   );
   const beforeSegNumbers = beforeSegs.map((s) => s.turnNumber ?? s.index);
   const afterSegNumbers = afterSegs.map((s) => s.turnNumber ?? s.index);
-  const userMessage = isBatched
-    ? buildBatchUserMessage(beforeSegs, batchSegs, afterSegs, topic)
-    : buildUserMessage(beforeSegs, batchSegs[0], afterSegs, topic);
+  const userMessage = buildUserMessage(beforeSegs, batchSegs, afterSegs, topic);
 
   const label = `[${startIndex}..${startIndex + n - 1}]`;
   console.log(
@@ -389,46 +380,38 @@ async function processBatch(
         `${callUsage.cacheWriteTokens}`,
     );
 
-    if (isBatched) {
-      const entries = Array.isArray(
-        (input as { units?: unknown } | undefined)?.units,
-      )
-        ? (input as { units: unknown[] }).units
-        : [];
-      let pos = 0;
-      for (const rawEntry of entries) {
-        if (!rawEntry || typeof rawEntry !== "object") continue;
-        const entry = rawEntry as Record<string, unknown>;
-        // Prefer the echoed unit_index; otherwise take the next free
-        // slot by position. Never overwrite an already-filled unit, so
-        // partial results from earlier attempts are preserved.
-        let idx =
-          typeof entry.unit_index === "number" &&
-          Number.isInteger(entry.unit_index)
-            ? (entry.unit_index as number)
-            : -1;
-        let positional = false;
-        if (idx < 0 || idx >= n || filled[idx] !== null) {
-          while (pos < n && filled[pos] !== null) pos++;
-          idx = pos;
-          positional = true;
-        }
-        if (idx < 0 || idx >= n || filled[idx] !== null) continue;
-        const ok = parseUnitEntry(parse, batchSegs[idx], entry);
-        if (ok) {
-          filled[idx] = ok.units;
-          parsedForLog.push(...ok.parsed);
-        } else if (positional) {
-          // The entry was invalid; move on so the next entry is not checked
-          // against the same slot.
-          pos++;
-        }
+    const entries = Array.isArray(
+      (input as { units?: unknown } | undefined)?.units,
+    )
+      ? (input as { units: unknown[] }).units
+      : [];
+    let pos = 0;
+    for (const rawEntry of entries) {
+      if (!rawEntry || typeof rawEntry !== "object") continue;
+      const entry = rawEntry as Record<string, unknown>;
+      // Prefer the echoed unit_index; otherwise take the next free
+      // slot by position. Never overwrite an already-filled unit, so
+      // partial results from earlier attempts are preserved.
+      let idx =
+        typeof entry.unit_index === "number" &&
+        Number.isInteger(entry.unit_index)
+          ? (entry.unit_index as number)
+          : -1;
+      let positional = false;
+      if (idx < 0 || idx >= n || filled[idx] !== null) {
+        while (pos < n && filled[pos] !== null) pos++;
+        idx = pos;
+        positional = true;
       }
-    } else {
-      const ok = parseUnitEntry(parse, batchSegs[0], input);
+      if (idx < 0 || idx >= n || filled[idx] !== null) continue;
+      const ok = parseUnitEntry(parse, batchSegs[idx], entry);
       if (ok) {
-        filled[0] = ok.units;
+        filled[idx] = ok.units;
         parsedForLog.push(...ok.parsed);
+      } else if (positional) {
+        // The entry was invalid; move on so the next entry is not checked
+        // against the same slot.
+        pos++;
       }
     }
 

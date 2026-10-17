@@ -1,12 +1,14 @@
 "use client";
 /**
  * WHAT:    The collapsible system-prompt textarea inside Step 03, with word count,
- *          an "edited" tag and a Reset button.
+ *          an "edited" tag, a Reset button, and a hint saying where the category
+ *          definitions go ({{CATEGORIES}} or, without it, the end).
  * STEP:    Scheme.
  * RUNS ON: client
  */
 
 import { useMemo, useState } from "react";
+import { CATEGORIES_PLACEHOLDER } from "@/lib/types";
 import { useSession } from "../../hooks/CodingSessionContext";
 import s from "./PromptEditor.module.css";
 
@@ -97,8 +99,18 @@ export function PromptEditor() {
                 placeholder="Your prompt appears here. Categories are appended automatically."
               />
               <div className={s.hint}>
-                Categories defined above are appended to this prompt
-                automatically — you don&apos;t need to list them here.
+                {systemPrompt.includes(CATEGORIES_PLACEHOLDER) ? (
+                  <>
+                    The category definitions above are inserted where{" "}
+                    <code>{CATEGORIES_PLACEHOLDER}</code> appears.
+                  </>
+                ) : (
+                  <>
+                    Categories defined above are appended to this prompt
+                    automatically. To place them elsewhere, write{" "}
+                    <code>{CATEGORIES_PLACEHOLDER}</code> where they belong.
+                  </>
+                )}
                 <span className={s.hintDim}> {charCount.toLocaleString()} chars</span>
               </div>
             </>

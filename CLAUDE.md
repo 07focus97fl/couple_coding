@@ -21,7 +21,10 @@ grouped in pipeline order: `transcript/` → `schemes/` → `coding/` (server en
 - Anything persisted changes `autosave-schema.ts`: bump the version and add a migration line
   so old saved sessions still load. The localStorage key name `ccc_session_v3` is frozen.
 - The tool name `code_exchange` and the prompt text change what the model sees; treat edits
-  there as behaviour changes, not refactors.
+  there as behaviour changes, not refactors. VTCS is coding prompt v2: its definitions live in
+  the category boxes and are spliced in at `{{CATEGORIES}}`; the tool always returns `units[]`
+  and carries v2 field descriptions. `npx --yes tsx scripts/check-vtcs.ts` checks both against
+  the owner's text in `scripts/fixtures/`; update the fixtures when the owner revises v2.
 - API keys are entered in the browser and travel only inside the request they authorise.
   Nothing reads `process.env`.
 - A human-coded CSV's codes (`CsvRow.values` under `TranscriptFile.source`) never reach a

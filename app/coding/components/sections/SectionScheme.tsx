@@ -19,14 +19,16 @@ import { TopicTable } from "./TopicTable";
 import s from "./SectionScheme.module.css";
 
 /**
- * Split a category definition into a human title (its leading sentence/name)
- * and the remaining preview text — e.g. "Non-Continuity. Off topic…"
- * → { title: "Non-Continuity", rest: "Off topic…" }.
+ * Split a category definition into a human title and the remaining preview
+ * text. The title is the leading sentence of the first line, without a prompt
+ * label: "[D2] Non-Continuity (NC)\n• [D2.1] Statements…"
+ * → { title: "Non-Continuity (NC)", rest: "• [D2.1] Statements…" }.
  */
 function splitDefinition(description: string): { title: string; rest: string } {
-  const text = (description ?? "").trim();
+  const text = (description ?? "").trim().replace(/^\[[^\]]+\]\s*/, "");
   if (!text) return { title: "", rest: "" };
-  const m = text.match(/^([^.!?]*[.!?])\s+([\s\S]*)$/);
+  const m = text.match(/^([^.!?\n]*[.!?])[ \t]+([\s\S]*)$/) ??
+    text.match(/^([^\n]*)\n([\s\S]*)$/);
   if (m && m[2].trim()) {
     return { title: m[1].replace(/[.!?]+\s*$/, "").trim(), rest: m[2].trim() };
   }

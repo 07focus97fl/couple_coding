@@ -132,6 +132,12 @@ export function FormatInfoDialog({ open, onOpenChange }: FormatInfoDialogProps) 
                 in the Scheme step.
               </li>
               <li>
+                <code>start_time</code>, <code>end_time</code> — optional; when
+                each turn starts and ends, from the start of the conversation,
+                in seconds (<code>12.4</code>) or <code>m:ss</code>. The model
+                sees the start as a timestamp such as <code>[00:12]</code>.
+              </li>
+              <li>
                 <code>final_code</code> — optional; the human code. It never
                 leaves your browser and is only used for the agreement columns
                 and stats.
@@ -139,7 +145,7 @@ export function FormatInfoDialog({ open, onOpenChange }: FormatInfoDialogProps) 
             </ul>
             <p className="text-muted-foreground">
               Any other columns are kept and written back unchanged. Time-window
-              segmentation is unavailable for CSV rows (no timings).
+              segmentation is unavailable for CSV rows (no word-level timings).
             </p>
           </div>
         </div>

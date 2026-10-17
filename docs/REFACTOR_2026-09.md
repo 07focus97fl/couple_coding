@@ -105,7 +105,7 @@ The `README.md` has the file map; this document is the "why".
 | B9 | `useRunStats.ts` | A log whose usage could not be normalized contributes $0 but still counts as a call, deflating cost and rate. | Track and show unpriced calls. |
 | B10 | `lib/results/align-utterances.ts` vs `lib/transcript/parse-transcript.ts` | `getTurnWords` re-derives a turn's words by speaker + time range, a different rule than the parser used, so the substring search can miss and the unit silently gets `approximateTiming`. | Store word index ranges on `SpeakingTurn` at parse time and slice by index. |
 | B11 | `lib/llm/google.ts` | Gemini schema translation drops `additionalProperties: false`, so Gemini may return extra rating keys. | Harmless today because `parseRatings` keeps only known dimensions; documented. |
-| B12 | `lib/schemes/vtcs.ts` | The hand-written VTCS prompts tell the model to return `"code"`, `"reasoning"`, `turn_number`, `speaker` and "a JSON array", but the forced tool requires `category`/`rationale` (and a `units[]` wrapper when batched). The tool wins; the model silently remaps. The category block is also appended a second time by `buildSystemPrompt`, and choosing time-window segmentation silently replaces the VTCS decision tree with the generic prompt. | Prompt-content decisions for the owner. |
+| B12 | `lib/schemes/vtcs.ts` | The hand-written VTCS prompts tell the model to return `"code"`, `"reasoning"`, `turn_number`, `speaker` and "a JSON array", but the forced tool requires `category`/`rationale` (and a `units[]` wrapper when batched). The tool wins; the model silently remaps. The category block is also appended a second time by `buildSystemPrompt`, and choosing time-window segmentation silently replaces the VTCS decision tree with the generic prompt. | **Resolved 2026-10-07** by VTCS coding prompt v2: the prompt asks for exactly the tool's fields inside `units[]` (now used for every call), the definitions are spliced in once at `{{CATEGORIES}}` instead of appended, and time-window runs still use the generic prompt by design. |
 | B13 | `lib/coding/code-segments.ts` | In a batched response, an entry without `unit_index` that fails validation does not advance the positional cursor, so the next entry is checked against the same segment. | **Fixed 2026-09-16.** The cursor advances on a failed positional entry. |
 | B14 | `useCodingRun.ts` | Every appended log re-serializes the whole log array to `sessionStorage` (quadratic work during a run). | **Fixed 2026-09-16.** The mirror is written at most every 2 s during a run and once when it ends. The audit export reads the in-memory logs, never the mirror. |
 | B15 | `useCodingSession.ts` | The context value is a fresh 90-key object every render; all consumers re-render on every keystroke and every streamed unit. `useRunScope` works around it with an `eslint-disable`. | Split the context, or memoize per step. |
@@ -192,7 +192,7 @@ Not renamed: the tool name `code_exchange` (changing it changes what the model s
 
 ## 6. Follow-ups not done here (out of scope for a reorganization)
 
-- The B-bugs above that are still open (B1 in part, B4 in part, B5–B12, B15, B16). B2, B3, B13
+- The B-bugs above that are still open (B1 in part, B4 in part, B5–B11, B15, B16; B12 resolved 2026-10-07). B2, B3, B13
   and B14 were fixed on 2026-09-16 alongside the human-coded CSV input.
 - `useCodingRun.handleExportAll` builds the combined CSV by splitting `generateCsv` output on
   `"\n"`, which breaks a row whose rationale contains a line break. The audit export does not

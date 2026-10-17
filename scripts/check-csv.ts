@@ -2,8 +2,10 @@
  * WHAT:    Keyless checks for the human-coded CSV path: parses the owner's
  *          fixture (for_claude/to_test.csv), checks the conversation grouping,
  *          the turn invariants, that the human code never reaches a segment,
- *          the audit CSV round trip, a synthetic utterance-mode export, and the
- *          autosave v6 -> v7 migration. Exits non-zero on the first failure.
+ *          the audit CSV round trip, a synthetic utterance-mode export, the
+ *          autosave v6 -> v7 migration, and the optional start_time / end_time
+ *          columns (using for_claude/mock_test_format.csv). Exits non-zero on
+ *          the first failure.
  * STEP:    Development only. Run with `npx --yes tsx scripts/check-csv.ts`.
  * RUNS ON: node
  */
@@ -14,6 +16,7 @@ import {
   conversationIdOf,
   csvToConversations,
   humanCodeAt,
+  parseTimeCell,
   topicOf,
   turnsFromCsv,
 } from "@/lib/transcript/csv-conversations";
@@ -333,6 +336,51 @@ ok(auditCsvFileName(files, "abc") === "to_test_coded_abc.csv", "export file name
   const v7 = { ...v6, version: 7, files: [{ ...v6.files[0], rawTranscript: null, source: sample }] };
   const restored = deserialize(JSON.stringify(v7));
   ok(restored?.files[0].source?.rows.length === SAMPLE_ROWS, "CSV source survives a save/load");
+}
+
+/* ---- Optional turn times ---- */
+{
+  for (const [cell, want] of [
+    ["", null],
+    ["12", 12],
+    ["12.4", 12.4],
+    ["0:12", 12],
+    ["00:12.5", 12.5],
+    ["1:02:03", 3723],
+  ] as [string, number | null][]) {
+    ok(parseTimeCell(cell) === want, `parseTimeCell("${cell}") is ${want}`);
+  }
+  ok(Number.isNaN(parseTimeCell("soon")), "a non-time cell is NaN");
+
+  // The fixture has no time columns: every turn stays untimed.
+  ok(
+    turnsFromCsv(conversations[0]).every((t) => t.startTime === 0 && t.endTime === 0),
+    "turns of a CSV without time columns stay at 0",
+  );
+
+  const mock = csvToConversations(
+    "mock_test_format.csv",
+    readFileSync("for_claude/mock_test_format.csv", "utf8"),
+  );
+  ok(mock.length === 2, "the mock has two conversations");
+  const mt = turnsFromCsv(mock[0]);
+  ok(mt[0].startTime === 0 && mt[0].endTime === 6, "first turn runs 0:00-0:06 (timed)");
+  ok(mt[3].startTime === 24 && mt[3].endTime === 29, "turn 4 runs 0:24-0:29");
+  ok(mock[0].keys.startTime === "start_time" && mock[0].keys.endTime === "end_time", "time columns found");
+
+  // A missing end_time is taken from the next row's start.
+  const noEnd = csvToConversations(
+    "t.csv",
+    "exchange_id,speaker,text,start_time\nc_1,A,hi,0\nc_2,B,yo,4.5\nc_3,A,ok,9\n",
+  );
+  const ne = turnsFromCsv(noEnd[0]);
+  ok(ne[0].endTime === 4.5 && ne[2].endTime === 9, "end falls back to next start, then own start");
+
+  assert.throws(
+    () => csvToConversations("bad.csv", "exchange_id,speaker,text,start_time\nc_1,A,hi,soon\n"),
+    /start_time "soon" is not a time/,
+  );
+  checks++;
 }
 
 console.log(`check-csv: ${checks} checks passed`);

@@ -3,7 +3,9 @@
  * WHAT:    Step 3 (Scheme) state: which coding scheme is active, its editable
  *          categories, the coding mode (segmentation, output type, rating scale,
  *          window size, per-speaker, batch size), the editable system prompt, and
- *          how much context surrounds each unit.
+ *          how much context surrounds each unit. A scheme whose definitions are
+ *          worded per mode (VTCS: per turn or per utterance) gets its categories
+ *          regenerated along with the prompt when the mode changes.
  * STEP:    Scheme. Rendered by components/sections/SectionScheme.tsx (+ PromptEditor,
  *          TopicTable); composed into the session by useCodingSession.ts.
  * RUNS ON: client only
@@ -12,6 +14,7 @@ import { useCallback, useMemo, useState } from "react";
 import {
   CategoryDefinition,
   CodingScheme,
+  PromptOptions,
   DEFAULT_CONTEXT_BEFORE,
   DEFAULT_CONTEXT_AFTER,
   DEFAULT_OUTPUT_TYPE,
@@ -33,6 +36,26 @@ import type { PersistedSession } from "./autosave-schema";
 const DEFAULT_SCHEME_ID = "vtcs";
 const DEFAULT_SCHEME =
   CODING_SCHEMES.find((sc) => sc.id === DEFAULT_SCHEME_ID) ?? null;
+
+/** The scheme's default categories for a mode. */
+function schemeCategories(
+  scheme: CodingScheme,
+  opts: PromptOptions,
+): CategoryDefinition[] {
+  return scheme.categoriesFor?.(opts) ?? scheme.categories;
+}
+
+function sameCategories(
+  a: CategoryDefinition[],
+  b: CategoryDefinition[],
+): boolean {
+  return (
+    a.length === b.length &&
+    a.every(
+      (c, i) => c.name === b[i]?.name && c.description === b[i]?.description,
+    )
+  );
+}
 
 export interface SchemeSettingsState {
   schemeId: string | null;
@@ -130,47 +153,61 @@ export function useSchemeSettings(): SchemeSettingsState {
       setSchemeIdState(id);
       const scheme = CODING_SCHEMES.find((sc) => sc.id === id);
       if (!scheme) return;
-      setCategoriesState(scheme.categories);
+      const opts = { segmentation, outputType, scale, perSpeaker };
+      setCategoriesState(schemeCategories(scheme, opts));
       setCategoriesDirty(false);
-      setSystemPromptState(
-        scheme.defaultPrompt({ segmentation, outputType, scale, perSpeaker }),
-      );
+      setSystemPromptState(scheme.defaultPrompt(opts));
       setPromptDirty(false);
     },
     [segmentation, outputType, scale, perSpeaker],
   );
 
   // Changing segmentation or output type changes the task wording, so the
-  // default prompt is regenerated — guarded by a confirm when the user has
-  // hand-edited the prompt. Scale/anchor and window changes do NOT touch the
-  // prompt (anchors are appended at request time), so they skip this.
+  // default prompt is regenerated, and so are the categories when the scheme
+  // words them per mode. Either is guarded by a confirm when the user has
+  // hand-edited it. Scale/anchor and window changes do NOT touch the prompt
+  // (anchors are appended at request time), so they skip this.
   const regenerateDefaultPrompt = useCallback(
     (
       nextSeg: SegmentationStrategy,
       nextOut: OutputType,
       nextPerSpeaker: boolean = perSpeaker,
     ): boolean => {
-      if (promptDirty && typeof window !== "undefined") {
+      const scheme = CODING_SCHEMES.find((sc) => sc.id === schemeId);
+      const opts = {
+        segmentation: nextSeg,
+        outputType: nextOut,
+        scale,
+        perSpeaker: nextPerSpeaker,
+      };
+      const nextCategories = scheme ? schemeCategories(scheme, opts) : null;
+      const categoriesChange =
+        nextCategories !== null && !sameCategories(nextCategories, categories);
+      const losesPrompt = promptDirty;
+      const losesCategories = categoriesChange && categoriesDirty;
+      if ((losesPrompt || losesCategories) && typeof window !== "undefined") {
+        const what =
+          losesPrompt && losesCategories
+            ? "prompt and category edits"
+            : losesPrompt
+              ? "prompt edits"
+              : "category edits";
         const ok = window.confirm(
-          "Changing this will reset your prompt edits to the new default. Continue?",
+          `Changing this will reset your ${what} to the new defaults. Continue?`,
         );
         if (!ok) return false;
       }
-      const scheme = CODING_SCHEMES.find((sc) => sc.id === schemeId);
       if (scheme) {
-        setSystemPromptState(
-          scheme.defaultPrompt({
-            segmentation: nextSeg,
-            outputType: nextOut,
-            scale,
-            perSpeaker: nextPerSpeaker,
-          }),
-        );
+        setSystemPromptState(scheme.defaultPrompt(opts));
         setPromptDirty(false);
+      }
+      if (nextCategories && categoriesChange) {
+        setCategoriesState(nextCategories);
+        setCategoriesDirty(false);
       }
       return true;
     },
-    [promptDirty, schemeId, scale, perSpeaker],
+    [promptDirty, categoriesDirty, categories, schemeId, scale, perSpeaker],
   );
 
   const setSegmentation = useCallback(
@@ -235,27 +272,28 @@ export function useSchemeSettings(): SchemeSettingsState {
       setCategoriesState(next);
       const scheme = CODING_SCHEMES.find((sc) => sc.id === schemeId);
       if (scheme) {
-        const sameAsScheme =
-          next.length === scheme.categories.length &&
-          next.every(
-            (c, i) =>
-              c.name === scheme.categories[i]?.name &&
-              c.description === scheme.categories[i]?.description,
-          );
-        setCategoriesDirty(!sameAsScheme);
+        const defaults = schemeCategories(scheme, {
+          segmentation,
+          outputType,
+          scale,
+          perSpeaker,
+        });
+        setCategoriesDirty(!sameCategories(next, defaults));
       } else {
         setCategoriesDirty(true);
       }
     },
-    [schemeId],
+    [schemeId, segmentation, outputType, scale, perSpeaker],
   );
 
   const resetCategories = useCallback(() => {
     const scheme = CODING_SCHEMES.find((sc) => sc.id === schemeId);
     if (!scheme) return;
-    setCategoriesState(scheme.categories);
+    setCategoriesState(
+      schemeCategories(scheme, { segmentation, outputType, scale, perSpeaker }),
+    );
     setCategoriesDirty(false);
-  }, [schemeId]);
+  }, [schemeId, segmentation, outputType, scale, perSpeaker]);
 
   // Hydration writes the raw state directly: the saved prompt is already the
   // user's own text, so the confirm-on-dirty path must not run here.

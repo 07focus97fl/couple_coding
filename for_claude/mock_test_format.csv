@@ -1,0 +1,13 @@
+exchange_id,topic,speaker,start_time,end_time,text,final_code,coder_notes
+couple_101_1_1,Division of housework,Wife,0:00,0:06,"Okay, so we're supposed to talk about chores. This feels kind of awkward.",IN,early process comment (before 0:15)
+couple_101_1_2,Division of housework,Husband,0:06,0:12,"Yeah, it does.",IN,
+couple_101_1_3,Division of housework,Wife,0:12,0:24,"I feel like I've been doing most of the dishes and laundry this month.",IN,
+couple_101_1_4,Division of housework,Husband,0:24,0:29,"Why is it always about what YOU do?",ID,HQ
+couple_101_1_5,Division of housework,Wife,0:29,0:38,"You never clean up after yourself. Ever.",B,
+couple_101_1_6,Division of housework,Husband,0:38,0:44,"It's weird talking in front of these cameras.",NC,
+couple_101_1_7,Division of housework,Wife,0:44,0:58,"Maybe we could split it: I'll take trash and dishes, you take laundry and vacuuming.",,not coded by humans
+couple_204_1_1,Spending and saving,Husband,0:00,0:09,"So, money. Last month we spent about $400 more than we planned.",IN,
+couple_204_1_2,Spending and saving,Wife,0:09,0:15,"Whatever.",R,
+couple_204_1_3,Spending and saving,Husband,0:15,0:27,"You need to be more careful about how much you spend.",P,
+couple_204_1_4,Spending and saving,Wife,0:27,0:40,"I can't be expected to track every receipt with everything I have going on.",ID,DR
+couple_204_1_5,Spending and saving,Husband,0:40,0:52,"We've both been bad about keeping track of the budget, honestly.",IN,

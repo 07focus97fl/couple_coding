@@ -194,11 +194,23 @@ export interface CategoryDefinition {
   description: string;
 }
 
+/**
+ * Written in a prompt, marks where the category definitions are inserted
+ * (lib/coding/build-messages.ts). A prompt without it gets them appended.
+ */
+export const CATEGORIES_PLACEHOLDER = "{{CATEGORIES}}";
+
 export interface CodingScheme {
   id: string;
   label: string;
   description: string;
+  /** The categories as first shown (turn mode). */
   categories: CategoryDefinition[];
+  /**
+   * Optional: categories whose wording depends on the mode (VTCS words its
+   * definitions per turn or per utterance). Falls back to `categories`.
+   */
+  categoriesFor?: (opts: PromptOptions) => CategoryDefinition[];
   defaultPrompt: (opts: PromptOptions) => string;
   comingSoon?: boolean;
   badge?: string;
@@ -256,6 +268,9 @@ export interface CsvSource {
     text: string;
     topic?: string;
     humanCode?: string;
+    /** Optional per-turn times (seconds or m:ss), used for the [mm:ss] stamps. */
+    startTime?: string;
+    endTime?: string;
   };
   /** This conversation's rows in file order. Invariant: rows[i] <-> turns[i] (turnNumber i + 1). */
   rows: CsvRow[];
