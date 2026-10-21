@@ -1,6 +1,6 @@
 /**
  * WHAT:    The shape of the saved session (PersistedSession), its serializer, and
- *          the migration that upgrades older saves (v3 to v7) on load.
+ *          the migration that upgrades older saves (v3 to v8) on load.
  * STEP:    Shared. Used by useSessionPersistence and useAutosave.
  * RUNS ON: client
  * STORAGE: localStorage "ccc_session_v3" (the key name is frozen; see the note
@@ -24,9 +24,9 @@ import { DEFAULT_REASONING_LEVEL, ReasoningLevel } from "@/lib/models";
 
 // The schema version written by serialize(); bump it when PersistedSession
 // changes and add a migration line in deserialize().
-export const AUTOSAVE_VERSION = 7 as const;
+export const AUTOSAVE_VERSION = 8 as const;
 // NOTE: the storage key string is intentionally kept as "ccc_session_v3" even
-// though the schema is now v7. Renaming it would orphan existing saved sessions;
+// though the schema is now v8. Renaming it would orphan existing saved sessions;
 // instead deserialize() migrates older payloads in place (see below).
 export const AUTOSAVE_KEY = "ccc_session_v3";
 export const AUTOSAVE_MAX_BYTES = 3_000_000;
@@ -45,6 +45,8 @@ export interface PersistedSession {
   version: typeof AUTOSAVE_VERSION;
   files: PersistedFile[];
   selectedModel: string;
+  /** Widened with xhigh/max (2026-10-16) without a version bump: the stored shape
+   *  is unchanged and useModelAndKeys clamps a level the model doesn't offer. */
   reasoningLevel: ReasoningLevel;
   schemeId: string | null;
   segmentation: SegmentationStrategy;
@@ -53,6 +55,8 @@ export interface PersistedSession {
   windowSeconds: number;
   perSpeaker: boolean;
   batchSize: number;
+  /** VTCS tone assessment [CR7] (v8+; older saves load with it off). */
+  toneAssessment: boolean;
   categories: CategoryDefinition[];
   categoriesDirty: boolean;
   systemPrompt: string;
@@ -82,14 +86,16 @@ export function deserialize(raw: string): PersistedSession | null {
       p.version !== 4 &&
       p.version !== 5 &&
       p.version !== 6 &&
+      p.version !== 7 &&
       p.version !== AUTOSAVE_VERSION
     )
       return null;
 
     // Migrate v3 -> v4 (granularity -> segmentation axis), v4 -> v5 (perSpeaker,
-    // default on), v5 -> v6 (batchSize, default 1), and v6 -> v7 (files[].source:
+    // default on), v5 -> v6 (batchSize, default 1), v6 -> v7 (files[].source:
     // the rows of a CSV-origin conversation; absent on JSON/audio files, so v6
-    // file entries pass through unchanged). v7 payloads pass through.
+    // file entries pass through unchanged), and v7 -> v8 (toneAssessment,
+    // default off). v8 payloads pass through.
     const legacySegmentation: SegmentationStrategy =
       p.granularity === "utterance" ? "utterance" : "turn";
     return {
@@ -104,6 +110,7 @@ export function deserialize(raw: string): PersistedSession | null {
       windowSeconds: p.windowSeconds ?? DEFAULT_WINDOW_SECONDS,
       perSpeaker: p.perSpeaker ?? true,
       batchSize: p.batchSize ?? DEFAULT_BATCH_SIZE,
+      toneAssessment: p.toneAssessment ?? false,
       categories: p.categories,
       categoriesDirty: p.categoriesDirty ?? false,
       systemPrompt: p.systemPrompt,

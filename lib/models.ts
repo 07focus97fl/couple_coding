@@ -7,9 +7,11 @@
  */
 export type ProviderId = "anthropic" | "openai" | "google";
 
-// Reasoning effort levels (OpenAI GPT-5.x). "none" favors latency; higher levels
-// spend more thinking tokens (billed as output). Matches OpenAI's reasoning_effort.
-export type ReasoningLevel = "none" | "low" | "medium" | "high";
+// Reasoning effort levels (OpenAI). "none" favors latency; higher levels spend
+// more thinking tokens (billed as output). Matches OpenAI's reasoning.effort.
+// The set varies by model: REASONING_LEVELS is the default (GPT-5.x); a model
+// that offers more lists them in `reasoningLevels`.
+export type ReasoningLevel = "none" | "low" | "medium" | "high" | "xhigh" | "max";
 export const REASONING_LEVELS: ReasoningLevel[] = ["none", "low", "medium", "high"];
 export const DEFAULT_REASONING_LEVEL: ReasoningLevel = "medium";
 
@@ -30,6 +32,17 @@ export interface ModelDef {
   comingSoon: boolean;
   // True when the model exposes a selectable reasoning effort (OpenAI GPT-5.x).
   reasoning?: boolean;
+  // Effort levels this model accepts; omitted means REASONING_LEVELS.
+  reasoningLevels?: ReasoningLevel[];
+  // True when the Responses API takes "none" as-is for this model. Otherwise
+  // "none" is sent as "minimal" (GPT-5.x).
+  nativeNone?: boolean;
+}
+
+/** The effort levels to offer for a model (empty if it has no reasoning setting). */
+export function reasoningLevelsFor(model: ModelDef | undefined): ReasoningLevel[] {
+  if (!model?.reasoning) return [];
+  return model.reasoningLevels ?? REASONING_LEVELS;
 }
 
 export interface ProviderDef {
@@ -122,6 +135,9 @@ export const MODELS: ModelDef[] = [
     pricing: { inputPer1M: 0.1, outputPer1M: 0.5, cacheReadPer1M: 0.01 },
     comingSoon: false,
     reasoning: true,
+    // Per OpenAI's model page (checked 2026-10-16): no "minimal"; adds xhigh/max.
+    reasoningLevels: ["none", "low", "medium", "high", "xhigh", "max"],
+    nativeNone: true,
   },
   {
     id: "gpt-5.4-mini",

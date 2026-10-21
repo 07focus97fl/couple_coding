@@ -76,11 +76,28 @@ several rows that repeat the original cells):
 
 | Group | Columns |
 |---|---|
-| result | `ai_code`, `ai_subcategory`, `ai_rationale`, `ai_alternatives`, `ai_rating_<dim>…` (continuous), `ai_error`, `ai_unit_id`, `ai_utterance_index`, `ai_unit_text`, `agree` (1/0, blank when there is nothing to compare) |
-| run | `run_id`, `run_started_at`, `model_id`, `model_name`, `provider`, `reasoning_effort`, `scheme_id`, `scheme_name`, `segmentation`, `output_type`, `batch_size`, `context_before`, `context_after`, `prompt_edited`, `categories_edited`, `categories_json`, `scale_json` (continuous) |
+| result | `ai_code`, `ai_subcategory`, `ai_rationale`, `ai_alternatives`, `ai_ambiguity`, `ai_other_reading`, `ai_confidence` (VTCS turn/utterance, see below), `ai_rating_<dim>…` (continuous), `ai_error`, `ai_unit_id`, `ai_utterance_index`, `ai_unit_text`, `agree` (1/0, blank when there is nothing to compare) |
+| run | `run_id`, `run_started_at`, `model_id`, `model_name`, `provider`, `reasoning_effort`, `scheme_id`, `scheme_name`, `segmentation`, `output_type`, `tone_assessment` (1/0), `batch_size`, `context_before`, `context_after`, `prompt_edited`, `categories_edited`, `categories_json`, `scale_json` (continuous) |
 | price | `price_*_per_1m` (the catalog rates used), `run_total_calls`, `run_total_cost_usd` |
 | call | `call_index`, `call_timestamp`, `call_attempts`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`, `call_cost_usd`, `context_before_turns`, `context_after_turns` |
 | bulky (optional) | `system_prompt` (the final prompt as sent), `user_message`, `tool_definition_json`, `raw_response_json` |
+
+**Tone ambiguity (optional, off by default).** For VTCS categorical turn and utterance runs, the
+**Tone** toggle in the Scheme step (**off** / **assess**) adds prompt section [CR7] and three tool
+fields that the model returns after the code. With it off, the model gets the owner's v2 prompt and
+tool exactly (`scripts/check-vtcs.ts` checks this against `scripts/fixtures/`). The [CR7] text is
+read before coding, so it could nudge the codes. To measure that, code the same conversations
+tone-off twice and tone-on once, then compare by `run_id` and `tone_assessment`: the off-vs-off
+difference is the normal run-to-run noise. The toggle regenerates the default prompt, asking first
+if you have edited it. `ai_ambiguity` is one or two sentences on how the *tone*
+it was said in could change the code ("None." if no tone would). Only tone counts here; other
+doubt goes in `ai_alternatives`. `ai_other_reading` is the code a different tone would most
+plausibly give (blank if none). `ai_confidence` (0–1) is how well the code can be told without
+hearing the tone. A low score does not mean another code is likelier: it means the tone would
+decide, so sort by it to find the units a human should listen to. The parser is lenient: a missing
+or malformed tone field is left blank and never costs a retry. The regular CSV export has the same
+three columns. The columns are there even when tone is off (blank then), so exports from on and
+off runs stack into one table.
 
 `call_cost_usd` is the measured price of the API call that produced the row (provider-reported
 usage × catalog price), so a one-conversation trial tells you what a full run will cost. With
@@ -145,7 +162,7 @@ The body the browser sends (`CodeRequest` in `app/api/code/route.ts`):
 | Field | Meaning |
 |---|---|
 | `segments` | The units to code, already cut by `lib/transcript/segment.ts` (`PreSegment[]`). |
-| `mode` | `{ segmentation, outputType, scale?, windowSeconds?, perSpeaker?, batchSize? }` (`CodingMode`). |
+| `mode` | `{ segmentation, outputType, scale?, windowSeconds?, perSpeaker?, batchSize?, toneAssessment? }` (`CodingMode`). `toneAssessment` is sent only for VTCS categorical turn/utterance runs. |
 | `model` | A model id from `lib/models.ts`. The server resolves the provider from it. |
 | `reasoningEffort` | `none` / `low` / `medium` / `high`; only forwarded for models flagged `reasoning`. |
 | `categories` | `{ name, description }[]`; at least two non-blank names. In continuous mode these are the rating dimensions. |
@@ -187,7 +204,7 @@ Multipart form with the audio `file` and ElevenLabs options; the key goes in the
 - **React state**, one hook per step (see the State table). Coded results live only in memory.
 - **localStorage**: `anthropic_api_key`, `openai_api_key`, `google_api_key`, `elevenlabs_api_key`,
   and `ccc_session_v3` (the autosaved session: files with their transcripts or CSV rows, model,
-  scheme, categories, prompt, mode, context). The saved shape and its v3→v7 migration are in
+  scheme, categories, prompt, mode, context). The saved shape and its v3→v8 migration are in
   `app/coding/hooks/autosave-schema.ts`. Sessions over 3 MB are saved without word-level
   transcripts (CSV rows are small and are kept).
 - **sessionStorage**: `api_logs`, the last run's logs, read by `/logs`.

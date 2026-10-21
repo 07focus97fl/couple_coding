@@ -100,6 +100,8 @@ export function useCodingRun({
     windowSeconds,
     perSpeaker,
     batchSize,
+    toneAssessment: toneSetting,
+    toneAssessmentApplies,
     categories,
     categoriesDirty,
     systemPrompt,
@@ -107,6 +109,9 @@ export function useCodingRun({
     contextBefore,
     contextAfter,
   } = scheme;
+  // The tone flag only reaches the run where it means something (VTCS,
+  // categorical, turn or utterance); elsewhere the setting is ignored.
+  const toneAssessment = toneSetting && toneAssessmentApplies;
 
   const [apiLogs, setApiLogs] = useState<ApiLog[]>([]);
   const [openResults, setOpenResults] = useState<Record<string, boolean>>({});
@@ -202,6 +207,7 @@ export function useCodingRun({
       windowSeconds,
       perSpeaker,
       batchSize,
+      toneAssessment,
       contextBefore,
       contextAfter,
       systemPrompt,
@@ -221,6 +227,7 @@ export function useCodingRun({
           windowSeconds,
           perSpeaker,
           batchSize,
+          toneAssessment,
         };
 
         try {
@@ -366,6 +373,7 @@ export function useCodingRun({
     windowSeconds,
     perSpeaker,
     batchSize,
+    toneAssessment,
     categories,
     categoriesDirty,
     systemPrompt,

@@ -18,7 +18,7 @@ import {
   PROVIDERS,
   ProviderDef,
   ProviderId,
-  REASONING_LEVELS,
+  reasoningLevelsFor,
 } from "@/lib/models";
 import s from "./SectionModel.module.css";
 
@@ -186,7 +186,7 @@ export function SectionModel() {
             <div className={s.reasoningRow}>
               <span className={s.reasoningLabel}>Reasoning</span>
               <div className={s.reasoningSegs}>
-                {REASONING_LEVELS.map((level) => (
+                {reasoningLevelsFor(current).map((level) => (
                   <button
                     key={level}
                     type="button"

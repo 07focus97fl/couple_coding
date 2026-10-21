@@ -50,7 +50,11 @@ function toGeminiSchema(node: Record<string, unknown>): Schema {
   if (typeStr) out.type = jsonTypeToGemini(typeStr);
 
   if (typeof node.description === "string") out.description = node.description;
-  if (Array.isArray(node.enum)) out.enum = node.enum as string[];
+  // A nullable enum lists null among its values; Gemini enums are strings only
+  // (nullability is carried by `nullable` above).
+  if (Array.isArray(node.enum)) {
+    out.enum = node.enum.filter((v): v is string => typeof v === "string");
+  }
   if (typeof node.minimum === "number") out.minimum = node.minimum;
   if (typeof node.maximum === "number") out.maximum = node.maximum;
   if (Array.isArray(node.required)) out.required = node.required as string[];

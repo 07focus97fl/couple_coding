@@ -79,6 +79,12 @@ export interface CodingMode {
    * it for large units (see lib/batching.ts `chunkSegments`).
    */
   batchSize?: number;
+  /**
+   * Ask for the tone-only ambiguity / other_reading / confidence fields (VTCS
+   * [CR7]). Only meaningful for VTCS categorical turn/utterance runs. Off by
+   * default: the prompt and tool are then the owner's v2 text exactly.
+   */
+  toneAssessment?: boolean;
 }
 
 /** Inputs a scheme's prompt generator needs. */
@@ -88,6 +94,8 @@ export interface PromptOptions {
   scale?: RatingScale;
   /** Only meaningful when segmentation === "time". */
   perSpeaker?: boolean;
+  /** Include the VTCS tone section [CR7] (see CodingMode.toneAssessment). */
+  toneAssessment?: boolean;
 }
 
 // ── Units: what is sent to the model (PreSegment) and what comes back (CodedUnit) ──
@@ -122,6 +130,15 @@ export interface CodedUnit extends CodingUnit {
   rationale: string;
   subcategory?: string | null;
   alternativesConsidered?: string[];
+  /**
+   * Tone-only ambiguity (VTCS [CR7], categorical turn/utterance runs): how the
+   * tone could change the code, or "None.". Absent when the model left it out.
+   */
+  ambiguity?: string;
+  /** The code a different tone would most plausibly give; null when none would. */
+  otherReading?: string | null;
+  /** 0-1: how well the code can be told without hearing the tone (low = a human should listen). */
+  confidence?: number;
   /** Present for continuous output: dimension name -> numeric rating. */
   ratings?: Record<string, number>;
   /** True when the model response could not be parsed. */
@@ -160,6 +177,9 @@ export type ColumnKey =
   | "category"
   | "subcategory"
   | "alternativesConsidered"
+  | "ambiguity"
+  | "otherReading"
+  | "confidence"
   | "rationale"
   | "startTime"
   | "endTime";
@@ -182,6 +202,9 @@ export const COLUMN_DEFINITIONS: { key: ColumnKey; label: string; csvHeader: str
   { key: "category", label: "Category", csvHeader: "Category" },
   { key: "subcategory", label: "Subcat", csvHeader: "Subcategory" },
   { key: "alternativesConsidered", label: "Alts", csvHeader: "Alternatives Considered" },
+  { key: "ambiguity", label: "Ambiguity", csvHeader: "Ambiguity" },
+  { key: "otherReading", label: "Other reading", csvHeader: "Other Reading" },
+  { key: "confidence", label: "Confidence", csvHeader: "Confidence" },
   { key: "rationale", label: "Rationale", csvHeader: "Rationale" },
   { key: "startTime", label: "Start (s)", csvHeader: "Start Time (s)" },
   { key: "endTime", label: "End (s)", csvHeader: "End Time (s)" },
@@ -287,6 +310,9 @@ export interface ApiLogParsedUnit {
   text?: string;
   subcategory?: string | null;
   alternativesConsidered?: string[];
+  ambiguity?: string;
+  otherReading?: string | null;
+  confidence?: number;
   ratings?: Record<string, number>;
 }
 
@@ -351,6 +377,7 @@ export interface RunConfigSnapshot {
   windowSeconds: number;
   perSpeaker: boolean;
   batchSize: number;
+  toneAssessment: boolean;
   contextBefore: number;
   contextAfter: number;
   /** The editable prompt as sent. The server appends the category block; see ApiLog.systemPrompt for the final text. */

@@ -6,7 +6,12 @@
  *          marks with {{CATEGORIES}} where build-messages.ts splices the definitions
  *          in. Turn and utterance mode share one text, parameterised by the unit
  *          (vtcsPrompt / vtcsCategories), so the two cannot drift; the utterance
- *          wording is a first pass for the owner to review. Continuous-rating and
+ *          wording is a first pass for the owner to review. With tone assessment
+ *          on (PromptOptions.toneAssessment, off by default), [CR7] asks for a
+ *          tone-only ambiguity note, the code another tone would give, and a 0-1
+ *          confidence that the code can be told without hearing the tone (low =
+ *          a human should listen); off, the prompt is the owner's v2 text
+ *          exactly. Continuous-rating and
  *          time-window runs fall back to the generic default prompt.
  * STEP:    Scheme. Registered in index.ts.
  * RUNS ON: both
@@ -185,7 +190,7 @@ ${d32}
  * distributive codes belongs to no single box, so it sits just before the
  * placeholder rather than between D2 and D3.
  */
-export function vtcsPrompt(unit: Unit): string {
+export function vtcsPrompt(unit: Unit, tone = false): string {
   const utt = unit === "utterance";
 
   const opener = utt
@@ -243,6 +248,33 @@ export function vtcsPrompt(unit: Unit): string {
     ◦ "You're so immature. Anyway, did you see the game last night?" (topic: housework) → R, alternatives_considered: NC
 • [CR4(e)] If a speaking turn contains more than one ID subcategory, report the subcategory that best fits the speaking turn's main goal [CR1] and list the others in alternatives_considered. If two fit equally well, use this order: HQ > MR > HJ > DR > EX.`;
 
+  const coded = utt ? "utterance" : "speaking turn";
+  const cr7 = `[CR7] Ambiguity and confidence. You see only the words; the human coders also heard how they were said. After choosing the code, ask: "Could someone who heard this ${coded} reasonably code it differently because of how it was said?" Use the topic and the surrounding turns first: if they make the meaning clear, that is not ambiguity.
+• [CR7(a)] This rule is about tone only: warm or dismissive, sincere or sarcastic, playful or contemptuous, calm or hostile. Doubt that hearing the speaker would not resolve (choosing between two definitions [CR4], unclear wording, missing context) does not belong here; put it in alternatives_considered and the rationale.
+• [CR7(b)] In ambiguity, say in one or two sentences how the tone could change the code. If the code would be the same in any tone, write "None."
+• [CR7(c)] In other_reading, give the code that a different tone would most plausibly lead to. Use null if no tone would change the code.
+• [CR7(d)] In confidence, rate from 0 to 1 how well the code can be determined without hearing the tone. A low score does not mean another code is more likely; it means the tone would decide and a human should listen to the recording.
+    ◦ 0.9–1.0: the code is the same in any tone.
+    ◦ 0.6–0.8: the words and context point clearly to one tone, but a different tone could change the code.
+    ◦ 0.3–0.5: the words fit more than one code about equally; the tone would decide.
+    ◦ 0.0–0.2: without hearing the tone you cannot tell; the code is only a best guess.
+• [CR7(e)] Statements whose code often depends on tone: deferrals ("It's up to you", "Whatever you want"), one-word replies ("Fine.", "Sure."), possible sarcasm ("Oh, great idea"), questions that could be genuine or hostile [CR5], and teasing or laughter.
+    ◦ "It's up to you how to do this." → ${utt ? "one utterance, " : ""}IN; ambiguity: "Reassuring if said warmly, but a dismissive withdrawal from the decision if said flatly."; other_reading: R; confidence: 0.4
+    ◦ "You never clean up after yourself." → ${utt ? "one utterance, " : ""}B; ambiguity: "None."; other_reading: null; confidence: 0.95`;
+
+  const toneFields = tone
+    ? `
+• ambiguity (required): One or two sentences on how the tone could change the code [CR7(b)]. "None." if no tone would.
+• other_reading (required): The code a different tone would most plausibly lead to, or null [CR7(c)].
+• confidence (required): From 0 to 1, how well the code can be determined without hearing the tone; a low score means a human should listen and review it [CR7(d)].`
+    : "";
+
+  // The tone lines of an Output Format JSON example entry, at that entry's indent.
+  const toneJson = (pad: string) =>
+    tone
+      ? `,\n${pad}"ambiguity": "None.",\n${pad}"other_reading": null,\n${pad}"confidence": 0.95`
+      : "";
+
   const output = utt
     ? `Output Format
 Code each numbered target unit independently. Return your codes by calling the code_exchange tool, with one entry per unit in the "units" array, each tagged with its unit_index as shown in [unit_index N] in the user message. Each entry holds an "utterances" array with that speaking turn's utterances in the order they appear. Example:
@@ -256,14 +288,14 @@ Code each numbered target unit independently. Return your codes by calling the c
           "category": "IN",
           "subcategory": null,
           "alternatives_considered": [],
-          "rationale": "Given that the utterance is on topic [CR2(a)] and nothing in it opposes the partner [CR2(b)], and that it recounts a specific feeling about a specific event [D1.1], the correct code is IN."
+          "rationale": "Given that the utterance is on topic [CR2(a)] and nothing in it opposes the partner [CR2(b)], and that it recounts a specific feeling about a specific event [D1.1], the correct code is IN."${toneJson("          ")}
         },
         {
           "text": "You never think about anyone but yourself.",
           "category": "B",
           "subcategory": null,
           "alternatives_considered": ["R"],
-          "rationale": "Given that the utterance is on topic [CR2(a)] and attributes fault to the partner's behavior in general terms ('you never think about anyone') [D4.1, D4.2], and since the fault lies in what the partner does rather than a quality they possess [D4.6], the correct code is B, with R as an alternative."
+          "rationale": "Given that the utterance is on topic [CR2(a)] and attributes fault to the partner's behavior in general terms ('you never think about anyone') [D4.1, D4.2], and since the fault lies in what the partner does rather than a quality they possess [D4.6], the correct code is B, with R as an alternative."${toneJson("          ")}
         }
       ]
     }
@@ -275,7 +307,7 @@ Code each numbered target unit independently. Return your codes by calling the c
 • category (required): The code. One of IN, NC, ID, P, B, R.
 • subcategory (optional): For ID, specify HQ, HJ, MR, DR, or EX [D6.1–D6.5]. Null otherwise.
 • alternatives_considered (optional): Codes that were close but not chosen, including NC when it co-occurs with a distributive code [CR4(d)].
-• rationale (required): One to three sentences that walk through how you reached the utterance's code. Cite the label of each prompt part in square brackets at the point where you rely on it, so the reader can follow each step of the reasoning to the conclusion. Do not simply list labels at the end.
+• rationale (required): One to three sentences that walk through how you reached the utterance's code. Cite the label of each prompt part in square brackets at the point where you rely on it, so the reader can follow each step of the reasoning to the conclusion. Do not simply list labels at the end.${toneFields}
 Return exactly one entry for every target unit in the message.`
     : `Output Format
 Code each numbered target unit independently. Return your codes by calling the code_exchange tool, with one entry per unit in the "units" array, each tagged with its unit_index as shown in [unit_index N] in the user message. Example:
@@ -286,7 +318,7 @@ Code each numbered target unit independently. Return your codes by calling the c
       "category": "IN",
       "subcategory": null,
       "alternatives_considered": [],
-      "rationale": "Given that the speaking turn is on topic [CR2(a)] and nothing in it opposes the partner [CR2(b)], and that it recounts specific recent events [D1.1], the correct code is IN."
+      "rationale": "Given that the speaking turn is on topic [CR2(a)] and nothing in it opposes the partner [CR2(b)], and that it recounts specific recent events [D1.1], the correct code is IN."${toneJson("      ")}
     }
   ]
 }
@@ -294,7 +326,7 @@ Code each numbered target unit independently. Return your codes by calling the c
 • category (required): The code. One of IN, NC, ID, P, B, R.
 • subcategory (optional): For ID, specify HQ, HJ, MR, DR, or EX [D6.1–D6.5]. Null otherwise.
 • alternatives_considered (optional): Codes that were close but not chosen, including NC when it co-occurs with a distributive code [CR4(d)].
-• rationale (required): One to three sentences that walk through how you reached the code. Cite the label of each prompt part in square brackets at the point where you rely on it, so the reader can follow each step of the reasoning to the conclusion. For example: "Given that the speaking turn is on topic [CR2(a)] and blames the partner's behavior in general terms ('you never clean up') [D4.1, D4.2], and since the exaggeration blames behavior rather than undermining an idea [D6.5], the correct code is B, with ID (EX) as an alternative [CR4(b)]." Do not simply list labels at the end.
+• rationale (required): One to three sentences that walk through how you reached the code. Cite the label of each prompt part in square brackets at the point where you rely on it, so the reader can follow each step of the reasoning to the conclusion. For example: "Given that the speaking turn is on topic [CR2(a)] and blames the partner's behavior in general terms ('you never clean up') [D4.1, D4.2], and since the exaggeration blames behavior rather than undermining an idea [D6.5], the correct code is B, with ID (EX) as an alternative [CR4(b)]." Do not simply list labels at the end.${toneFields}
 Return exactly one entry for every target unit in the message.`;
 
   return `${opener}
@@ -333,7 +365,7 @@ ${cr4}
 • "Your mom is so controlling." → R [CR6, D5.4]
 • [S1: "My mom can be so controlling."] [S2: "Yeah, she really is."] → both speaking turns are IN, because the partners are on the same page about her
 
-${output}`;
+${tone ? `${cr7}\n\n` : ""}${output}`;
 }
 
 /** The hand-written prompt covers categorical turn and utterance runs only. */
@@ -350,6 +382,9 @@ export const VTCS: CodingScheme = {
     vtcsCategories(opts.segmentation === "utterance" ? "utterance" : "turn"),
   defaultPrompt: (opts) =>
     usesVtcsPrompt(opts)
-      ? vtcsPrompt(opts.segmentation === "utterance" ? "utterance" : "turn")
+      ? vtcsPrompt(
+          opts.segmentation === "utterance" ? "utterance" : "turn",
+          !!opts.toneAssessment,
+        )
       : buildDefaultPrompt(opts),
 };

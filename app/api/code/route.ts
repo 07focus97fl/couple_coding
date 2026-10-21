@@ -15,7 +15,7 @@ import {
   DEFAULT_CONTEXT_BEFORE,
   DEFAULT_CONTEXT_AFTER,
 } from "@/lib/types";
-import { getModel } from "@/lib/models";
+import { DEFAULT_REASONING_LEVEL, getModel, reasoningLevelsFor } from "@/lib/models";
 import { buildRunPlan, codeSegments } from "@/lib/coding/code-segments";
 import { formatSseEvent } from "@/lib/coding/sse";
 
@@ -78,8 +78,14 @@ export async function POST(request: Request) {
     return badRequest(`Model "${model}" is not available. Pick a model from the list in the Model step.`);
   }
   const provider = modelDef.provider;
-  // Only forward reasoning effort to models that actually expose it.
-  const reasoningEffort = modelDef.reasoning ? reqReasoningEffort : undefined;
+  // Only forward reasoning effort to models that actually expose it, and only a
+  // level that model accepts (anything else falls back to the default).
+  const levels: string[] = reasoningLevelsFor(modelDef);
+  const reasoningEffort = !modelDef.reasoning
+    ? undefined
+    : reqReasoningEffort && levels.includes(reqReasoningEffort)
+    ? reqReasoningEffort
+    : DEFAULT_REASONING_LEVEL;
 
   // The user brings their own provider key. It is sent per request and used
   // only for this call — never stored on the server.

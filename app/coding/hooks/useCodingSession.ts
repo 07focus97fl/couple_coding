@@ -82,6 +82,8 @@ export interface CodingSession {
   windowSeconds: number;
   perSpeaker: boolean;
   batchSize: number;
+  toneAssessment: boolean;
+  toneAssessmentApplies: boolean;
   systemPrompt: string;
   promptDirty: boolean;
   contextBefore: number;
@@ -93,6 +95,7 @@ export interface CodingSession {
   setWindowSeconds: (n: number) => void;
   setPerSpeaker: (b: boolean) => void;
   setBatchSize: (n: number) => void;
+  setToneAssessment: (b: boolean) => void;
   setCategories: (c: CategoryDefinition[]) => void;
   resetCategories: () => void;
   setSystemPrompt: (v: string) => void;
@@ -202,6 +205,8 @@ export function useCodingSession(): CodingSession {
     windowSeconds: scheme.windowSeconds,
     perSpeaker: scheme.perSpeaker,
     batchSize: scheme.batchSize,
+    toneAssessment: scheme.toneAssessment,
+    toneAssessmentApplies: scheme.toneAssessmentApplies,
     systemPrompt: scheme.systemPrompt,
     promptDirty: scheme.promptDirty,
     contextBefore: scheme.contextBefore,
@@ -213,6 +218,7 @@ export function useCodingSession(): CodingSession {
     setWindowSeconds: scheme.setWindowSeconds,
     setPerSpeaker: scheme.setPerSpeaker,
     setBatchSize: scheme.setBatchSize,
+    setToneAssessment: scheme.setToneAssessment,
     setCategories: scheme.setCategories,
     resetCategories: scheme.resetCategories,
     setSystemPrompt: scheme.setSystemPrompt,

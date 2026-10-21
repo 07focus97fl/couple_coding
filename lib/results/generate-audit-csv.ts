@@ -9,11 +9,12 @@
  *
  *          Appended column groups, in order:
  *            result   ai_code ai_subcategory ai_rationale ai_alternatives
+ *                     ai_ambiguity ai_other_reading ai_confidence
  *                     [ai_rating_<dim>...] ai_error ai_unit_id
  *                     ai_utterance_index ai_unit_text agree
  *            run      run_id run_started_at model_id model_name provider
  *                     reasoning_effort scheme_id scheme_name segmentation
- *                     output_type batch_size context_before context_after
+ *                     output_type tone_assessment batch_size context_before context_after
  *                     prompt_edited categories_edited categories_json [scale_json]
  *            price    price_input_per_1m price_output_per_1m
  *                     price_cache_read_per_1m price_cache_write_per_1m
@@ -101,6 +102,9 @@ function resultColumns(config: RunConfigSnapshot): string[] {
     "ai_subcategory",
     "ai_rationale",
     "ai_alternatives",
+    "ai_ambiguity",
+    "ai_other_reading",
+    "ai_confidence",
     ...ratingDims(config).map((d) => `ai_rating_${d}`),
     "ai_error",
     "ai_unit_id",
@@ -122,6 +126,7 @@ function runColumns(config: RunConfigSnapshot): string[] {
     "scheme_name",
     "segmentation",
     "output_type",
+    "tone_assessment",
     "batch_size",
     "context_before",
     "context_after",
@@ -188,6 +193,9 @@ function resultCells(
     unit.subcategory ?? "",
     unit.rationale ?? "",
     (unit.alternativesConsidered ?? []).join("; "),
+    unit.ambiguity ?? "",
+    unit.otherReading ?? "",
+    unit.confidence !== undefined ? unit.confidence.toFixed(2) : "",
     ...ratingDims(config).map((d) =>
       unit.ratings?.[d] !== undefined ? String(unit.ratings[d]) : "",
     ),
@@ -211,6 +219,7 @@ function runCells(config: RunConfigSnapshot): string[] {
     config.schemeName,
     config.segmentation,
     config.outputType,
+    config.toneAssessment ? "1" : "0",
     String(config.batchSize),
     String(config.contextBefore),
     String(config.contextAfter),

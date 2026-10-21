@@ -12,6 +12,7 @@ import { useCallback, useMemo, useState } from "react";
 import {
   DEFAULT_REASONING_LEVEL,
   getModel,
+  reasoningLevelsFor,
   type ProviderId,
   type ReasoningLevel,
 } from "@/lib/models";
@@ -47,9 +48,15 @@ export function useModelAndKeys(): ModelAndKeysState {
   // Empty until the user explicitly picks a model — nothing is preselected, so the
   // API-key field only appears once a provider is chosen.
   const [selectedModel, setSelectedModel] = useState("");
-  const [reasoningLevel, setReasoningLevel] = useState<ReasoningLevel>(
+  const [pickedReasoningLevel, setReasoningLevel] = useState<ReasoningLevel>(
     DEFAULT_REASONING_LEVEL,
   );
+  // Levels vary by model (GPT-6 Luna adds xhigh/max). If the pick isn't offered
+  // by the selected model, use the default so the UI never shows a hidden choice.
+  const modelLevels = reasoningLevelsFor(getModel(selectedModel));
+  const reasoningLevel = modelLevels.includes(pickedReasoningLevel)
+    ? pickedReasoningLevel
+    : DEFAULT_REASONING_LEVEL;
 
   // Called once on mount by useSessionPersistence (keys are never in the
   // autosave blob; they live under their own localStorage entries).

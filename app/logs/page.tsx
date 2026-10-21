@@ -222,6 +222,16 @@ export default function LogsPage() {
                           <span style={{ color: "#8a8680", fontSize: "0.7rem" }}>rationale: </span>
                           {u.rationale}
                         </div>
+                        {(u.ambiguity !== undefined || u.confidence !== undefined) && (
+                          <div style={{ fontSize: "0.78rem", color: "#1a1a1e", marginTop: "0.2rem" }}>
+                            <span style={{ color: "#8a8680", fontSize: "0.7rem" }}>tone: </span>
+                            {u.ambiguity ?? "—"}
+                            <span style={{ color: "#8a8680", fontSize: "0.7rem" }}>
+                              {" "}· other reading: {u.otherReading ?? "none"} · confidence:{" "}
+                              {u.confidence !== undefined ? u.confidence.toFixed(2) : "—"}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

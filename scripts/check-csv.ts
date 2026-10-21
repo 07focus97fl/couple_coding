@@ -83,6 +83,7 @@ const CONFIG: RunConfigSnapshot = {
   windowSeconds: 30,
   perSpeaker: true,
   batchSize: 1,
+  toneAssessment: false,
   contextBefore: 5,
   contextAfter: 5,
   systemPrompt: "prompt",
@@ -184,6 +185,13 @@ ok(reparsed.header.includes("ai_code"), "ai_code column present");
 ok(reparsed.header.includes("call_cost_usd"), "call_cost_usd column present");
 ok(reparsed.header.includes("run_total_cost_usd"), "run_total_cost_usd column present");
 ok(reparsed.header.includes("system_prompt"), "bulky columns present when requested");
+for (const c of ["ai_ambiguity", "ai_other_reading", "ai_confidence", "tone_assessment"]) {
+  ok(reparsed.header.includes(c), `${c} column present (tone columns are always there)`);
+}
+ok(
+  reparsed.rows.every((r) => r[reparsed.header.indexOf("tone_assessment")] === "0"),
+  "tone_assessment is 0 for a tone-off run",
+);
 ok(reparsed.header.filter((h) => h === "ai_code").length === 1, "no duplicate header");
 {
   let k = 0;
@@ -330,12 +338,16 @@ ok(auditCsvFileName(files, "abc") === "to_test_coded_abc.csv", "export file name
   };
   const migrated = deserialize(JSON.stringify(v6));
   ok(migrated !== null, "v6 blob deserializes");
-  ok(migrated!.version === 7, "migrated to v7");
+  ok(migrated!.version === 8, "migrated to v8");
+  ok(migrated!.toneAssessment === false, "tone assessment loads off from an older save");
   ok(migrated!.files[0].source === undefined && migrated!.files[0].fileName === "sample.json", "JSON file entry intact");
 
   const v7 = { ...v6, version: 7, files: [{ ...v6.files[0], rawTranscript: null, source: sample }] };
   const restored = deserialize(JSON.stringify(v7));
   ok(restored?.files[0].source?.rows.length === SAMPLE_ROWS, "CSV source survives a save/load");
+
+  const v8 = { ...v7, version: 8, toneAssessment: true };
+  ok(deserialize(JSON.stringify(v8))?.toneAssessment === true, "v8 keeps tone assessment on");
 }
 
 /* ---- Optional turn times ---- */

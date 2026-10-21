@@ -27,6 +27,12 @@ function getCellValue(unit: CodedUnit, key: ColumnKey): string {
       return escapeCsvField(unit.subcategory ?? "");
     case "alternativesConsidered":
       return escapeCsvField((unit.alternativesConsidered ?? []).join("; "));
+    case "ambiguity":
+      return escapeCsvField(unit.ambiguity ?? "");
+    case "otherReading":
+      return escapeCsvField(unit.otherReading ?? "");
+    case "confidence":
+      return unit.confidence !== undefined ? unit.confidence.toFixed(2) : "";
     case "rationale":
       return escapeCsvField(unit.rationale);
     case "startTime":
@@ -41,6 +47,9 @@ const CATEGORICAL_ONLY: ColumnKey[] = [
   "category",
   "subcategory",
   "alternativesConsidered",
+  "ambiguity",
+  "otherReading",
+  "confidence",
 ];
 
 /**

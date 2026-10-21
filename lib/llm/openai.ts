@@ -5,27 +5,36 @@
  * RUNS ON: server only
  */
 import OpenAI from "openai";
+import { getModel } from "@/lib/models";
 import type { StructuredCallParams, StructuredCallResult } from "./types";
 
 /**
  * Map the app's effort levels onto a Responses-API `reasoning.effort` value.
- * The Responses API has no "none"; "minimal" is its lowest setting. Anything
- * unrecognized (incl. undefined for an o-series model carrying no explicit
- * selection) falls back to "medium".
+ * "none" goes as-is for models flagged `nativeNone` (GPT-6 Luna) and as
+ * "minimal" otherwise (GPT-5.x). Anything unrecognized falls back to "medium".
  */
 function toResponsesEffort(
   effort: string | undefined,
-): "minimal" | "low" | "medium" | "high" {
+  nativeNone: boolean,
+): "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max" {
   switch (effort) {
     case "none":
-      return "minimal";
+      return nativeNone ? "none" : "minimal";
     case "low":
     case "medium":
     case "high":
+    case "xhigh":
+    case "max":
       return effort;
     default:
       return "medium";
   }
+}
+
+/** Output-token cap: the top effort levels think far longer before answering. */
+function outputCapFor(effort: string | undefined, maxTokens: number): number {
+  const floor = effort === "max" ? 64000 : effort === "xhigh" ? 32000 : 8000;
+  return Math.max(maxTokens, floor);
 }
 
 /**
@@ -63,11 +72,13 @@ export async function runOpenAI(
         },
       ],
       tool_choice: { type: "function", name: p.tool.name },
-      reasoning: { effort: toResponsesEffort(effort) },
+      reasoning: {
+        effort: toResponsesEffort(effort, !!getModel(p.model)?.nativeNone),
+      },
       // Reasoning tokens count as output, so give generous headroom on top of
       // the (small) structured-output budget. Cap, not reservation — billed on
       // tokens actually produced.
-      max_output_tokens: Math.max(p.maxTokens, 8000),
+      max_output_tokens: outputCapFor(effort, p.maxTokens),
       // This is the user's own key and the input is their transcript; don't have
       // OpenAI retain the response server-side.
       store: false,

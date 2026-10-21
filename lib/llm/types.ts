@@ -26,7 +26,7 @@ export interface StructuredCallParams {
   user: string;
   tool: LlmTool;
   maxTokens: number;
-  /** OpenAI reasoning effort ("none" | "low" | "medium" | "high"); ignored by other providers. */
+  /** OpenAI reasoning effort (a ReasoningLevel the model accepts); ignored by other providers. */
   reasoningEffort?: string;
 }
 

@@ -2,7 +2,8 @@
 /**
  * WHAT:    Step 3 (Scheme) state: which coding scheme is active, its editable
  *          categories, the coding mode (segmentation, output type, rating scale,
- *          window size, per-speaker, batch size), the editable system prompt, and
+ *          window size, per-speaker, batch size, tone assessment), the editable
+ *          system prompt, and
  *          how much context surrounds each unit. A scheme whose definitions are
  *          worded per mode (VTCS: per turn or per utterance) gets its categories
  *          regenerated along with the prompt when the mode changes.
@@ -68,6 +69,8 @@ export interface SchemeSettingsState {
   windowSeconds: number;
   perSpeaker: boolean;
   batchSize: number;
+  /** Ask for the VTCS tone fields [CR7]; off by default. */
+  toneAssessment: boolean;
   systemPrompt: string;
   promptDirty: boolean;
   contextBefore: number;
@@ -79,6 +82,7 @@ export interface SchemeSettingsState {
   setWindowSeconds: (n: number) => void;
   setPerSpeaker: (b: boolean) => void;
   setBatchSize: (n: number) => void;
+  setToneAssessment: (b: boolean) => void;
   setCategories: (c: CategoryDefinition[]) => void;
   resetCategories: () => void;
   setSystemPrompt: (v: string) => void;
@@ -88,6 +92,12 @@ export interface SchemeSettingsState {
 
   // Derived
   schemeName: string;
+  /**
+   * Whether tone assessment means anything for the current settings: VTCS,
+   * categorical, turn or utterance. A run sends toneAssessment only when this
+   * is true, so the tool never asks for fields the prompt does not explain.
+   */
+  toneAssessmentApplies: boolean;
   categoryColorMap: Record<string, string>;
 
   // For sibling hooks (not part of the public session)
@@ -115,6 +125,9 @@ export function useSchemeSettings(): SchemeSettingsState {
   // How many consecutive pre-segments to code per API call (cost reduction);
   // 1 = one unit per call. Auto-capped server-side for large units.
   const [batchSize, setBatchSizeState] = useState<number>(DEFAULT_BATCH_SIZE);
+  // Tone assessment (VTCS [CR7]) is off by default, so the model gets the
+  // owner's v2 prompt and tool exactly unless the user opts in.
+  const [toneAssessment, setToneAssessmentState] = useState<boolean>(false);
   const [categories, setCategoriesState] = useState<CategoryDefinition[]>(
     () => DEFAULT_SCHEME?.categories ?? [],
   );
@@ -126,6 +139,7 @@ export function useSchemeSettings(): SchemeSettingsState {
           outputType: DEFAULT_OUTPUT_TYPE,
           scale: DEFAULT_SCALE,
           perSpeaker: true,
+          toneAssessment: false,
         })
       : "",
   );
@@ -141,6 +155,9 @@ export function useSchemeSettings(): SchemeSettingsState {
   const schemeName =
     activeScheme?.label ?? (schemeId === "custom" ? "Custom" : "");
 
+  const toneAssessmentApplies =
+    schemeId === "vtcs" && outputType === "categorical" && segmentation !== "time";
+
   const categoryColorMap = useMemo(
     () => buildColorMap(activeScheme, categories),
     [activeScheme, categories],
@@ -153,13 +170,13 @@ export function useSchemeSettings(): SchemeSettingsState {
       setSchemeIdState(id);
       const scheme = CODING_SCHEMES.find((sc) => sc.id === id);
       if (!scheme) return;
-      const opts = { segmentation, outputType, scale, perSpeaker };
+      const opts = { segmentation, outputType, scale, perSpeaker, toneAssessment };
       setCategoriesState(schemeCategories(scheme, opts));
       setCategoriesDirty(false);
       setSystemPromptState(scheme.defaultPrompt(opts));
       setPromptDirty(false);
     },
-    [segmentation, outputType, scale, perSpeaker],
+    [segmentation, outputType, scale, perSpeaker, toneAssessment],
   );
 
   // Changing segmentation or output type changes the task wording, so the
@@ -172,6 +189,7 @@ export function useSchemeSettings(): SchemeSettingsState {
       nextSeg: SegmentationStrategy,
       nextOut: OutputType,
       nextPerSpeaker: boolean = perSpeaker,
+      nextTone: boolean = toneAssessment,
     ): boolean => {
       const scheme = CODING_SCHEMES.find((sc) => sc.id === schemeId);
       const opts = {
@@ -179,6 +197,7 @@ export function useSchemeSettings(): SchemeSettingsState {
         outputType: nextOut,
         scale,
         perSpeaker: nextPerSpeaker,
+        toneAssessment: nextTone,
       };
       const nextCategories = scheme ? schemeCategories(scheme, opts) : null;
       const categoriesChange =
@@ -207,7 +226,7 @@ export function useSchemeSettings(): SchemeSettingsState {
       }
       return true;
     },
-    [promptDirty, categoriesDirty, categories, schemeId, scale, perSpeaker],
+    [promptDirty, categoriesDirty, categories, schemeId, scale, perSpeaker, toneAssessment],
   );
 
   const setSegmentation = useCallback(
@@ -253,6 +272,20 @@ export function useSchemeSettings(): SchemeSettingsState {
     [perSpeaker, segmentation, outputType, regenerateDefaultPrompt],
   );
 
+  const setToneAssessment = useCallback(
+    (next: boolean) => {
+      if (next === toneAssessment) return;
+      // The flag adds or removes [CR7] in the VTCS prompt, so where it applies
+      // it takes the confirm-on-dirty regeneration path; if the user keeps
+      // their edited prompt, the flag stays put so prompt and tool agree.
+      if (toneAssessmentApplies) {
+        if (!regenerateDefaultPrompt(segmentation, outputType, perSpeaker, next)) return;
+      }
+      setToneAssessmentState(next);
+    },
+    [toneAssessment, toneAssessmentApplies, segmentation, outputType, perSpeaker, regenerateDefaultPrompt],
+  );
+
   const setSystemPrompt = useCallback((v: string) => {
     setSystemPromptState(v);
     setPromptDirty(true);
@@ -262,10 +295,10 @@ export function useSchemeSettings(): SchemeSettingsState {
     const scheme = CODING_SCHEMES.find((sc) => sc.id === schemeId);
     if (!scheme) return;
     setSystemPromptState(
-      scheme.defaultPrompt({ segmentation, outputType, scale, perSpeaker }),
+      scheme.defaultPrompt({ segmentation, outputType, scale, perSpeaker, toneAssessment }),
     );
     setPromptDirty(false);
-  }, [schemeId, segmentation, outputType, scale, perSpeaker]);
+  }, [schemeId, segmentation, outputType, scale, perSpeaker, toneAssessment]);
 
   const setCategories = useCallback(
     (next: CategoryDefinition[]) => {
@@ -305,6 +338,7 @@ export function useSchemeSettings(): SchemeSettingsState {
     setWindowSecondsState(parsed.windowSeconds);
     setPerSpeakerState(parsed.perSpeaker);
     setBatchSizeState(parsed.batchSize);
+    setToneAssessmentState(parsed.toneAssessment);
     setCategoriesState(parsed.categories);
     setCategoriesDirty(parsed.categoriesDirty);
     setSystemPromptState(parsed.systemPrompt);
@@ -324,6 +358,7 @@ export function useSchemeSettings(): SchemeSettingsState {
     windowSeconds,
     perSpeaker,
     batchSize,
+    toneAssessment,
     systemPrompt,
     promptDirty,
     contextBefore,
@@ -335,6 +370,7 @@ export function useSchemeSettings(): SchemeSettingsState {
     setWindowSeconds,
     setPerSpeaker,
     setBatchSize,
+    setToneAssessment,
     setCategories,
     resetCategories,
     setSystemPrompt,
@@ -343,6 +379,7 @@ export function useSchemeSettings(): SchemeSettingsState {
     setContextAfter,
 
     schemeName,
+    toneAssessmentApplies,
     categoryColorMap,
 
     restoreSettings,

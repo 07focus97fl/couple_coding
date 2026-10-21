@@ -1,8 +1,8 @@
 "use client";
 /**
  * WHAT:    Step 03: choose a scheme, edit its categories, set the coding mode
- *          (segmentation, output type, scale, window, batch size), edit the prompt,
- *          and set context and topics.
+ *          (segmentation, output type, scale, window, batch size, tone assessment),
+ *          edit the prompt, and set context and topics.
  * STEP:    Scheme. State comes from useSession() (useSchemeSettings).
  * RUNS ON: client
  */
@@ -187,6 +187,11 @@ const PER_SPEAKER_INFO: Record<string, string> = {
   off: "The whole window is coded as one unit combining both speakers.",
 };
 
+const TONE_INFO: Record<string, string> = {
+  off: "The model codes with the VTCS v2 prompt exactly as written. The tone columns stay blank.",
+  on: "Adds rule [CR7]: after each code, the model notes how the tone it was said in could change the code, names the code another tone would give, and rates 0-1 how well the code can be told without hearing the tone (low = a human should listen). The extra rule is read before coding, so compare against a tone-off run before relying on it.",
+};
+
 /** Small (i) marker that reveals an explanatory tooltip on hover/focus. */
 function InfoDot({ tip }: { tip: string }) {
   return (
@@ -265,6 +270,9 @@ export function SectionScheme() {
     setPerSpeaker,
     batchSize,
     setBatchSize,
+    toneAssessment,
+    setToneAssessment,
+    toneAssessmentApplies,
     files,
   } = useSession();
   // Bumped when a category row is deleted so the rows remount (see onRemove).
@@ -458,6 +466,29 @@ export function SectionScheme() {
                         >
                           combined
                           <InfoDot tip={PER_SPEAKER_INFO.off} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {toneAssessmentApplies && (
+                    <div className={s.typeGroup}>
+                      <span className={s.typeLabel}>Tone</span>
+                      <div className={s.toggle}>
+                        <button
+                          type="button"
+                          className={`${s.toggleBtn} ${!toneAssessment ? s.toggleBtnActive : ""}`}
+                          onClick={() => setToneAssessment(false)}
+                        >
+                          off
+                          <InfoDot tip={TONE_INFO.off} />
+                        </button>
+                        <button
+                          type="button"
+                          className={`${s.toggleBtn} ${toneAssessment ? s.toggleBtnActive : ""}`}
+                          onClick={() => setToneAssessment(true)}
+                        >
+                          assess
+                          <InfoDot tip={TONE_INFO.on} />
                         </button>
                       </div>
                     </div>

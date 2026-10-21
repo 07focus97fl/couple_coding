@@ -1,7 +1,8 @@
 /**
  * WHAT:    Turns the model's raw tool-call payload for ONE pre-segment into CodedUnit
  *          rows (one branch per coding mode), or null when the payload is invalid for
- *          the mode so the caller can retry.
+ *          the mode so the caller can retry. The tone fields of a categorical
+ *          turn/utterance entry are read leniently and never cause a retry.
  * STEP:    Run — server side. Called by lib/coding/code-segments.ts after every LLM call.
  * RUNS ON: server only (pure functions, no I/O)
  */
@@ -66,14 +67,21 @@ export interface ParseResult {
 
 // ── The shapes the tool call can come back in (one per mode) ─────────────────
 
-interface TurnModeInput {
+/** The tone-only fields of a categorical turn/utterance entry (VTCS [CR7]). */
+interface ToneInput {
+  ambiguity?: unknown;
+  other_reading?: unknown;
+  confidence?: unknown;
+}
+
+interface TurnModeInput extends ToneInput {
   category: string;
   rationale: string;
   subcategory?: string | null;
   alternatives_considered?: string[];
 }
 
-interface UtteranceInputEntry {
+interface UtteranceInputEntry extends ToneInput {
   text: string;
   category: string;
   rationale: string;
@@ -153,6 +161,35 @@ function parseRatings(
     const v = r[d];
     if (typeof v !== "number" || !Number.isFinite(v)) return null;
     out[d] = Math.min(scale.max, Math.max(scale.min, v));
+  }
+  return out;
+}
+
+type ToneFields = Pick<CodedUnit, "ambiguity" | "otherReading" | "confidence">;
+
+/**
+ * Read the tone fields leniently: a missing or malformed field is left out and
+ * never invalidates the unit (rejecting it would buy a paid retry for a code
+ * that is fine). Confidence is clamped to [0,1]; an other_reading that is not a
+ * valid code, or repeats the chosen one, becomes null. Returns {} when the
+ * model sent none of them (e.g. a scheme whose tool has no such fields).
+ */
+export function parseTone(
+  entry: ToneInput,
+  validCategoryNames: Set<string>,
+  category: string,
+): ToneFields {
+  const out: ToneFields = {};
+  if (typeof entry.ambiguity === "string" && entry.ambiguity.trim().length > 0) {
+    out.ambiguity = entry.ambiguity.trim();
+  }
+  if ("other_reading" in entry) {
+    const r = entry.other_reading;
+    out.otherReading =
+      typeof r === "string" && validCategoryNames.has(r) && r !== category ? r : null;
+  }
+  if (typeof entry.confidence === "number" && Number.isFinite(entry.confidence)) {
+    out.confidence = Math.min(1, Math.max(0, entry.confidence));
   }
   return out;
 }
@@ -381,6 +418,7 @@ function parseCategoricalWhole(ctx: ParseContext, seg: PreSegment, payload: unkn
         (s): s is string => typeof s === "string",
       )
     : [];
+  const tone = parseTone(parsed, validCategoryNames, parsed.category);
   const unit: CodedUnit = {
     unitId: makeUnitId(seg),
     ...wholeUnitBase(seg),
@@ -388,6 +426,7 @@ function parseCategoricalWhole(ctx: ParseContext, seg: PreSegment, payload: unkn
     rationale: parsed.rationale,
     subcategory,
     alternativesConsidered,
+    ...tone,
   };
   return {
     units: [unit],
@@ -398,6 +437,7 @@ function parseCategoricalWhole(ctx: ParseContext, seg: PreSegment, payload: unkn
         rationale: parsed.rationale,
         subcategory,
         alternativesConsidered,
+        ...tone,
       },
     ],
   };
@@ -448,6 +488,7 @@ function parseCategoricalUtterances(ctx: ParseContext, seg: PreSegment, payload:
       rationale: u.rationale,
       subcategory,
       alternativesConsidered,
+      ...parseTone(u, validCategoryNames, u.category),
       kind: "utterance" as const,
     };
   });
@@ -460,6 +501,9 @@ function parseCategoricalUtterances(ctx: ParseContext, seg: PreSegment, payload:
       text: u.text,
       subcategory: u.subcategory,
       alternativesConsidered: u.alternativesConsidered,
+      ambiguity: u.ambiguity,
+      otherReading: u.otherReading,
+      confidence: u.confidence,
     })),
   };
 }
