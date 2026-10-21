@@ -208,12 +208,12 @@ export function vtcsPrompt(unit: Unit, tone = false): string {
 
   const cr2 = utt
     ? `[CR2] Coding procedure. First split the target speaking turn into utterances [CR3]. Then, for every utterance:
-• [CR2(a)] Check whether the utterance is on topic. If it is not, it is NC [D2], unless it also contains a distributive statement [CR4(d)].
+• [CR2(a)] Check whether the utterance is on topic. If it is not, it is NC [D2], even if it also contains a distributive statement [CR4(d)].
 • [CR2(b)] Check whether any part of the utterance is distributive: does it oppose the partner in an unbalanced way, not just what they are saying? If no part of the utterance is distributive, it is IN [D1]. A statement is distributive if it attacks the partner's character or rejects their view outright (R), blames the partner's behavior (B), tells the partner what to change (P), or does any of these indirectly (ID).
 • [CR2(c)] Check each statement in the utterance against every distributive definition [D3–D6]. Direct statements are P, B or R; indirect statements are ID, except that a question can still be R [CR5(a)].
 • [CR2(d)] Apply the precedence rules [CR4] to choose one code.`
     : `[CR2] Coding procedure. For every speaking turn:
-• [CR2(a)] Check whether the speaking turn is on topic. If it is not, it is NC [D2], unless it also contains a distributive statement [CR4(d)].
+• [CR2(a)] Check whether the speaking turn is on topic. If it is not, it is NC [D2], even if it also contains a distributive statement [CR4(d)].
 • [CR2(b)] Check whether any part of the speaking turn is distributive: does it oppose the partner in an unbalanced way, not just what they are saying? If no part of the speaking turn is distributive, it is IN [D1]. A statement is distributive if it attacks the partner's character or rejects their view outright (R), blames the partner's behavior (B), tells the partner what to change (P), or does any of these indirectly (ID).
 • [CR2(c)] Check each statement in the speaking turn against every distributive definition [D3–D6]. Direct statements are P, B or R; indirect statements are ID, except that a question can still be R [CR5(a)].
 • [CR2(d)] Apply the precedence rules [CR4] to choose one code.`;
@@ -229,10 +229,10 @@ export function vtcsPrompt(unit: Unit, tone = false): string {
 • [CR4(b)] P, B and R override ID for a single statement. When a statement qualifies for both an ID subcategory and P, B or R, assign the P, B or R code as primary and note ID in alternatives_considered.
     ◦ "You do literally everything wrong." → one utterance, B, alternatives_considered: ID (EX)
     ◦ "Why do you do this? You never clean up after yourself." → two utterances: "Why do you do this?" is ID (HQ); "You never clean up after yourself." is B
-• [CR4(c)] If an utterance contains R together with B, P, or both, go with R. If it contains P and B but no R, go with B. The full order within an utterance is: R > B > P > ID > NC > IN.
+• [CR4(c)] If an utterance contains R together with B, P, or both, go with R. If it contains P and B but no R, go with B. The full order within an utterance is: NC > R > B > P > ID > IN.
     ◦ "You're lazy. You never clean up after yourself." → one utterance, R, alternatives_considered: B, because the behavior backs up the Rejection [D5.6]
     ◦ "You need to stop leaving dishes out. You never clean up." → two utterances: "You need to stop leaving dishes out." is P; "You never clean up." is B
-• [CR4(d)] NC overrides IN. When an utterance qualifies for NC [D2] and also contains a distributive statement (P, B, R or ID), assign the distributive code and note NC in alternatives_considered.
+• [CR4(d)] NC overrides every other code. When an utterance qualifies for NC [D2] and also contains a distributive statement (P, B, R or ID) that cannot be split off [CR3], assign NC and note the distributive code in alternatives_considered.
     ◦ "You're so immature. Anyway, did you see the game last night?" (topic: housework) → two utterances: "You're so immature." is R; "Anyway, did you see the game last night?" is NC
 • [CR4(e)] If an utterance contains more than one ID subcategory, report the subcategory that best fits the utterance's main goal [CR1] and list the others in alternatives_considered. If two fit equally well, use this order: HQ > MR > HJ > DR > EX.`
     : `[CR4] Precedence:
@@ -241,11 +241,11 @@ export function vtcsPrompt(unit: Unit, tone = false): string {
 • [CR4(b)] P, B and R override ID for a single statement. When a statement qualifies for both an ID subcategory and P, B or R, assign the P, B or R code as primary and note ID in alternatives_considered.
     ◦ "Why do you do this? You never clean up after yourself." → B, alternatives_considered: ID (HQ)
     ◦ "Exactly, it was your idea. This is your fault." → B, alternatives_considered: ID (HQ)
-• [CR4(c)] If the speaking turn contains R together with B, P, or both, go with R. If it contains P and B but no R, go with B. The full order for a speaking turn is: R > B > P > ID > NC > IN.
+• [CR4(c)] If the speaking turn contains R together with B, P, or both, go with R. If it contains P and B but no R, go with B. The full order for a speaking turn is: NC > R > B > P > ID > IN.
     ◦ "You're lazy. You never clean up after yourself." → R, alternatives_considered: B
     ◦ "You need to stop leaving dishes out. You never clean up." → B, alternatives_considered: P
-• [CR4(d)] NC overrides IN. When a speaking turn qualifies for NC [D2] and also contains a distributive statement (P, B, R or ID), assign the distributive code and note NC in alternatives_considered.
-    ◦ "You're so immature. Anyway, did you see the game last night?" (topic: housework) → R, alternatives_considered: NC
+• [CR4(d)] NC overrides every other code. When a speaking turn qualifies for NC [D2] and also contains a distributive statement (P, B, R or ID), assign NC and note the distributive code in alternatives_considered.
+    ◦ "You're so immature. Anyway, did you see the game last night?" (topic: housework) → NC, alternatives_considered: R
 • [CR4(e)] If a speaking turn contains more than one ID subcategory, report the subcategory that best fits the speaking turn's main goal [CR1] and list the others in alternatives_considered. If two fit equally well, use this order: HQ > MR > HJ > DR > EX.`;
 
   const coded = utt ? "utterance" : "speaking turn";
@@ -306,7 +306,7 @@ Code each numbered target unit independently. Return your codes by calling the c
 • text (required): A verbatim contiguous substring of the target speaking turn. Copy it exactly, preserving punctuation, capitalization, and spacing.
 • category (required): The code. One of IN, NC, ID, P, B, R.
 • subcategory (optional): For ID, specify HQ, HJ, MR, DR, or EX [D6.1–D6.5]. Null otherwise.
-• alternatives_considered (optional): Codes that were close but not chosen, including NC when it co-occurs with a distributive code [CR4(d)].
+• alternatives_considered (optional): Codes that were close but not chosen, including a distributive code set aside because NC overrides it [CR4(d)].
 • rationale (required): One to three sentences that walk through how you reached the utterance's code. Cite the label of each prompt part in square brackets at the point where you rely on it, so the reader can follow each step of the reasoning to the conclusion. Do not simply list labels at the end.${toneFields}
 Return exactly one entry for every target unit in the message.`
     : `Output Format
@@ -325,7 +325,7 @@ Code each numbered target unit independently. Return your codes by calling the c
 • unit_index (required): Index of the target unit this entry codes, as shown in [unit_index N] in the user message.
 • category (required): The code. One of IN, NC, ID, P, B, R.
 • subcategory (optional): For ID, specify HQ, HJ, MR, DR, or EX [D6.1–D6.5]. Null otherwise.
-• alternatives_considered (optional): Codes that were close but not chosen, including NC when it co-occurs with a distributive code [CR4(d)].
+• alternatives_considered (optional): Codes that were close but not chosen, including a distributive code set aside because NC overrides it [CR4(d)].
 • rationale (required): One to three sentences that walk through how you reached the code. Cite the label of each prompt part in square brackets at the point where you rely on it, so the reader can follow each step of the reasoning to the conclusion. For example: "Given that the speaking turn is on topic [CR2(a)] and blames the partner's behavior in general terms ('you never clean up') [D4.1, D4.2], and since the exaggeration blames behavior rather than undermining an idea [D6.5], the correct code is B, with ID (EX) as an alternative [CR4(b)]." Do not simply list labels at the end.${toneFields}
 Return exactly one entry for every target unit in the message.`;
 
